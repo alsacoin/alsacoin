@@ -3,6 +3,15 @@ name = "alsacoin"
 version = "0.1.0"
 authors = ["chritchens <chritchens@gmail.com>"]
 edition = "2018"
+license = "MIT/Apache-2.0"
+repository = "https://github.com/alsacoin/alsacoin"
+homepage = "https://github.com/alsacoin/alsacoin"
+description = "A Rust client for the Alsacoin protocol"
+readme = "README.md"
+categories = ["cryptography", "cryptocurrency", "blockchain"]
+
+[badges]
+travis-ci = { repository = "alsacoin/alsacoin", branch = "master" }
 
 [workspace]
-members = ["store", "crypto",  "models", "mining", "consensus"]
+members = ["crypto", "store", "models", "mining", "consensus", "config"]

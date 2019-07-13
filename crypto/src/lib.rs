@@ -1,7 +1,10 @@
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
-    }
-}
+//! # Crypto
+//!
+//! The `crypto` crate contains the cryptographic types and functionalities
+//! used in Alsacoin.
+
+/// `random` is the module containing the random functions.
+pub mod random;
+
+/// `hash` is the module containing the hashing functions.
+pub mod hash;
