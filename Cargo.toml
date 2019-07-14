@@ -6,7 +6,7 @@ edition = "2018"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/alsacoin/alsacoin"
 homepage = "https://github.com/alsacoin/alsacoin"
-description = "A Rust client for the Alsacoin protocol"
+description = "Rust client for the Alsacoin protocol"
 readme = "README.md"
 categories = ["cryptography", "cryptocurrency", "blockchain"]
 

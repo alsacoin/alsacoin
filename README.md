@@ -1,6 +1,6 @@
 # alsacoin
 
-A Rust Alsacoin client.
+Rust client for the Alsacoin protocol.
 
 ## License
 
