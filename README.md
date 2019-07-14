@@ -1,7 +1,6 @@
 # alsacoin
 
 [![Travis branch](https://img.shields.io/travis/alsacoin/alsacoin/master.svg)](https://travis-ci.org/alsacoin/alsacoin)
-[![Coveralls github branch](https://img.shields.io/coveralls/github/alsacoin/alsacoin/master.svg)](https://coveralls.io/github/alsacoin/alsacoin?branch=master)
 ![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg)
 
 Rust client for the Alsacoin protocol.
