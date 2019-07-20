@@ -5,6 +5,7 @@ authors = ["chritchens <chritchens@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+failure = "~0.1"
 rand_core = "~0.5"
 rand_os = "~0.2"
 typenum = "~1.10"
