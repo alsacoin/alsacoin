@@ -4,13 +4,15 @@
 
 use std::convert::From;
 use std::ops::{Index, IndexMut};
+use crate::result::Result;
+use crate::error::Error;
 
 #[derive(Copy, Clone)]
 pub struct Target([u8; 64]);
 
 impl Target {
     /// `new` creates a new `Target` from a given number of bits. Alias of `from_bits`.
-    pub fn new(b: u64) -> Result<Target, String> {
+    pub fn new(b: u64) -> Result<Target> {
         Target::from_bits(b)
     }
 
@@ -25,9 +27,9 @@ impl Target {
     }
 
     /// `from_bits` generates the target bytes from a given number of bits.
-    pub fn from_bits(b: u64) -> Result<Target, String> {
+    pub fn from_bits(b: u64) -> Result<Target> {
         if b > 512 {
-            let msg = "out of bound".into();
+            let msg = Error::OutOfBound;
             return Err(msg);
         }
 

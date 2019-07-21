@@ -3,15 +3,17 @@
 //! The `coinbase` module contains the conbaise generation functions.
 
 use crate::common::riemmann_zeta_2;
+use crate::result::Result;
+use crate::error::Error;
 
 /// `COINBASE_BASE` is the coinbase base amount.
 pub const COINBASE_BASE: u64 = 1_000_000;
 
 /// `coinbase_amount` returns the coinbase amount given the distance
 /// from the eve transaction.
-pub fn coinbase_amount(d: u64) -> Result<u64, String> {
+pub fn coinbase_amount(d: u64) -> Result<u64> {
     if d == 0 {
-        let err = "out of bound".into();
+        let err = Error::OutOfBound;
         return Err(err);
     }
 

@@ -308,7 +308,6 @@ name = "mining"
 version = "0.1.0"
 dependencies = [
  "crypto 0.1.0",
- "enum-display-derive 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-preview 0.3.0-alpha.17 (registry+https://github.com/rust-lang/crates.io-index)",
  "models 0.1.0",

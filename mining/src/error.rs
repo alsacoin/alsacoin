@@ -2,8 +2,9 @@
 //!
 //! `error` contains the `mining` crate `Error` type.
 
-use std::fmt::Display;
-
-#[derive(Debug, Display, Fail)]
-pub enum Error {}
+#[derive(Debug, Fail)]
+pub enum Error {
+    #[fail(display = "out of bound")]
+    OutOfBound,
+}
 

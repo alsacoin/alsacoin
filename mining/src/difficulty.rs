@@ -3,6 +3,7 @@
 //! The `difficulty` module contains the difficulty calculation functions.
 
 use crate::common::riemmann_zeta_2;
+use crate::result::Result;
 use std::f64::consts::PI;
 
 /// `calc_k` calculates 6/pi^2.
@@ -12,7 +13,7 @@ pub fn calc_k() -> f64 {
 
 /// `difficulty` calculates the difficulty bits given a specific distance
 /// from the eve transaction.
-pub fn difficulty(d: u64) -> Result<u64, String> {
+pub fn difficulty(d: u64) -> Result<u64> {
     let k = calc_k();
     let res = (512f64 * k * riemmann_zeta_2(d)?).floor() as u64;
     Ok(res)
