@@ -7,4 +7,3 @@ pub enum Error {
     #[fail(display = "out of bound")]
     OutOfBound,
 }
-

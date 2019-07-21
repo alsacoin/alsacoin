@@ -2,10 +2,10 @@
 //!
 //! The `target` module contains the mining target functions.
 
+use crate::error::Error;
+use crate::result::Result;
 use std::convert::From;
 use std::ops::{Index, IndexMut};
-use crate::result::Result;
-use crate::error::Error;
 
 #[derive(Copy, Clone)]
 pub struct Target([u8; 64]);

@@ -2,8 +2,8 @@
 //!
 //! The `common` module contains the common functionalities used by the `mining` crate.
 
-use crate::result::Result;
 use crate::error::Error;
+use crate::result::Result;
 
 /// `riemann_zeta_2` calculates the value of the Riemann Zeta function with s = 2
 /// at a specific iteration.

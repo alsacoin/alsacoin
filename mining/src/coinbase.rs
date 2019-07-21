@@ -3,8 +3,8 @@
 //! The `coinbase` module contains the conbaise generation functions.
 
 use crate::common::riemmann_zeta_2;
-use crate::result::Result;
 use crate::error::Error;
+use crate::result::Result;
 
 /// `COINBASE_BASE` is the coinbase base amount.
 pub const COINBASE_BASE: u64 = 1_000_000;

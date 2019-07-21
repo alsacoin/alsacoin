@@ -6,4 +6,3 @@ use std::fmt::Display;
 
 #[derive(Debug, Display, Fail)]
 pub enum Error {}
-
