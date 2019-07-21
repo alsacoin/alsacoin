@@ -27,6 +27,12 @@ impl Digest {
     }
 }
 
+impl Default for Digest {
+    fn default() -> Digest {
+        Digest([0u8; 64])
+    }
+}
+
 impl Index<usize> for Digest {
     type Output = u8;
 

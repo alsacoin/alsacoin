@@ -8,10 +8,12 @@ pub use self::digest::Digest;
 
 /// `traits` contains the hashing traits.
 pub mod traits;
-pub use self::traits::*;
+pub use self::traits::CRH;
 
-/// `blake2b512` contains the Blake2b512 hashing algorithm functions.
-pub mod blake2b512;
+/// `blake512` contains the Blake512 hashing algorithm functions.
+pub mod blake512;
+pub use self::blake512::Blake512Hasher;
 
 /// `balloon` contains the Balloon hashing algorithm functions.
 pub mod balloon;
+pub use self::balloon::BalloonHasher;

@@ -2,20 +2,20 @@
 //!
 //! `blake512` is the module containing the Blake2b512 hashing functions.
 
-use crate::hash::Digest;
+use crate::hash;
 use crate::hash::CRH;
-use digest::Digest as DigestT;
+use digest::Digest;
 
-pub struct Blake512;
+pub struct Blake512Hasher;
 
-impl CRH for Blake512 {
-    fn hash(&self, msg: &[u8]) -> Digest {
+impl CRH for Blake512Hasher {
+    fn hash(&self, msg: &[u8]) -> hash::Digest {
         let mut buf = [0u8; 64];
 
         for (i, v) in blake_hash::Blake512::digest(msg).iter().enumerate() {
             buf[i] = *v;
         }
 
-        Digest::from_bytes(buf)
+        hash::Digest::from_bytes(buf)
     }
 }
