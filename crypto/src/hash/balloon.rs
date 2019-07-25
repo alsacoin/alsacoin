@@ -3,7 +3,6 @@ use byteorder::{BigEndian, WriteBytesExt};
 use crate::error::Error;
 use crate::hash::Blake512Hasher;
 use crate::hash::Digest;
-use crate::hash::CRH;
 use crate::result::Result;
 
 /// Params used in Balloon hashing.
@@ -32,7 +31,7 @@ impl BalloonParams {
     }
 
     /// Validates the `BalloonParams`.
-    fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         if self.s_cost == 0 {
             let msg = "invalid s_cost argument".into();
             let err = Error::BalloonParams { msg };
@@ -96,9 +95,7 @@ impl BalloonHasher {
         buf_0.extend_from_slice(msg);
         buf_0.extend_from_slice(&self.salt.to_bytes());
 
-        let hasher = Blake512Hasher;
-
-        buf[0] = hasher.hash(&buf_0);
+        buf[0] = Blake512Hasher::hash(&buf_0);
 
         for m in 1..self.params.s_cost as usize {
             let mut buf_m_1 = Vec::new();
@@ -106,7 +103,7 @@ impl BalloonHasher {
             cnt += 1;
             buf_m_1.extend_from_slice(&buf[m - 1].to_bytes());
 
-            buf[m] = hasher.hash(&buf_m_1);
+            buf[m] = Blake512Hasher::hash(&buf_m_1);
         }
 
         // TODO: fix the algo online, contact the guys (t > 0)
@@ -120,7 +117,7 @@ impl BalloonHasher {
                 buf_m_2.extend_from_slice(&prev.to_bytes());
                 buf_m_2.extend_from_slice(&buf[m].to_bytes());
 
-                buf[m] = hasher.hash(&buf_m_2);
+                buf[m] = Blake512Hasher::hash(&buf_m_2);
 
                 for i in 0..(self.params.delta - 1) as usize {
                     // NB: block obtained by hashing
@@ -128,7 +125,7 @@ impl BalloonHasher {
                     buf_idx_block.write_u32::<BigEndian>(t as u32)?;
                     buf_idx_block.write_u32::<BigEndian>(m as u32)?;
                     buf_idx_block.write_u32::<BigEndian>(i as u32)?;
-                    let idx_block = hasher.hash(&buf_idx_block);
+                    let idx_block = Blake512Hasher::hash(&buf_idx_block);
 
                     let mut buf_i_1 = Vec::new();
                     buf_i_1.write_u32::<BigEndian>(cnt)?;
@@ -137,7 +134,7 @@ impl BalloonHasher {
                     buf_i_1.extend_from_slice(&idx_block.to_bytes());
 
                     // TODO: should we hear those guys even here?
-                    let other_buf = hasher.hash(&buf_i_1).to_bytes();
+                    let other_buf = Blake512Hasher::hash(&buf_i_1).to_bytes();
                     let mut other: u32 = 0;
                     for i in other_buf.iter().take(64) {
                         other += u32::from(*i);
@@ -150,7 +147,7 @@ impl BalloonHasher {
                     buf_i_2.extend_from_slice(&buf[m].to_bytes());
                     buf_i_2.extend_from_slice(&buf[other as usize].to_bytes());
 
-                    buf[m] = hasher.hash(&buf_i_2);
+                    buf[m] = Blake512Hasher::hash(&buf_i_2);
                 }
             }
         }
@@ -159,13 +156,7 @@ impl BalloonHasher {
     }
 
     /// Validates the `BalloonHasher`.
-    fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         self.params.validate()
-    }
-}
-
-impl CRH for BalloonHasher {
-    fn hash(&self, msg: &[u8]) -> Digest {
-        self.hash(msg).unwrap()
     }
 }

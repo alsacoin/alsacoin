@@ -9,6 +9,8 @@ use std::io;
 pub enum Error {
     #[fail(display = "IO: {}", msg)]
     IO { msg: String },
+    #[fail(display = "Out of bound")]
+    OutOfBound,
     #[fail(display = "Scalar: {}", msg)]
     Scalar { msg: String },
     #[fail(display = "PrivateKey: {}", msg)]
