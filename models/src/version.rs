@@ -25,6 +25,7 @@ pub const BUILDMETA_VERSION: &str = "^[0-9A-Za-z-]*$";
 pub const SEMVER_VERSION: &str = "^(?P<major>[0-9]*).(?P<minor>[0-9]*).(?P<patch>[0-9]*)(-(?P<prerelease>[A-Za-z-]+))?(\\+(?P<buildmeta>[0-9A-Za-z-]+))?$";
 
 /// Type used to represent a Semver version.
+#[deny(clippy::derive_hash_xor_eq)]
 #[derive(Clone, Debug, Hash, Serialize, Deserialize)]
 pub struct Version {
     /// Semver version major. Used for API breaking changes.
@@ -153,7 +154,7 @@ impl Version {
         n.cmp(other)
     }
 
-    fn compare_prerelease(a: &String, b: &String) -> Ordering {
+    fn compare_prerelease(a: &str, b: &str) -> Ordering {
         if a.is_empty() {
             if b.is_empty() {
                 return Ordering::Equal;
