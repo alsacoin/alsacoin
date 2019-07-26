@@ -9,3 +9,6 @@ pub mod result;
 
 /// `timestamp` contains the timestamping types and functions.
 pub mod timestamp;
+
+/// `stage` contains the stage type and functions.
+pub mod stage;

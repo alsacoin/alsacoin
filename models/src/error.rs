@@ -9,6 +9,8 @@ use std::num;
 pub enum Error {
     #[fail(display = "Invalid timestamp")]
     InvalidTimestamp,
+    #[fail(display = "Invalid stage")]
+    InvalidStage,
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
 }
