@@ -16,7 +16,7 @@ pub const MAX_TIMENOISE: i64 = 3_600;
 
 /// A `Timestamp` is an integer representing the number of seconds elapsed since
 /// the `Epoch` time (1970-01-01:00:00:00.0000...).
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Hash, Serialize, Deserialize)]
 pub struct Timestamp(i64);
 
 impl Timestamp {
@@ -29,6 +29,11 @@ impl Timestamp {
         mins: u32,
         secs: u32,
     ) -> Result<Timestamp> {
+        if month > 12 {
+            let err = Error::InvalidTimestamp;
+            return Err(err);
+        }
+
         if day > 31 {
             let err = Error::InvalidTimestamp;
             return Err(err);
@@ -39,12 +44,12 @@ impl Timestamp {
             return Err(err);
         }
 
-        if mins > 60 {
+        if mins > 59 {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }
 
-        if secs > 60 {
+        if secs > 59 {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }
@@ -140,8 +145,8 @@ fn timestamp_from_date_succ() {
 #[test]
 fn timestamp_from_date_fail() {
     let year = 2012;
-    let month = 12;
-    let day = 32;
+    let month = 13;
+    let day = 31;
     let hours = 12;
     let mins = 12;
     let secs = 12;

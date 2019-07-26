@@ -18,3 +18,6 @@ pub mod stage;
 
 /// `version` contains the version type and functions.
 pub mod version;
+
+/// `node` contains the node type and functions.
+pub mod node;
