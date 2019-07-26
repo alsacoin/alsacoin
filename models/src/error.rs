@@ -17,14 +17,14 @@ pub enum Error {
 
 impl From<chrono::ParseError> for Error {
     fn from(err: chrono::ParseError) -> Error {
-       let msg = format!("{}", err);
-       Error::Parse { msg }
+        let msg = format!("{}", err);
+        Error::Parse { msg }
     }
 }
 
 impl From<num::ParseIntError> for Error {
     fn from(err: num::ParseIntError) -> Error {
-       let msg = format!("{}", err);
-       Error::Parse { msg }
+        let msg = format!("{}", err);
+        Error::Parse { msg }
     }
 }

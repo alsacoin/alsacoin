@@ -2,10 +2,10 @@
 //!
 //! `stage` is the module containing the network stage type and functions.
 
-use std::fmt;
-use serde::{Serialize, Deserialize};
-use crate::result::Result;
 use crate::error::Error;
+use crate::result::Result;
+use serde::{Deserialize, Serialize};
+use std::fmt;
 
 /// Enum representing the distributed ledger stage (development, testing or production).
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
@@ -29,7 +29,7 @@ impl Stage {
             _ => {
                 let err = Error::InvalidStage;
                 Err(err)
-            },
+            }
         }
     }
 }
