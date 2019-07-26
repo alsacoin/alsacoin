@@ -10,6 +10,8 @@ use std::convert::From;
 use std::ops::{Index, IndexMut};
 use subtle::ConstantTimeEq;
 
+pub const DIGEST_LEN: usize = 64;
+
 /// `Digest` is the type returned by hashing algorithms.
 #[derive(Copy, Clone)]
 pub struct Digest([u8; 64]);
@@ -28,6 +30,50 @@ impl Digest {
     /// `to_bytes` converts the `Digest` into an array of bytes.
     pub fn to_bytes(&self) -> [u8; 64] {
         self.0
+    }
+
+    /// `from_slice` creates a new `Digest` from a slice of bytes.
+    pub fn from_slice(buf: &[u8]) -> Result<Digest> {
+        let len = buf.len();
+        if len != DIGEST_LEN {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        let mut d = [0u8; 64];
+        for i in 0..64 {
+            d[i] = buf[i];
+        }
+
+        let digest = Digest::from_bytes(d);
+        Ok(digest)
+    }
+
+    /// `to_vec` converts the `Digest` into a vector of bytes.
+    pub fn to_vec(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
+        let bytes = self.to_bytes();
+        buf.extend_from_slice(bytes.as_ref());
+        buf
+    }
+
+    /// `from_str` creates a new `Digest` from an hex string.
+    pub fn from_str(s: &str) -> Result<Digest> {
+        let len = s.len();
+        if len != DIGEST_LEN*2 {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        let mut buf = Vec::new();
+        base16::decode_buf(s.as_bytes(), &mut buf)?;
+
+        Digest::from_slice(&buf)
+    }
+
+    /// `to_string` returns a Digest hex string.
+    pub fn to_string(&self) -> String {
+        base16::encode_lower(self.0.as_ref())
     }
 
     /// `leading_zeros` returns the `Digest` leading zeros.
@@ -104,4 +150,23 @@ impl From<[u8; 64]> for Digest {
     fn from(t: [u8; 64]) -> Digest {
         Digest(t)
     }
+}
+
+#[test]
+fn digest_serialize() {
+    use crate::random::Random;
+    
+    let buf = Random::bytes(DIGEST_LEN);
+    
+    let res = Digest::from_slice(&buf);
+    assert!(res.is_ok());
+    let digest_a = res.unwrap();
+
+    let hex = digest_a.to_string();
+
+    let res = Digest::from_str(&hex);
+    assert!(res.is_ok());
+    
+    let digest_b = res.unwrap();
+    assert_eq!(buf, digest_b.to_vec())
 }

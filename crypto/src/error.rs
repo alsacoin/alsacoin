@@ -4,13 +4,18 @@
 
 use std::convert::From;
 use std::io;
+use base16;
 
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "IO: {}", msg)]
     IO { msg: String },
+    #[fail(display = "Decode: {}", msg)]
+    Decode { msg: String },
     #[fail(display = "Out of bound")]
     OutOfBound,
+    #[fail(display = "Invalid length")]
+    InvalidLength,
     #[fail(display = "Scalar: {}", msg)]
     Scalar { msg: String },
     #[fail(display = "PrivateKey: {}", msg)]
@@ -33,5 +38,12 @@ impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         let msg = format!("{}", err);
         Error::IO { msg }
+    }
+}
+
+impl From<base16::DecodeError> for Error {
+    fn from(err: base16::DecodeError) -> Error {
+        let msg = format!("{}", err);
+        Error::Decode { msg }
     }
 }
