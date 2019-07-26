@@ -2,9 +2,9 @@
 //!
 //! `error` contains the `crypto` crate `Error` type.
 
+use base16;
 use std::convert::From;
 use std::io;
-use base16;
 
 #[derive(Debug, Fail)]
 pub enum Error {

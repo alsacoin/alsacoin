@@ -14,21 +14,21 @@ pub const DIGEST_LEN: usize = 64;
 
 /// `Digest` is the type returned by hashing algorithms.
 #[derive(Copy, Clone)]
-pub struct Digest([u8; 64]);
+pub struct Digest([u8; DIGEST_LEN]);
 
 impl Digest {
     /// `new` creates a new `Digest` from an array of bytes. Alias of `from_bytes`.
-    pub fn new(d: [u8; 64]) -> Digest {
+    pub fn new(d: [u8; DIGEST_LEN]) -> Digest {
         Digest(d)
     }
 
     /// `from_bytes` creates a new `Digest` from an array of bytes.
-    pub fn from_bytes(d: [u8; 64]) -> Digest {
+    pub fn from_bytes(d: [u8; DIGEST_LEN]) -> Digest {
         Digest(d)
     }
 
     /// `to_bytes` converts the `Digest` into an array of bytes.
-    pub fn to_bytes(&self) -> [u8; 64] {
+    pub fn to_bytes(&self) -> [u8; DIGEST_LEN] {
         self.0
     }
 
@@ -40,8 +40,8 @@ impl Digest {
             return Err(err);
         }
 
-        let mut d = [0u8; 64];
-        for i in 0..64 {
+        let mut d = [0u8; DIGEST_LEN];
+        for i in 0..DIGEST_LEN {
             d[i] = buf[i];
         }
 
@@ -60,7 +60,7 @@ impl Digest {
     /// `from_str` creates a new `Digest` from an hex string.
     pub fn from_str(s: &str) -> Result<Digest> {
         let len = s.len();
-        if len != DIGEST_LEN*2 {
+        if len != DIGEST_LEN * 2 {
             let err = Error::InvalidLength;
             return Err(err);
         }
@@ -100,7 +100,7 @@ impl Digest {
             return Err(msg);
         }
 
-        let mut ds = [255u8; 64];
+        let mut ds = [255u8; DIGEST_LEN];
         let zb = (zeros / 8) as usize;
 
         #[allow(clippy::needless_range_loop)]
@@ -120,7 +120,7 @@ impl Digest {
 
 impl Default for Digest {
     fn default() -> Digest {
-        Digest([0u8; 64])
+        Digest([0u8; DIGEST_LEN])
     }
 }
 
@@ -146,8 +146,8 @@ impl IndexMut<usize> for Digest {
     }
 }
 
-impl From<[u8; 64]> for Digest {
-    fn from(t: [u8; 64]) -> Digest {
+impl From<[u8; DIGEST_LEN]> for Digest {
+    fn from(t: [u8; DIGEST_LEN]) -> Digest {
         Digest(t)
     }
 }
@@ -155,9 +155,9 @@ impl From<[u8; 64]> for Digest {
 #[test]
 fn digest_serialize() {
     use crate::random::Random;
-    
+
     let buf = Random::bytes(DIGEST_LEN);
-    
+
     let res = Digest::from_slice(&buf);
     assert!(res.is_ok());
     let digest_a = res.unwrap();
@@ -166,7 +166,7 @@ fn digest_serialize() {
 
     let res = Digest::from_str(&hex);
     assert!(res.is_ok());
-    
+
     let digest_b = res.unwrap();
     assert_eq!(buf, digest_b.to_vec())
 }
