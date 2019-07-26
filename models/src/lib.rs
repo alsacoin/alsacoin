@@ -7,8 +7,14 @@ pub mod error;
 /// `result` contains the result type used in the crate.
 pub mod result;
 
+/// `utils` contains various utilities used in the crate.
+pub mod utils;
+
 /// `timestamp` contains the timestamping types and functions.
 pub mod timestamp;
 
 /// `stage` contains the stage type and functions.
 pub mod stage;
+
+/// `version` contains the version type and functions.
+pub mod version;
