@@ -9,6 +9,7 @@ use std::cmp::{Eq, PartialEq};
 use std::convert::From;
 use std::ops::{Index, IndexMut};
 use subtle::ConstantTimeEq;
+use std::fmt;
 
 pub const DIGEST_LEN: usize = 64;
 
@@ -124,6 +125,18 @@ impl Default for Digest {
     }
 }
 
+impl fmt::Debug for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl fmt::Display for Digest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
 impl PartialEq for Digest {
     fn eq(&self, other: &Digest) -> bool {
         (&self.to_bytes()).ct_eq(&other.to_bytes()).unwrap_u8() == 1u8
@@ -168,5 +181,5 @@ fn digest_serialize() {
     assert!(res.is_ok());
 
     let digest_b = res.unwrap();
-    assert_eq!(buf, digest_b.to_vec())
+    assert_eq!(digest_a, digest_b)
 }
