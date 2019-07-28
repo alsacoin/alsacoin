@@ -100,9 +100,7 @@ impl Message {
         }
 
         let mut m = [0u8; MESSAGE_LEN];
-        for i in 0..MESSAGE_LEN {
-            m[i] = buf[i];
-        }
+        m.copy_from_slice(buf);
 
         let msg = Message::from_bytes(m);
         Ok(msg)
@@ -179,7 +177,7 @@ impl Add<Message> for Message {
 /// wrapper around `Scalar`. The key is just an integer
 /// between 1 and q-1, where q is the order of the group
 /// G.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {
@@ -259,9 +257,7 @@ impl SecretKey {
         }
 
         let mut sk = [0u8; SECRET_KEY_LEN];
-        for i in 0..SECRET_KEY_LEN {
-            sk[i] = buf[i];
-        }
+        sk.copy_from_slice(buf);
 
         SecretKey::from_bytes(sk)
     }
@@ -305,6 +301,14 @@ impl fmt::Display for SecretKey {
         write!(f, "{}", self.to_string())
     }
 }
+
+impl PartialEq for SecretKey {
+    fn eq(&self, other: &SecretKey) -> bool {
+        (&self.to_bytes()).ct_eq(&other.to_bytes()).unwrap_u8() == 1u8
+    }
+}
+
+impl Eq for SecretKey {}
 
 impl Add<SecretKey> for SecretKey {
     type Output = Option<SecretKey>;
@@ -357,15 +361,6 @@ impl PublicKey {
         self.0
     }
 
-    /// `from_hash` creates a new `PublicKey` from a 64 bytes hash.
-    pub fn from_hash<D>(digest: D) -> PublicKey
-    where
-        D: Digest<OutputSize = U64> + Default,
-    {
-        let point = RistrettoPoint::from_hash(digest);
-        PublicKey(point.compress())
-    }
-
     /// `from_bytes` creates a new `PublicKey` from a slice of bytes.
     pub fn from_bytes(buf: [u8; PUBLIC_KEY_LEN]) -> PublicKey {
         let point = CompressedRistretto::from_slice(&buf[..]);
@@ -386,9 +381,7 @@ impl PublicKey {
         }
 
         let mut pk = [0u8; PUBLIC_KEY_LEN];
-        for i in 0..PUBLIC_KEY_LEN {
-            pk[i] = buf[i];
-        }
+        pk.copy_from_slice(buf);
 
         let public_key = PublicKey::from_bytes(pk);
         Ok(public_key)
@@ -462,7 +455,7 @@ impl Add<PublicKey> for PublicKey {
 }
 
 /// `KeyPair` is a pair of ElGamal `PublicKey` and `SecretKey`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct KeyPair {
     pub public_key: PublicKey,
     pub secret_key: SecretKey,
@@ -478,6 +471,7 @@ impl KeyPair {
             public_key,
             secret_key,
         };
+
         Ok(keys)
     }
 
@@ -566,9 +560,7 @@ impl KeyPair {
         }
 
         let mut kp = [0u8; KEYPAIR_LEN];
-        for i in 0..KEYPAIR_LEN {
-            kp[i] = buf[i];
-        }
+        kp.copy_from_slice(buf);
 
         KeyPair::from_bytes(kp)
     }
@@ -650,7 +642,7 @@ impl CypherText {
             buf[i] = *v;
         }
 
-        for (i, v) in self.gamma.to_bytes().iter().enumerate() {
+        for (i, v) in self.delta.to_bytes().iter().enumerate() {
             buf[i + GAMMA_LEN] = *v;
         }
 
@@ -666,9 +658,7 @@ impl CypherText {
         }
 
         let mut ct = [0u8; CYPHERTEXT_LEN];
-        for i in 0..CYPHERTEXT_LEN {
-            ct[i] = buf[i];
-        }
+        ct.copy_from_slice(buf);
 
         CypherText::from_bytes(ct)
     }
@@ -831,7 +821,7 @@ pub fn decrypt(cyph: CypherText, sk: SecretKey) -> Result<Message> {
 fn message_serialize() {
     use crate::random::Random;
 
-    let buf = Random::bytes(MESSAGE_LEN);
+    let buf = Random::bytes(MESSAGE_LEN).unwrap();
 
     let res = Message::from_slice(&buf);
     assert!(res.is_ok());
@@ -848,11 +838,7 @@ fn message_serialize() {
 
 #[test]
 fn secret_key_serialize() {
-    use crate::random::Random;
-
-    let buf = Random::bytes(SECRET_KEY_LEN);
-
-    let res = SecretKey::from_slice(&buf);
+    let res = SecretKey::random();
     assert!(res.is_ok());
     let secret_key_a = res.unwrap();
 
@@ -867,11 +853,7 @@ fn secret_key_serialize() {
 
 #[test]
 fn public_key_serialize() {
-    use crate::random::Random;
-
-    let buf = Random::bytes(PUBLIC_KEY_LEN);
-
-    let res = PublicKey::from_slice(&buf);
+    let res = PublicKey::random();
     assert!(res.is_ok());
     let public_key_a = res.unwrap();
 
@@ -888,15 +870,15 @@ fn public_key_serialize() {
 fn cyphertext_serialize() {
     use crate::random::Random;
 
-    let buf = Random::bytes(CYPHERTEXT_LEN);
+    let buf = Random::bytes(CYPHERTEXT_LEN).unwrap();
 
-    let res = Cyphertext::from_slice(&buf);
+    let res = CypherText::from_slice(&buf);
     assert!(res.is_ok());
     let cyphertext_a = res.unwrap();
 
     let hex = cyphertext_a.to_string();
 
-    let res = Cyphertext::from_str(&hex);
+    let res = CypherText::from_str(&hex);
     assert!(res.is_ok());
 
     let cyphertext_b = res.unwrap();
@@ -947,7 +929,7 @@ fn test_inverse_shared() {
 #[test]
 fn test_encryption() {
     for _ in 0..10 {
-        let msg1 = Message::random();
+        let msg1 = Message::random().unwrap();
         let sk1 = SecretKey::new().unwrap();
         let sk2 = SecretKey::new().unwrap();
         let pk2 = PublicKey::new(sk2);
@@ -961,8 +943,8 @@ fn test_encryption() {
 
 #[test]
 fn test_message_add() {
-    let msg1 = Message::random();
-    let msg2 = Message::random();
+    let msg1 = Message::random().unwrap();
+    let msg2 = Message::random().unwrap();
     let msg3 = (msg1 + msg2).unwrap();
 
     let msg1_point = msg1.to_point().decompress().unwrap();
@@ -988,8 +970,8 @@ fn test_cyphertext_add() {
 #[test]
 fn test_encryption_message_sum() {
     for _ in 0..10 {
-        let msg1 = Message::random();
-        let msg2 = Message::random();
+        let msg1 = Message::random().unwrap();
+        let msg2 = Message::random().unwrap();
         let msg3_from_sum = (msg1 + msg2).unwrap();
 
         let sk1 = SecretKey::new().unwrap();
@@ -1007,8 +989,8 @@ fn test_encryption_message_sum() {
 #[test]
 fn test_encryption_cyphertext_sum() {
     for _ in 0..10 {
-        let msg1 = Message::random();
-        let msg2 = Message::random();
+        let msg1 = Message::random().unwrap();
+        let msg2 = Message::random().unwrap();
         let msg3_from_sum = (msg1 + msg2).unwrap();
 
         let sk1 = SecretKey::new().unwrap();
@@ -1028,9 +1010,9 @@ fn test_encryption_cyphertext_sum() {
 #[test]
 fn test_encryption_cyphertext_sum_2() {
     for _ in 0..10 {
-        let msg1 = Message::random();
-        let msg2 = Message::random();
-        let msg3 = Message::random();
+        let msg1 = Message::random().unwrap();
+        let msg2 = Message::random().unwrap();
+        let msg3 = Message::random().unwrap();
         let msg4_from_sum = ((msg1 + msg2).unwrap() + msg3).unwrap();
 
         let sk1 = SecretKey::new().unwrap();

@@ -3,6 +3,7 @@
 //! `error` contains the `crypto` crate `Error` type.
 
 use base16;
+use ed25519_dalek as ed25519;
 use rand_core;
 use std::convert::From;
 use std::io;
@@ -33,6 +34,8 @@ pub enum Error {
     Message { msg: String },
     #[fail(display = "CypherText: {}", msg)]
     CypherText { msg: String },
+    #[fail(display = "Signature: {}", msg)]
+    Signature { msg: String },
     #[fail(display = "BalloonParams: {}", msg)]
     BalloonParams { msg: String },
 }
@@ -55,5 +58,12 @@ impl From<base16::DecodeError> for Error {
     fn from(err: base16::DecodeError) -> Error {
         let msg = format!("{}", err);
         Error::Decode { msg }
+    }
+}
+
+impl From<ed25519::SignatureError> for Error {
+    fn from(err: ed25519::SignatureError) -> Error {
+        let msg = format!("{}", err);
+        Error::Signature { msg }
     }
 }

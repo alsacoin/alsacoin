@@ -91,7 +91,7 @@ fn test_mine_message() {
 
     let params = BalloonParams::default();
     let msg_len = 1000;
-    let msg = Random::bytes(msg_len);
+    let msg = Random::bytes(msg_len).unwrap();
     let diffs = [0, 1, 2, 3];
 
     for diff in diffs.iter() {

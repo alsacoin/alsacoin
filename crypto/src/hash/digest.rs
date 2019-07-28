@@ -43,9 +43,7 @@ impl Digest {
         }
 
         let mut d = [0u8; DIGEST_LEN];
-        for i in 0..DIGEST_LEN {
-            d[i] = buf[i];
-        }
+        d.copy_from_slice(buf);
 
         let digest = Digest::from_bytes(d);
         Ok(digest)
@@ -170,7 +168,7 @@ impl From<[u8; DIGEST_LEN]> for Digest {
 fn digest_serialize() {
     use crate::random::Random;
 
-    let buf = Random::bytes(DIGEST_LEN);
+    let buf = Random::bytes(DIGEST_LEN).unwrap();
 
     let res = Digest::from_slice(&buf);
     assert!(res.is_ok());
