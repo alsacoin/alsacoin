@@ -2,6 +2,7 @@
 //!
 //! `random` is the module containing the random functions used in Alsacoin.
 
+use crate::result::Result;
 use rand_core::RngCore;
 use rand_os::OsRng;
 
@@ -19,8 +20,10 @@ impl Random {
 
     /// `u32` returns a random `u32`.
     #[allow(dead_code)]
-    fn u32() -> u32 {
-        Random::u32_from_rng(&mut OsRng)
+    fn u32() -> Result<u32> {
+        let mut rng = OsRng::new()?;
+        let res = Random::u32_from_rng(&mut rng);
+        Ok(res)
     }
 
     /// `u64_from_rng` returns a random `u64` using a given RNG.
@@ -33,8 +36,10 @@ impl Random {
 
     /// `u64` returns a random `u64`.
     #[allow(dead_code)]
-    fn u64() -> u64 {
-        Random::u64_from_rng(&mut OsRng)
+    fn u64() -> Result<u64> {
+        let mut rng = OsRng::new()?;
+        let res = Random::u64_from_rng(&mut rng);
+        Ok(res)
     }
 
     /// `fill_bytes_from_rng` fills a slice with random bytes using a given RNG.
@@ -46,8 +51,10 @@ impl Random {
     }
 
     /// `fill_bytes` fills a slice with random bytes.
-    pub fn fill_bytes(buf: &mut [u8]) {
-        Random::fill_bytes_from_rng(&mut OsRng, buf)
+    pub fn fill_bytes(buf: &mut [u8]) -> Result<()> {
+        let mut rng = OsRng::new()?;
+        Random::fill_bytes_from_rng(&mut rng, buf);
+        Ok(())
     }
 
     /// `bytes_from_rng` creates a vector of random bytes using a given RNG.
@@ -66,7 +73,9 @@ impl Random {
     }
 
     /// `bytes` creates a vector of random bytes.
-    pub fn bytes(len: usize) -> Vec<u8> {
-        Random::bytes_from_rng(&mut OsRng, len)
+    pub fn bytes(len: usize) -> Result<Vec<u8>> {
+        let mut rng = OsRng::new()?;
+        let res = Random::bytes_from_rng(&mut rng, len);
+        Ok(res)
     }
 }

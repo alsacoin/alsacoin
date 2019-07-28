@@ -7,10 +7,11 @@ use crate::error::Error;
 use crate::result::Result;
 use std::cmp::{Eq, PartialEq};
 use std::convert::From;
+use std::fmt;
 use std::ops::{Index, IndexMut};
 use subtle::ConstantTimeEq;
-use std::fmt;
 
+/// `DIGEST_LEN` is the length of a `Digest`.
 pub const DIGEST_LEN: usize = 64;
 
 /// `Digest` is the type returned by hashing algorithms.
@@ -72,7 +73,7 @@ impl Digest {
         Digest::from_slice(&buf)
     }
 
-    /// `to_string` returns a Digest hex string.
+    /// `to_string` returns a `Digest` hex string.
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.0.as_ref())
     }
@@ -127,7 +128,7 @@ impl Default for Digest {
 
 impl fmt::Debug for Digest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.to_string())
+        write!(f, "Digest({:?})", self.to_bytes().as_ref())
     }
 }
 

@@ -3,6 +3,7 @@
 //! `error` contains the `crypto` crate `Error` type.
 
 use base16;
+use rand_core;
 use std::convert::From;
 use std::io;
 
@@ -12,6 +13,8 @@ pub enum Error {
     IO { msg: String },
     #[fail(display = "Decode: {}", msg)]
     Decode { msg: String },
+    #[fail(display = "Rand: {}", msg)]
+    Rand { msg: String },
     #[fail(display = "Out of bound")]
     OutOfBound,
     #[fail(display = "Invalid length")]
@@ -38,6 +41,13 @@ impl From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         let msg = format!("{}", err);
         Error::IO { msg }
+    }
+}
+
+impl From<rand_core::Error> for Error {
+    fn from(err: rand_core::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Rand { msg }
     }
 }
 
