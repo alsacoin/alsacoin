@@ -8,7 +8,7 @@ edition = "2018"
 failure = "~0.1"
 enum-display-derive = "~0.1"
 serde = { version = "~1.0", features = ["derive"] }
-ed25519-dalek = { version = "=1.0.0-pre.1" }
+serde_cbor = "~0.10"
 futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
 
 crypto = { path = "../crypto" }
