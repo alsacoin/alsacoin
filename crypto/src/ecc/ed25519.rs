@@ -545,7 +545,7 @@ impl fmt::Display for Signature {
 }
 
 #[test]
-fn secret_key_serialize() {
+fn test_secret_key_serialize() {
     let res = SecretKey::random();
     assert!(res.is_ok());
     let secret_key_a = res.unwrap();
@@ -560,7 +560,7 @@ fn secret_key_serialize() {
 }
 
 #[test]
-fn public_key_serialize() {
+fn test_public_key_serialize() {
     let res = PublicKey::random();
     assert!(res.is_ok());
     let public_key_a = res.unwrap();
@@ -575,7 +575,7 @@ fn public_key_serialize() {
 }
 
 #[test]
-fn signature_serialize() {
+fn test_signature_serialize() {
     let buf = [0u8; SIGNATURE_LEN];
 
     let res = Signature::from_slice(&buf);
@@ -592,7 +592,7 @@ fn signature_serialize() {
 }
 
 #[test]
-fn secret_key_validate() {
+fn test_secret_key_validate() {
     use curve25519_dalek::scalar::Scalar;
 
     let mut rng = OsRng::new().unwrap();
@@ -609,7 +609,7 @@ fn secret_key_validate() {
 }
 
 #[test]
-fn keypair_validate() {
+fn test_keypair_validate() {
     use curve25519_dalek::scalar::Scalar;
 
     let mut rng = OsRng::new().unwrap();
@@ -630,7 +630,7 @@ fn keypair_validate() {
 }
 
 #[test]
-fn keypair_sign() {
+fn test_keypair_sign() {
     use crate::random::Random;
 
     let msg_len = 1000;

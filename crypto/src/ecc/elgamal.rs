@@ -823,7 +823,7 @@ pub fn decrypt(cyph: CypherText, sk: SecretKey) -> Result<Message> {
 }
 
 #[test]
-fn message_serialize() {
+fn test_message_serialize() {
     use crate::random::Random;
 
     let buf = Random::bytes(MESSAGE_LEN).unwrap();
@@ -842,7 +842,7 @@ fn message_serialize() {
 }
 
 #[test]
-fn secret_key_serialize() {
+fn test_secret_key_serialize() {
     let res = SecretKey::random();
     assert!(res.is_ok());
     let secret_key_a = res.unwrap();
@@ -857,7 +857,7 @@ fn secret_key_serialize() {
 }
 
 #[test]
-fn public_key_serialize() {
+fn test_public_key_serialize() {
     let res = PublicKey::random();
     assert!(res.is_ok());
     let public_key_a = res.unwrap();
@@ -872,7 +872,7 @@ fn public_key_serialize() {
 }
 
 #[test]
-fn cyphertext_serialize() {
+fn test_cyphertext_serialize() {
     use crate::random::Random;
 
     let buf = Random::bytes(CYPHERTEXT_LEN).unwrap();

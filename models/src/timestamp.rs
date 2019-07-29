@@ -130,7 +130,7 @@ impl fmt::Display for Timestamp {
 }
 
 #[test]
-fn timestamp_from_date_succ() {
+fn test_timestamp_from_date_succ() {
     let year = 2012;
     let month = 12;
     let day = 12;
@@ -143,7 +143,7 @@ fn timestamp_from_date_succ() {
 }
 
 #[test]
-fn timestamp_from_date_fail() {
+fn test_timestamp_from_date_fail() {
     let year = 2012;
     let month = 13;
     let day = 31;
@@ -156,7 +156,7 @@ fn timestamp_from_date_fail() {
 }
 
 #[test]
-fn timestamp_parse_succ() {
+fn test_timestamp_parse_succ() {
     let date = "2012-12-12T00:00:00Z";
 
     let res = Timestamp::parse(date);
@@ -164,7 +164,7 @@ fn timestamp_parse_succ() {
 }
 
 #[test]
-fn timestamp_parse_fail() {
+fn test_timestamp_parse_fail() {
     let date = "2012-12-32T00:00:00Z";
 
     let res = Timestamp::parse(date);
@@ -172,7 +172,7 @@ fn timestamp_parse_fail() {
 }
 
 #[test]
-fn timestamp_to_string_succ() {
+fn test_timestamp_to_string_succ() {
     let date = "2012-12-12T00:00:00Z";
 
     let timestamp_a = Timestamp::parse(date).unwrap();
@@ -183,7 +183,7 @@ fn timestamp_to_string_succ() {
 }
 
 #[test]
-fn timestamp_to_string_fail() {
+fn test_timestamp_to_string_fail() {
     let date = "2012-12-12T00:00:00Z";
 
     let timestamp_a = Timestamp::parse(date).unwrap();
@@ -195,7 +195,7 @@ fn timestamp_to_string_fail() {
 }
 
 #[test]
-fn timestamp_validate_succ() {
+fn test_timestamp_validate_succ() {
     let timestamp = Timestamp::now();
 
     let res = timestamp.validate();
@@ -203,7 +203,7 @@ fn timestamp_validate_succ() {
 }
 
 #[test]
-fn timestamp_validate_fail() {
+fn test_timestamp_validate_fail() {
     let date = "2012-12-12T00:00:00Z";
     let timestamp = Timestamp::parse(date).unwrap();
 

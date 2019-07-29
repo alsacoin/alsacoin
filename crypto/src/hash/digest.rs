@@ -166,7 +166,7 @@ impl From<[u8; DIGEST_LEN]> for Digest {
 }
 
 #[test]
-fn digest_serialize() {
+fn test_digest_serialize() {
     use crate::random::Random;
 
     let buf = Random::bytes(DIGEST_LEN).unwrap();
