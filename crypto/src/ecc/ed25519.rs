@@ -11,9 +11,12 @@ use digest::Digest;
 use ed25519_dalek as ed25519;
 use rand_core::{CryptoRng, RngCore};
 use rand_os::OsRng;
-use serde::{Deserialize, Serialize};
+use serde::de;
+use serde::{Deserialize, Deserializer};
+use serde::{Serialize, Serializer};
 use std::cmp::{Eq, PartialEq};
 use std::fmt;
+use std::result;
 use subtle::ConstantTimeEq;
 use typenum::consts::U64;
 
@@ -30,7 +33,7 @@ pub const KEYPAIR_LEN: usize = 64;
 pub const SIGNATURE_LEN: usize = 64;
 
 /// `SecretKey` is an Ed25519 secret key.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug)]
 pub struct SecretKey(ed25519::SecretKey);
 
 impl SecretKey {
@@ -209,8 +212,51 @@ impl PartialEq for SecretKey {
 
 impl Eq for SecretKey {}
 
+impl Serialize for SecretKey {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct SecretKeyVisitor;
+
+impl<'de> de::Visitor<'de> for SecretKeyVisitor {
+    type Value = SecretKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        SecretKey::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        SecretKey::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for SecretKey {
+    fn deserialize<D>(deserializer: D) -> result::Result<SecretKey, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(SecretKeyVisitor)
+    }
+}
+
 /// `PublicKey` is an Ed25519 public key.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug)]
 pub struct PublicKey(ed25519::PublicKey);
 
 impl PublicKey {
@@ -298,6 +344,49 @@ impl PartialEq for PublicKey {
 }
 
 impl Eq for PublicKey {}
+
+impl Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct PublicKeyVisitor;
+
+impl<'de> de::Visitor<'de> for PublicKeyVisitor {
+    type Value = PublicKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        PublicKey::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        PublicKey::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> result::Result<PublicKey, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(PublicKeyVisitor)
+    }
+}
 
 /// `KeyPair` is a pair of Ed25519 `PublicKey` and `SecretKey`.
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
@@ -482,7 +571,7 @@ impl fmt::Display for KeyPair {
 }
 
 /// `Signature` is an Ed25519 signature.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct Signature(ed25519::Signature);
 
 impl Signature {
@@ -542,6 +631,49 @@ impl Signature {
 impl fmt::Display for Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl Serialize for Signature {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct SignatureVisitor;
+
+impl<'de> de::Visitor<'de> for SignatureVisitor {
+    type Value = Signature;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Signature::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Signature::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for Signature {
+    fn deserialize<D>(deserializer: D) -> result::Result<Signature, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(SignatureVisitor)
     }
 }
 
