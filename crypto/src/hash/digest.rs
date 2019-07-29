@@ -58,6 +58,7 @@ impl Digest {
     }
 
     /// `from_str` creates a new `Digest` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Digest> {
         let len = s.len();
         if len != DIGEST_LEN * 2 {

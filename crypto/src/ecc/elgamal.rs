@@ -115,6 +115,7 @@ impl Message {
     }
 
     /// `from_str` creates a new `Message` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Message> {
         let len = s.len();
         if len != MESSAGE_LEN * 2 {
@@ -271,6 +272,7 @@ impl SecretKey {
     }
 
     /// `from_str` creates a new `SecretKey` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<SecretKey> {
         let len = s.len();
         if len != SECRET_KEY_LEN * 2 {
@@ -396,6 +398,7 @@ impl PublicKey {
     }
 
     /// `from_str` creates a new `PublicKey` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<PublicKey> {
         let len = s.len();
         if len != PUBLIC_KEY_LEN * 2 {
@@ -574,6 +577,7 @@ impl KeyPair {
     }
 
     /// `from_str` creates a new `KeyPair` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<KeyPair> {
         let len = s.len();
         if len != KEYPAIR_LEN * 2 {
@@ -672,6 +676,7 @@ impl CypherText {
     }
 
     /// `from_str` creates a new `CypherText` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<CypherText> {
         let len = s.len();
         if len != CYPHERTEXT_LEN * 2 {

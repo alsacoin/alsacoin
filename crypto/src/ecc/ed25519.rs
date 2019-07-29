@@ -134,6 +134,7 @@ impl SecretKey {
     }
 
     /// `from_str` creates a new `SecretKey` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<SecretKey> {
         let len = s.len();
         if len != SECRET_KEY_LEN * 2 {
@@ -157,6 +158,34 @@ impl SecretKey {
         let pk: ed25519::PublicKey = (&self.0).into();
         PublicKey(pk)
     }
+
+    /// `validate` validates the `SecretKey`.
+    pub fn validate(&self) -> Result<()> {
+        let scalar = self.to_scalar()?;
+
+        if !scalar.is_canonical() {
+            let msg = "not canonical bytes".into();
+            let err = Error::Scalar { msg };
+            return Err(err);
+        }
+
+        if scalar.ct_eq(&Scalar::zero()).unwrap_u8() == 1u8 {
+            let msg = "scalar is 0".into();
+            let err = Error::Scalar { msg };
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
+    /// `sign` signs a binary message returning a `Signature`.
+    /// NB: the function does not validate the `SecretKey`.
+    pub fn sign(&self, msg: &[u8]) -> Signature {
+        let pk = self.to_public();
+        let expanded: ed25519::ExpandedSecretKey = (&self.0).into();
+        let sig = expanded.sign(msg, &pk.0);
+        Signature(sig)
+    }
 }
 
 impl fmt::Display for SecretKey {
@@ -179,20 +208,21 @@ pub struct PublicKey(ed25519::PublicKey);
 
 impl PublicKey {
     /// `new` creates a new `PublicKey` from a `SecretKey`.
-    pub fn new(secret: SecretKey) -> PublicKey {
+    pub fn new(secret: &SecretKey) -> Result<PublicKey> {
         PublicKey::from_secret(secret)
     }
 
     /// `from_secret` creates a new `PublicKey` from a `SecretKey`.
-    pub fn from_secret(secret: SecretKey) -> PublicKey {
-        secret.to_public()
+    pub fn from_secret(secret: &SecretKey) -> Result<PublicKey> {
+        secret.validate()?;
+        let pk = secret.to_public();
+        Ok(pk)
     }
 
     /// `random` creates a new random `PublicKey`.
     pub fn random() -> Result<PublicKey> {
         let sk = SecretKey::random()?;
-        let pk = PublicKey::from_secret(sk);
-        Ok(pk)
+        PublicKey::from_secret(&sk)
     }
 
     /// `from_bytes` creates a new `PublicKey` from a slice of bytes.
@@ -223,6 +253,7 @@ impl PublicKey {
     }
 
     /// `from_str` creates a new `PublicKey` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<PublicKey> {
         let len = s.len();
         if len != PUBLIC_KEY_LEN * 2 {
@@ -239,6 +270,11 @@ impl PublicKey {
     /// `to_string` returns a `PublicKey` hex string.
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
+    }
+
+    /// `verify` verifies a `Signature` against a binary message.
+    pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<()> {
+        self.0.verify(msg, &sig.0).map_err(|e| e.into())
     }
 }
 
@@ -266,14 +302,8 @@ pub struct KeyPair {
 impl KeyPair {
     /// `new` creates a new random `KeyPair`.
     pub fn new() -> Result<KeyPair> {
-        let secret_key = SecretKey::new()?;
-        let public_key = secret_key.to_public();
-
-        let keys = KeyPair {
-            public_key,
-            secret_key,
-        };
-        Ok(keys)
+        let mut rng = OsRng::new()?;
+        KeyPair::from_rng(&mut rng)
     }
 
     /// `from_rng` creates a new random `KeyPair`, but requires
@@ -319,6 +349,7 @@ impl KeyPair {
             public_key,
             secret_key,
         };
+
         Ok(keys)
     }
 
@@ -337,6 +368,7 @@ impl KeyPair {
             public_key,
             secret_key,
         };
+
         Ok(keys)
     }
 
@@ -364,9 +396,7 @@ impl KeyPair {
         }
 
         let mut kp = [0u8; KEYPAIR_LEN];
-        for i in 0..KEYPAIR_LEN {
-            kp[i] = buf[i];
-        }
+        kp.copy_from_slice(buf);
 
         KeyPair::from_bytes(kp)
     }
@@ -380,6 +410,7 @@ impl KeyPair {
     }
 
     /// `from_str` creates a new `KeyPair` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<KeyPair> {
         let len = s.len();
         if len != KEYPAIR_LEN * 2 {
@@ -396,6 +427,32 @@ impl KeyPair {
     /// `to_string` returns a `KeyPair` hex string.
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
+    }
+
+    /// `validate` validates the `KeyPair`.
+    pub fn validate(&self) -> Result<()> {
+        if self.public_key != self.secret_key.to_public() {
+            let msg = "keys not related".into();
+            let err = Error::Keys { msg };
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
+    /// `sign` signs a binary message returning a `Signature`.
+    pub fn sign(&self, msg: &[u8]) -> Result<Signature> {
+        self.validate()?;
+
+        let signature = self.secret_key.sign(msg);
+        Ok(signature)
+    }
+
+    /// `verify` verifies a `Signature` against a binary message.
+    pub fn verify(&self, sig: &Signature, msg: &[u8]) -> Result<()> {
+        self.validate()?;
+
+        self.public_key.verify(sig, msg)
     }
 }
 
@@ -443,6 +500,7 @@ impl Signature {
     }
 
     /// `from_str` creates a new `Signature` from an hex string.
+    #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Result<Signature> {
         let len = s.len();
         if len != SIGNATURE_LEN * 2 {
@@ -513,4 +571,31 @@ fn signature_serialize() {
 
     let signature_b = res.unwrap();
     assert_eq!(signature_a, signature_b)
+}
+
+#[test]
+fn ed25519_sign() {
+    use crate::random::Random;
+
+    let msg_len = 1000;
+
+    for _ in 0..10 {
+        let msg = Random::bytes(msg_len).unwrap();
+
+        let sk = SecretKey::random().unwrap();
+        let pk = PublicKey::from_secret(&sk).unwrap();
+
+        let sig = sk.sign(&msg);
+        let res = pk.verify(&sig, &msg);
+        assert!(res.is_ok());
+
+        let kp = KeyPair::new().unwrap();
+
+        let res = kp.sign(&msg);
+        assert!(res.is_ok());
+
+        let sig = res.unwrap();
+        let res = kp.verify(&sig, &msg);
+        assert!(res.is_ok());
+    }
 }

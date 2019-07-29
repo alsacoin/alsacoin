@@ -25,8 +25,7 @@ pub const BUILDMETA_VERSION: &str = "^[0-9A-Za-z-]*$";
 pub const SEMVER_VERSION: &str = "^(?P<major>[0-9]*).(?P<minor>[0-9]*).(?P<patch>[0-9]*)(-(?P<prerelease>[A-Za-z-]+))?(\\+(?P<buildmeta>[0-9A-Za-z-]+))?$";
 
 /// Type used to represent a Semver version.
-#[deny(clippy::derive_hash_xor_eq)]
-#[derive(Clone, Debug, Hash, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Version {
     /// Semver version major. Used for API breaking changes.
     pub major: u32,
@@ -150,8 +149,8 @@ impl Version {
         res
     }
 
-    fn compare_numeric(n: u32, other: &u32) -> Ordering {
-        n.cmp(other)
+    fn compare_numeric(n: u32, other: u32) -> Ordering {
+        n.cmp(&other)
     }
 
     fn compare_prerelease(a: &str, b: &str) -> Ordering {
@@ -167,24 +166,21 @@ impl Version {
             return Ordering::Less;
         }
 
-        let _a = a.clone();
-        let _b = b.clone();
-
-        _a.cmp(&_b)
+        a.cmp(&b)
     }
 
     fn compare(&self, other: &Version) -> Ordering {
-        let mut res = Self::compare_numeric(self.major, &other.major);
+        let mut res = Self::compare_numeric(self.major, other.major);
         if res != Ordering::Equal {
             return res;
         }
 
-        res = Self::compare_numeric(self.minor, &other.minor);
+        res = Self::compare_numeric(self.minor, other.minor);
         if res != Ordering::Equal {
             return res;
         }
 
-        res = Self::compare_numeric(self.patch, &other.patch);
+        res = Self::compare_numeric(self.patch, other.patch);
         if res != Ordering::Equal {
             return res;
         }
