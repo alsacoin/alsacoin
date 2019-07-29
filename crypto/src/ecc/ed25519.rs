@@ -76,6 +76,12 @@ impl SecretKey {
             return Err(err);
         }
 
+        if !scalar.is_canonical() {
+            let msg = "not canonical bytes".into();
+            let err = Error::Scalar { msg };
+            return Err(err);
+        }
+
         let buf = scalar.to_bytes();
         let sk = ed25519::SecretKey::from_bytes(buf.as_ref())?;
         let secret_key = SecretKey(sk);
@@ -340,9 +346,21 @@ impl KeyPair {
     }
 
     /// `from_scalar` creates a new `KeyPair` from a `Scalar`.
-    /// The `Scalar` value cannot be 0.
     pub fn from_scalar(scalar: Scalar) -> Result<KeyPair> {
         let secret_key = SecretKey::from_scalar(scalar)?;
+        let public_key = secret_key.to_public();
+
+        let keys = KeyPair {
+            public_key,
+            secret_key,
+        };
+
+        Ok(keys)
+    }
+
+    /// `from_secret` creates a new `KeyPair` from a `SecretKey`.
+    pub fn from_secret(secret_key: SecretKey) -> Result<KeyPair> {
+        secret_key.validate()?;
         let public_key = secret_key.to_public();
 
         let keys = KeyPair {
@@ -574,7 +592,45 @@ fn signature_serialize() {
 }
 
 #[test]
-fn ed25519_sign() {
+fn secret_key_validate() {
+    use curve25519_dalek::scalar::Scalar;
+
+    let mut rng = OsRng::new().unwrap();
+
+    let scalar = Scalar::random(&mut rng);
+    let zero = Scalar::zero();
+
+    let res = SecretKey::from_scalar(scalar);
+    if (scalar == zero) || !scalar.is_canonical() {
+        assert!(res.is_err());
+    } else {
+        assert!(res.is_ok());
+    }
+}
+
+#[test]
+fn keypair_validate() {
+    use curve25519_dalek::scalar::Scalar;
+
+    let mut rng = OsRng::new().unwrap();
+
+    let scalar = Scalar::random(&mut rng);
+    let zero = Scalar::zero();
+
+    let res = KeyPair::from_scalar(scalar);
+    if (scalar == zero) || !scalar.is_canonical() {
+        assert!(res.is_err());
+    } else {
+        assert!(res.is_ok());
+
+        let secret_key = SecretKey::from_scalar(scalar).unwrap();
+        let res = KeyPair::from_secret(secret_key);
+        assert!(res.is_ok());
+    }
+}
+
+#[test]
+fn keypair_sign() {
     use crate::random::Random;
 
     let msg_len = 1000;
