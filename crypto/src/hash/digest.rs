@@ -4,7 +4,10 @@
 //! algorithms.
 
 use crate::error::Error;
+use crate::random::Random;
 use crate::result::Result;
+use rand_core::RngCore;
+use rand_os::OsRng;
 use std::cmp::{Eq, PartialEq};
 use std::convert::From;
 use std::fmt;
@@ -22,6 +25,19 @@ impl Digest {
     /// `new` creates a new `Digest` from an array of bytes. Alias of `from_bytes`.
     pub fn new(d: [u8; DIGEST_LEN]) -> Digest {
         Digest(d)
+    }
+
+    /// `random` creates a random `Digest`.
+    pub fn random() -> Result<Digest> {
+        let mut rng = OsRng::new()?;
+        Digest::from_rng(&mut rng)
+    }
+
+    /// `from_rng` creates a new random `Digest`, but requires
+    /// to specify a random generator.
+    pub fn from_rng<R: RngCore>(rng: &mut R) -> Result<Digest> {
+        let bytes = Random::bytes_from_rng(rng, DIGEST_LEN);
+        Digest::from_slice(&bytes)
     }
 
     /// `from_bytes` creates a new `Digest` from an array of bytes.

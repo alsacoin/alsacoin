@@ -19,10 +19,33 @@ impl Random {
     }
 
     /// `u32` returns a random `u32`.
-    #[allow(dead_code)]
-    fn u32() -> Result<u32> {
+    pub fn u32() -> Result<u32> {
         let mut rng = OsRng::new()?;
         let res = Random::u32_from_rng(&mut rng);
+        Ok(res)
+    }
+
+    /// `u32_range` returns a random `u32` between a specific inclusive range.
+    pub fn u32_range(from: u32, to: u32) -> Result<u32> {
+        let mut rng = OsRng::new()?;
+        let res = Random::u32_range_from_rng(&mut rng, from, to)?;
+        Ok(res)
+    }
+
+    /// `u32_range_from_rng` returns a random `u32` between a specific exclusive range
+    /// using a given RNG.
+    pub fn u32_range_from_rng<R>(rng: &mut R, from: u32, to: u32) -> Result<u32>
+    where
+        R: RngCore,
+    {
+        let mut res = Random::u32_from_rng(rng);
+
+        if res < from {
+            res = (res + from) % to;
+        } else if res > from {
+            res %= to;
+        }
+
         Ok(res)
     }
 
@@ -35,10 +58,33 @@ impl Random {
     }
 
     /// `u64` returns a random `u64`.
-    #[allow(dead_code)]
-    fn u64() -> Result<u64> {
+    pub fn u64() -> Result<u64> {
         let mut rng = OsRng::new()?;
         let res = Random::u64_from_rng(&mut rng);
+        Ok(res)
+    }
+
+    /// `u64_range` returns a random `u64` between a specific inclusive range.
+    pub fn u64_range(from: u64, to: u64) -> Result<u64> {
+        let mut rng = OsRng::new()?;
+        let res = Random::u64_range_from_rng(&mut rng, from, to)?;
+        Ok(res)
+    }
+
+    /// `u64_range_from_rng` returns a random `u64` between a specific exclusive range
+    /// using a given RNG.
+    pub fn u64_range_from_rng<R>(rng: &mut R, from: u64, to: u64) -> Result<u64>
+    where
+        R: RngCore,
+    {
+        let mut res = Random::u64_from_rng(rng);
+
+        if res < from {
+            res = (res + from) % to;
+        } else if res > from {
+            res %= to;
+        }
+
         Ok(res)
     }
 

@@ -160,3 +160,135 @@ impl BalloonHasher {
         self.params.validate()
     }
 }
+
+#[test]
+fn balloon_params_new() {
+    use crate::random::Random;
+
+    for _ in 0..10 {
+        let s_cost = Random::u32().unwrap();
+        let t_cost = Random::u32().unwrap();
+        let delta = Random::u32().unwrap();
+
+        let res = BalloonParams::new(s_cost, t_cost, delta);
+
+        if s_cost == 0 || t_cost == 0 || delta < 3 {
+            assert!(res.is_err());
+        } else {
+            assert!(res.is_ok())
+        }
+    }
+}
+
+#[test]
+fn balloon_params_validate() {
+    use crate::random::Random;
+
+    for _ in 0..10 {
+        let s_cost = Random::u32().unwrap();
+        let t_cost = Random::u32().unwrap();
+        let delta = Random::u32().unwrap();
+
+        let params = BalloonParams {
+            s_cost,
+            t_cost,
+            delta,
+        };
+
+        let res = params.validate();
+
+        if s_cost == 0 || t_cost == 0 || delta < 3 {
+            assert!(res.is_err());
+        } else {
+            assert!(res.is_ok())
+        }
+    }
+}
+
+#[test]
+fn balloon_hasher_new() {
+    use crate::random::Random;
+
+    for _ in 0..10 {
+        let s_cost = Random::u32().unwrap();
+        let t_cost = Random::u32().unwrap();
+        let delta = Random::u32().unwrap();
+
+        let params = BalloonParams {
+            s_cost,
+            t_cost,
+            delta,
+        };
+
+        let salt = Digest::random().unwrap();
+
+        let res = BalloonHasher::new(salt, params);
+
+        if s_cost == 0 || t_cost == 0 || delta < 3 {
+            assert!(res.is_err());
+        } else {
+            assert!(res.is_ok())
+        }
+    }
+}
+
+#[test]
+fn balloon_hasher_validate() {
+    use crate::random::Random;
+
+    for _ in 0..10 {
+        let s_cost = Random::u32().unwrap();
+        let t_cost = Random::u32().unwrap();
+        let delta = Random::u32().unwrap();
+
+        let params = BalloonParams {
+            s_cost,
+            t_cost,
+            delta,
+        };
+
+        let salt = Digest::random().unwrap();
+
+        let hasher = BalloonHasher { salt, params };
+
+        let res = hasher.validate();
+
+        if s_cost == 0 || t_cost == 0 || delta < 3 {
+            assert!(res.is_err());
+        } else {
+            assert!(res.is_ok())
+        }
+    }
+}
+
+#[test]
+fn balloon_hasher_hash() {
+    use crate::random::Random;
+
+    for _ in 0..10 {
+        let s_cost = Random::u32_range(0, 10).unwrap();
+        let t_cost = Random::u32_range(0, 10).unwrap();
+        let delta = Random::u32_range(0, 10).unwrap();
+
+        let params = BalloonParams {
+            s_cost,
+            t_cost,
+            delta,
+        };
+
+        let salt = Digest::random().unwrap();
+
+        let hasher = BalloonHasher { salt, params };
+
+        let msg_len = 1000;
+        let msg = Random::bytes(msg_len).unwrap();
+
+        let res = hasher.hash(&msg);
+
+        if s_cost == 0 || t_cost == 0 || delta < 3 {
+            assert!(res.is_err());
+        } else {
+            assert!(res.is_ok())
+        }
+    }
+}
