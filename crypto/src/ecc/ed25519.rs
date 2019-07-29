@@ -11,6 +11,7 @@ use digest::Digest;
 use ed25519_dalek as ed25519;
 use rand_core::{CryptoRng, RngCore};
 use rand_os::OsRng;
+use serde::{Deserialize, Serialize};
 use std::cmp::{Eq, PartialEq};
 use std::fmt;
 use subtle::ConstantTimeEq;
@@ -29,7 +30,7 @@ pub const KEYPAIR_LEN: usize = 64;
 pub const SIGNATURE_LEN: usize = 64;
 
 /// `SecretKey` is an Ed25519 secret key.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SecretKey(ed25519::SecretKey);
 
 impl SecretKey {
@@ -209,7 +210,7 @@ impl PartialEq for SecretKey {
 impl Eq for SecretKey {}
 
 /// `PublicKey` is an Ed25519 public key.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 pub struct PublicKey(ed25519::PublicKey);
 
 impl PublicKey {
@@ -299,7 +300,7 @@ impl PartialEq for PublicKey {
 impl Eq for PublicKey {}
 
 /// `KeyPair` is a pair of Ed25519 `PublicKey` and `SecretKey`.
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct KeyPair {
     pub public_key: PublicKey,
     pub secret_key: SecretKey,
@@ -481,7 +482,7 @@ impl fmt::Display for KeyPair {
 }
 
 /// `Signature` is an Ed25519 signature.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct Signature(ed25519::Signature);
 
 impl Signature {

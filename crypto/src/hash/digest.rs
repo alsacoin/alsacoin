@@ -8,10 +8,14 @@ use crate::random::Random;
 use crate::result::Result;
 use rand_core::RngCore;
 use rand_os::OsRng;
+use serde::de;
+use serde::{Deserialize, Deserializer};
+use serde::{Serialize, Serializer};
 use std::cmp::{Eq, PartialEq};
 use std::convert::From;
 use std::fmt;
 use std::ops::{Index, IndexMut};
+use std::result;
 use subtle::ConstantTimeEq;
 
 /// `DIGEST_LEN` is the length of a `Digest`.
@@ -181,6 +185,49 @@ impl From<[u8; DIGEST_LEN]> for Digest {
     }
 }
 
+impl Serialize for Digest {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct DigestVisitor;
+
+impl<'de> de::Visitor<'de> for DigestVisitor {
+    type Value = Digest;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Digest::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Digest::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for Digest {
+    fn deserialize<D>(deserializer: D) -> result::Result<Digest, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(DigestVisitor)
+    }
+}
+
 #[test]
 fn test_digest_serialize() {
     use crate::random::Random;
@@ -197,5 +244,5 @@ fn test_digest_serialize() {
     assert!(res.is_ok());
 
     let digest_b = res.unwrap();
-    assert_eq!(digest_a, digest_b)
+    assert_eq!(digest_a, digest_b);
 }

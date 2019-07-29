@@ -24,3 +24,6 @@ pub mod node;
 
 /// `address` contains the address type and functions.
 pub mod address;
+
+/// `account` contains the account type and functions.
+pub mod account;
