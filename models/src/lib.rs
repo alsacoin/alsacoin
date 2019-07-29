@@ -21,3 +21,6 @@ pub mod version;
 
 /// `node` contains the node type and functions.
 pub mod node;
+
+/// `address` contains the address type and functions.
+pub mod address;
