@@ -185,6 +185,8 @@ impl From<[u8; DIGEST_LEN]> for Digest {
     }
 }
 
+// TODO: de-lame (de)serialization
+
 impl Serialize for Digest {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where

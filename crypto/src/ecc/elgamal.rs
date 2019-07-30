@@ -12,11 +12,16 @@ use curve25519_dalek::scalar::Scalar;
 use digest::Digest;
 use rand_core::{CryptoRng, RngCore};
 use rand_os::OsRng;
-use serde::{Deserialize, Serialize};
+use serde::de;
+use serde::{Deserialize, Deserializer};
+use serde::{Serialize, Serializer};
 use std::fmt;
 use std::ops::{Add, Mul};
+use std::result;
 use subtle::ConstantTimeEq;
 use typenum::consts::U64;
+
+// TODO: de-lame (de)serialization
 
 /// `MESSAGE_LEN` is the length of a `Message`.
 pub const MESSAGE_LEN: usize = 32;
@@ -40,7 +45,7 @@ pub const GAMMA_LEN: usize = 32;
 pub const DELTA_LEN: usize = 32;
 
 /// `Message` is an ElGamal message.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
 pub struct Message([u8; MESSAGE_LEN]);
 
 impl Message {
@@ -175,11 +180,54 @@ impl Add<Message> for Message {
     }
 }
 
+impl Serialize for Message {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct MessageVisitor;
+
+impl<'de> de::Visitor<'de> for MessageVisitor {
+    type Value = Message;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Message::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        Message::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for Message {
+    fn deserialize<D>(deserializer: D) -> result::Result<Message, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(MessageVisitor)
+    }
+}
+
 /// `SecretKey` is an ElGamal secret key. It's just a
 /// wrapper around `Scalar`. The key is just an integer
 /// between 1 and q-1, where q is the order of the group
 /// G.
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Debug)]
 pub struct SecretKey(Scalar);
 
 impl SecretKey {
@@ -329,11 +377,54 @@ impl Add<SecretKey> for SecretKey {
     }
 }
 
+impl Serialize for SecretKey {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct SecretKeyVisitor;
+
+impl<'de> de::Visitor<'de> for SecretKeyVisitor {
+    type Value = SecretKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        SecretKey::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        SecretKey::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for SecretKey {
+    fn deserialize<D>(deserializer: D) -> result::Result<SecretKey, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(SecretKeyVisitor)
+    }
+}
+
 /// `PublicKey` is an ElGamal public key. It's just a
 /// wrapper around `CompressedRistretto`.
 /// The key is computed as g^x, where g is the generator
 /// of the group G of order q, and x a `SecretKey`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct PublicKey(CompressedRistretto);
 
 impl PublicKey {
@@ -455,6 +546,49 @@ impl Add<PublicKey> for PublicKey {
         } else {
             None
         }
+    }
+}
+
+impl Serialize for PublicKey {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct PublicKeyVisitor;
+
+impl<'de> de::Visitor<'de> for PublicKeyVisitor {
+    type Value = PublicKey;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        PublicKey::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        PublicKey::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for PublicKey {
+    fn deserialize<D>(deserializer: D) -> result::Result<PublicKey, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(PublicKeyVisitor)
     }
 }
 
@@ -605,7 +739,7 @@ impl fmt::Display for KeyPair {
 }
 
 /// `CypherText` is the cyphertext generated by ElGamal encryption.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct CypherText {
     gamma: PublicKey,
     delta: CompressedRistretto,
@@ -722,6 +856,49 @@ impl Add<CypherText> for CypherText {
         } else {
             None
         }
+    }
+}
+
+impl Serialize for CypherText {
+    fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let hex = self.to_string();
+        serializer.serialize_str(&hex)
+    }
+}
+
+struct CypherTextVisitor;
+
+impl<'de> de::Visitor<'de> for CypherTextVisitor {
+    type Value = CypherText;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("a string of length DIGEST_LEN*2")
+    }
+
+    fn visit_str<E>(self, value: &str) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        CypherText::from_str(value).map_err(|e| E::custom(format!("{}", e)))
+    }
+
+    fn visit_string<E>(self, value: String) -> result::Result<Self::Value, E>
+    where
+        E: de::Error,
+    {
+        CypherText::from_str(&value).map_err(|e| E::custom(format!("{}", e)))
+    }
+}
+
+impl<'de> Deserialize<'de> for CypherText {
+    fn deserialize<D>(deserializer: D) -> result::Result<CypherText, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_str(CypherTextVisitor)
     }
 }
 

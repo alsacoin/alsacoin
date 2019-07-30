@@ -20,6 +20,8 @@ use std::result;
 use subtle::ConstantTimeEq;
 use typenum::consts::U64;
 
+// TODO: de-lame (de)serialization
+
 /// `SECRET_KEY_LEN` is the length of a `SecretKey`.
 pub const SECRET_KEY_LEN: usize = 32;
 
