@@ -200,6 +200,13 @@ impl SecretKey {
     }
 }
 
+impl Clone for SecretKey {
+    fn clone(&self) -> SecretKey {
+        // TODO: make it less lame if possible
+        SecretKey::from_bytes(self.to_bytes()).unwrap()
+    }
+}
+
 impl fmt::Display for SecretKey {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_string())
@@ -451,13 +458,13 @@ impl KeyPair {
     }
 
     /// `from_secret` creates a new `KeyPair` from a `SecretKey`.
-    pub fn from_secret(secret_key: SecretKey) -> Result<KeyPair> {
+    pub fn from_secret(secret_key: &SecretKey) -> Result<KeyPair> {
         secret_key.validate()?;
         let public_key = secret_key.to_public();
 
         let keys = KeyPair {
             public_key,
-            secret_key,
+            secret_key: secret_key.clone(),
         };
 
         Ok(keys)
@@ -765,7 +772,7 @@ fn test_keypair_validate() {
         assert!(res.is_ok());
 
         let secret_key = SecretKey::from_scalar(scalar).unwrap();
-        let res = KeyPair::from_secret(secret_key);
+        let res = KeyPair::from_secret(&secret_key);
         assert!(res.is_ok());
     }
 }
