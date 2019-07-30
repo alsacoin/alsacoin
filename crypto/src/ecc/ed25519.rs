@@ -258,7 +258,7 @@ impl<'de> Deserialize<'de> for SecretKey {
 }
 
 /// `PublicKey` is an Ed25519 public key.
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 pub struct PublicKey(ed25519::PublicKey);
 
 impl PublicKey {
@@ -627,6 +627,12 @@ impl Signature {
     /// `to_string` returns a `Signature` hex string.
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
+    }
+}
+
+impl Default for Signature {
+    fn default() -> Signature {
+        Signature::new([0u8; SIGNATURE_LEN]).unwrap()
     }
 }
 

@@ -29,6 +29,12 @@ pub enum Error {
     InvalidTimestamp,
     #[fail(display = "Invalid id")]
     InvalidId,
+    #[fail(display = "Invalid public key")]
+    InvalidPublicKey,
+    #[fail(display = "Invalid signature")]
+    InvalidSignature,
+    #[fail(display = "Invalid checksum")]
+    InvalidChecksum,
 }
 
 impl From<chrono::ParseError> for Error {

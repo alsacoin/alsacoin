@@ -45,7 +45,7 @@ pub const GAMMA_LEN: usize = 32;
 pub const DELTA_LEN: usize = 32;
 
 /// `Message` is an ElGamal message.
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default)]
 pub struct Message([u8; MESSAGE_LEN]);
 
 impl Message {
@@ -424,7 +424,7 @@ impl<'de> Deserialize<'de> for SecretKey {
 /// wrapper around `CompressedRistretto`.
 /// The key is computed as g^x, where g is the generator
 /// of the group G of order q, and x a `SecretKey`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Default)]
 pub struct PublicKey(CompressedRistretto);
 
 impl PublicKey {
