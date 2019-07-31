@@ -14,7 +14,7 @@ use rand_os::OsRng;
 use serde::de;
 use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer};
-use std::cmp::{Eq, PartialEq};
+use std::cmp;
 use std::fmt;
 use std::result;
 use subtle::ConstantTimeEq;
@@ -221,6 +221,20 @@ impl PartialEq for SecretKey {
 
 impl Eq for SecretKey {}
 
+impl PartialOrd for SecretKey {
+    fn partial_cmp(&self, other: &SecretKey) -> Option<cmp::Ordering> {
+        // NB: not constant-time
+        Some(self.to_bytes().cmp(&other.to_bytes()))
+    }
+}
+
+impl Ord for SecretKey {
+    fn cmp(&self, other: &SecretKey) -> cmp::Ordering {
+        // NB: not constant-time
+        self.to_bytes().cmp(&other.to_bytes())
+    }
+}
+
 impl Serialize for SecretKey {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
     where
@@ -353,6 +367,20 @@ impl PartialEq for PublicKey {
 }
 
 impl Eq for PublicKey {}
+
+impl PartialOrd for PublicKey {
+    fn partial_cmp(&self, other: &PublicKey) -> Option<cmp::Ordering> {
+        // NB: not constant-time
+        Some(self.to_bytes().cmp(&other.to_bytes()))
+    }
+}
+
+impl Ord for PublicKey {
+    fn cmp(&self, other: &PublicKey) -> cmp::Ordering {
+        // NB: not constant-time
+        self.to_bytes().cmp(&other.to_bytes())
+    }
+}
 
 impl Serialize for PublicKey {
     fn serialize<S>(&self, serializer: S) -> result::Result<S::Ok, S::Error>
@@ -580,7 +608,7 @@ impl fmt::Display for KeyPair {
 }
 
 /// `Signature` is an Ed25519 signature.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Signature(ed25519::Signature);
 
 impl Signature {
@@ -646,6 +674,28 @@ impl Default for Signature {
 impl fmt::Display for Signature {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.to_string())
+    }
+}
+
+impl PartialEq for Signature {
+    fn eq(&self, other: &Signature) -> bool {
+        (&self.to_bytes()).ct_eq(&other.to_bytes()).unwrap_u8() == 1u8
+    }
+}
+
+impl Eq for Signature {}
+
+impl PartialOrd for Signature {
+    fn partial_cmp(&self, other: &Signature) -> Option<cmp::Ordering> {
+        // NB: not constant-time
+        Some(self.to_bytes().cmp(&other.to_bytes()))
+    }
+}
+
+impl Ord for Signature {
+    fn cmp(&self, other: &Signature) -> cmp::Ordering {
+        // NB: not constant-time
+        self.to_bytes().cmp(&other.to_bytes())
     }
 }
 

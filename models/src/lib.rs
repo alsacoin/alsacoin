@@ -30,3 +30,6 @@ pub mod account;
 
 /// `wallet` contains the wallet type and functions.
 pub mod wallet;
+
+/// `transaction` contains the transaction type and functions.
+pub mod transaction;

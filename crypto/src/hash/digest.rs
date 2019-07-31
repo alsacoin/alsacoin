@@ -11,7 +11,7 @@ use rand_os::OsRng;
 use serde::de;
 use serde::{Deserialize, Deserializer};
 use serde::{Serialize, Serializer};
-use std::cmp::{Eq, PartialEq};
+use std::cmp;
 use std::convert::From;
 use std::fmt;
 use std::ops::{Index, IndexMut};
@@ -164,6 +164,20 @@ impl PartialEq for Digest {
 }
 
 impl Eq for Digest {}
+
+impl PartialOrd for Digest {
+    fn partial_cmp(&self, other: &Digest) -> Option<cmp::Ordering> {
+        // NB: not constant-time
+        Some(self.to_bytes().cmp(&other.to_bytes()))
+    }
+}
+
+impl Ord for Digest {
+    fn cmp(&self, other: &Digest) -> cmp::Ordering {
+        // NB: not constant-time
+        self.to_bytes().cmp(&other.to_bytes())
+    }
+}
 
 impl Index<usize> for Digest {
     type Output = u8;
