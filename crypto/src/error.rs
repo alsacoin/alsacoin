@@ -18,6 +18,8 @@ pub enum Error {
     Rand { msg: String },
     #[fail(display = "Out of bound")]
     OutOfBound,
+    #[fail(display = "Invalid range")]
+    InvalidRange,
     #[fail(display = "Invalid length")]
     InvalidLength,
     #[fail(display = "Scalar: {}", msg)]

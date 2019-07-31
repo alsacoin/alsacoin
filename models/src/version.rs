@@ -5,7 +5,10 @@
 use crate::error::Error;
 use crate::result::Result;
 use crate::utils;
+use crypto::random::Random;
 use serde::{Deserialize, Serialize};
+use serde_cbor;
+use serde_json;
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -56,7 +59,19 @@ impl Version {
             prerelease,
             buildmeta,
         };
+
         Ok(ver)
+    }
+
+    /// `random` creates a new random `Version`.
+    pub fn random() -> Result<Version> {
+        let major = Random::u32()?;
+        let minor = Random::u32()?;
+        let patch = Random::u32()?;
+        let pre = ""; // TODO: de-lame
+        let build = ""; // TODO: de-lame
+
+        Version::new(major, minor, patch, pre, build)
     }
 
     /// Validate a Semver numeric version (major, minor or patch).
@@ -204,6 +219,26 @@ impl Version {
         Self::validate_buildmeta(&self.buildmeta)?;
 
         Ok(())
+    }
+
+    /// `to_bytes` converts the `Version` into a CBOR binary.
+    pub fn to_bytes(&self) -> Result<Vec<u8>> {
+        serde_cbor::to_vec(self).map_err(|e| e.into())
+    }
+
+    /// `from_bytes` converts a CBOR binary into an `Version`.
+    pub fn from_bytes(b: &[u8]) -> Result<Version> {
+        serde_cbor::from_slice(b).map_err(|e| e.into())
+    }
+
+    /// `to_json` converts the `Version` into a JSON string.
+    pub fn to_json(&self) -> Result<String> {
+        serde_json::to_string(self).map_err(|e| e.into())
+    }
+
+    /// `from_json` converts a JSON string into an `Version`.
+    pub fn from_json(s: &str) -> Result<Version> {
+        serde_json::from_str(s).map_err(|e| e.into())
     }
 }
 
@@ -413,4 +448,38 @@ fn test_version_is_compatible() {
 
     let res = version_c.is_compatible(&invalid_version);
     assert!(res.is_err());
+}
+
+#[test]
+fn test_version_serialize_bytes() {
+    for _ in 0..10 {
+        let version_a = Version::random().unwrap();
+
+        let res = version_a.to_bytes();
+        assert!(res.is_ok());
+        let cbor = res.unwrap();
+
+        let res = Version::from_bytes(&cbor);
+        assert!(res.is_ok());
+        let version_b = res.unwrap();
+
+        assert_eq!(version_a, version_b)
+    }
+}
+
+#[test]
+fn test_version_serialize_json() {
+    for _ in 0..10 {
+        let version_a = Version::random().unwrap();
+
+        let res = version_a.to_json();
+        assert!(res.is_ok());
+        let json = res.unwrap();
+
+        let res = Version::from_json(&json);
+        assert!(res.is_ok());
+        let version_b = res.unwrap();
+
+        assert_eq!(version_a, version_b)
+    }
 }

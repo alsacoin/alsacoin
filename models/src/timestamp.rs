@@ -4,7 +4,8 @@
 
 use crate::error::Error;
 use crate::result::Result;
-use chrono::{DateTime, TimeZone, Utc};
+use chrono::{DateTime, Datelike, TimeZone, Timelike, Utc};
+use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -21,15 +22,15 @@ pub struct Timestamp(i64);
 
 impl Timestamp {
     /// Creates a UTC unix `Timestamp` from a given date.
-    pub fn from_date(
-        year: i32,
+    pub fn new(
+        year: u32,
         month: u32,
         day: u32,
-        hours: u32,
-        mins: u32,
-        secs: u32,
+        hour: u32,
+        min: u32,
+        sec: u32,
     ) -> Result<Timestamp> {
-        if month > 12 {
+        if month > 12 || month == 0 {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }
@@ -39,26 +40,40 @@ impl Timestamp {
             return Err(err);
         }
 
-        if hours > 24 {
+        if hour > 23 {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }
 
-        if mins > 59 {
+        if min > 59 {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }
 
-        if secs > 59 {
+        if sec > 59 {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }
 
-        let dt = Utc.ymd(year, month, day).and_hms(mins, hours, secs);
+        let dt = Utc.ymd(year as i32, month, day).and_hms(hour, min, sec);
 
         let _timestamp = dt.timestamp();
 
         Ok(Timestamp(_timestamp))
+    }
+
+    /// `random` creates a random `Timestamp`.
+    pub fn random() -> Result<Timestamp> {
+        let now = Utc::now();
+
+        let year = Random::u32_range(2019, now.year() as u32)?;
+        let month = Random::u32_range(7, now.month())?;
+        let day = Random::u32_range(25, now.day())?;
+        let hour = Random::u32_range(0, now.hour())?;
+        let min = Random::u32_range(0, 60)?;
+        let sec = Random::u32_range(0, 60)?;
+
+        Timestamp::new(year, month, day, hour, min, sec)
     }
 
     /// Returns the minimum `Timestamp`.
@@ -130,49 +145,38 @@ impl fmt::Display for Timestamp {
 }
 
 #[test]
-fn test_timestamp_from_date_succ() {
-    let year = 2012;
-    let month = 12;
-    let day = 12;
-    let hours = 12;
-    let mins = 12;
-    let secs = 12;
+fn test_timestamp_new() {
+    for _ in 0..10 {
+        let year = Random::u32().unwrap();
+        let month = Random::u32().unwrap();
+        let day = Random::u32().unwrap();
+        let hour = Random::u32().unwrap();
+        let min = Random::u32().unwrap();
+        let sec = Random::u32().unwrap();
 
-    let res = Timestamp::from_date(year, month, day, hours, mins, secs);
-    assert!(res.is_ok())
+        let res = Timestamp::new(year, month, day, hour, min, sec);
+        if year < 1970 || month > 12 || day > 31 || hour > 59 || min > 59 || sec > 59 {
+            assert!(res.is_err());
+        } else {
+            assert!(res.is_ok());
+        }
+    }
 }
 
 #[test]
-fn test_timestamp_from_date_fail() {
-    let year = 2012;
-    let month = 13;
-    let day = 31;
-    let hours = 12;
-    let mins = 12;
-    let secs = 12;
+fn test_timestamp_parse() {
+    let valid_date = "2012-12-12T00:00:00Z";
+    let invalid_date = "2012-12-32T00:00:00Z";
 
-    let res = Timestamp::from_date(year, month, day, hours, mins, secs);
+    let res = Timestamp::parse(valid_date);
+    assert!(res.is_ok());
+
+    let res = Timestamp::parse(invalid_date);
     assert!(res.is_err())
 }
 
 #[test]
-fn test_timestamp_parse_succ() {
-    let date = "2012-12-12T00:00:00Z";
-
-    let res = Timestamp::parse(date);
-    assert!(res.is_ok())
-}
-
-#[test]
-fn test_timestamp_parse_fail() {
-    let date = "2012-12-32T00:00:00Z";
-
-    let res = Timestamp::parse(date);
-    assert!(res.is_err())
-}
-
-#[test]
-fn test_timestamp_to_string_succ() {
+fn test_timestamp_to_string() {
     let date = "2012-12-12T00:00:00Z";
 
     let timestamp_a = Timestamp::parse(date).unwrap();
@@ -183,30 +187,27 @@ fn test_timestamp_to_string_succ() {
 }
 
 #[test]
-fn test_timestamp_to_string_fail() {
-    let date = "2012-12-12T00:00:00Z";
+fn test_timestamp_random() {
+    for _ in 0..10 {
+        let res = Timestamp::random();
+        assert!(res.is_ok());
 
-    let timestamp_a = Timestamp::parse(date).unwrap();
-    let mut timestamp_str = timestamp_a.to_string();
-    timestamp_str.pop();
-    let timestamp_b = Timestamp::from_string(&timestamp_str).unwrap();
+        let timestamp = res.unwrap();
 
-    assert_ne!(timestamp_a, timestamp_b)
+        let res = timestamp.validate();
+        assert!(res.is_ok());
+    }
 }
 
 #[test]
-fn test_timestamp_validate_succ() {
-    let timestamp = Timestamp::now();
-
-    let res = timestamp.validate();
-    assert!(res.is_ok())
-}
-
-#[test]
-fn test_timestamp_validate_fail() {
+fn test_timestamp_validate() {
     let date = "2012-12-12T00:00:00Z";
-    let timestamp = Timestamp::parse(date).unwrap();
+    let invalid_timestamp = Timestamp::parse(date).unwrap();
+    let valid_timestamp = Timestamp::random().unwrap();
 
-    let res = timestamp.validate();
-    assert!(res.is_err())
+    let res = invalid_timestamp.validate();
+    assert!(res.is_err());
+
+    let res = valid_timestamp.validate();
+    assert!(res.is_ok());
 }

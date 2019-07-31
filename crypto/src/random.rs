@@ -2,6 +2,7 @@
 //!
 //! `random` is the module containing the random functions used in Alsacoin.
 
+use crate::error::Error;
 use crate::result::Result;
 use rand_core::RngCore;
 use rand_os::OsRng;
@@ -38,13 +39,18 @@ impl Random {
     where
         R: RngCore,
     {
-        let mut res = Random::u32_from_rng(rng);
-
-        if res < from {
-            res = (res + from) % to;
-        } else if res > from {
-            res %= to;
+        if from > to {
+            let err = Error::InvalidRange;
+            return Err(err);
         }
+
+        if from == to {
+            return Ok(from);
+        }
+
+        let interval = to - from;
+        let val = Random::u32_from_rng(rng) % interval;
+        let res = from + val;
 
         Ok(res)
     }
@@ -77,13 +83,18 @@ impl Random {
     where
         R: RngCore,
     {
-        let mut res = Random::u64_from_rng(rng);
-
-        if res < from {
-            res = (res + from) % to;
-        } else if res > from {
-            res %= to;
+        if from > to {
+            let err = Error::InvalidRange;
+            return Err(err);
         }
+
+        if from == to {
+            return Ok(from);
+        }
+
+        let interval = to - from;
+        let val = Random::u64_from_rng(rng) % interval;
+        let res = from + val;
 
         Ok(res)
     }
@@ -123,5 +134,41 @@ impl Random {
         let mut rng = OsRng::new()?;
         let res = Random::bytes_from_rng(&mut rng, len);
         Ok(res)
+    }
+}
+
+#[test]
+fn test_u32_range() {
+    for _ in 0..10 {
+        let valid_from = Random::u32().unwrap() % (u32::max_value() / 2);
+        let valid_to = valid_from * 2;
+        let invalid_from = valid_to;
+        let invalid_to = valid_from;
+
+        let res = Random::u32_range(invalid_from, invalid_to);
+        assert!(res.is_err());
+
+        let res = Random::u32_range(valid_from, valid_to);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert!(val >= valid_from && val < valid_to)
+    }
+}
+
+#[test]
+fn test_u64_range() {
+    for _ in 0..10 {
+        let valid_from = Random::u64().unwrap() % (u64::max_value() / 2);
+        let valid_to = valid_from * 2;
+        let invalid_from = valid_to;
+        let invalid_to = valid_from;
+
+        let res = Random::u64_range(invalid_from, invalid_to);
+        assert!(res.is_err());
+
+        let res = Random::u64_range(valid_from, valid_to);
+        assert!(res.is_ok());
+        let val = res.unwrap();
+        assert!(val >= valid_from && val < valid_to)
     }
 }

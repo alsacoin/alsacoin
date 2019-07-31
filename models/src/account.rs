@@ -232,12 +232,6 @@ fn test_account_serialize_json() {
         let json = res.unwrap();
 
         let res = Account::from_json(&json);
-        if res.is_err() {
-            println!("account: {:?}", account_a);
-            println!("json: {}", json);
-            println!("res: {:?}", &res);
-            panic!();
-        }
         assert!(res.is_ok());
         let account_b = res.unwrap();
 

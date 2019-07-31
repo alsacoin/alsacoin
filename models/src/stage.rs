@@ -4,6 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
+use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -28,6 +29,26 @@ impl Stage {
             "production" => Ok(Stage::Production),
             _ => {
                 let err = Error::InvalidStage;
+                Err(err)
+            }
+        }
+    }
+
+    /// `random` creates a new random `Stage`.
+    pub fn random() -> Result<Stage> {
+        let stage_u8 = Random::u32_range(0, 3)? as u8;
+        Stage::from_u8(stage_u8)
+    }
+
+    /// `from_u8` converts an `u8` into a `Stage`.
+    pub fn from_u8(n: u8) -> Result<Stage> {
+        match n {
+            0 => Ok(Stage::Development),
+            1 => Ok(Stage::Testing),
+            2 => Ok(Stage::Production),
+            _ => {
+                let msg = "cannot parse into a Stage".into();
+                let err = Error::Parse { msg };
                 Err(err)
             }
         }
@@ -64,4 +85,18 @@ fn test_stage_parse() {
 
     let res = Stage::parse(invalid_stage);
     assert!(res.is_err());
+}
+
+#[test]
+fn test_stage_from_u8() {
+    let stage_nums = [0, 1, 2, 3, 10, 127, 255];
+
+    for num in &stage_nums {
+        let res = Stage::from_u8(*num);
+        if *num < 3 {
+            assert!(res.is_ok());
+        } else {
+            assert!(res.is_err());
+        }
+    }
 }
