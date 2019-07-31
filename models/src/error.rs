@@ -19,6 +19,8 @@ pub enum Error {
     Parse { msg: String },
     #[fail(display = "Crypto: {}", msg)]
     Crypto { msg: String },
+    #[fail(display = "No result")]
+    NoResult,
     #[fail(display = "No regex match")]
     NoRegexMatch,
     #[fail(display = "Invalid version")]
@@ -35,6 +37,12 @@ pub enum Error {
     InvalidSignature,
     #[fail(display = "Invalid checksum")]
     InvalidChecksum,
+    #[fail(display = "Already found")]
+    AlreadyFound,
+    #[fail(display = "Not found")]
+    NotFound,
+    #[fail(display = "Invalid fee")]
+    InvalidFee,
 }
 
 impl From<chrono::ParseError> for Error {

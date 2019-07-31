@@ -31,5 +31,11 @@ pub mod account;
 /// `wallet` contains the wallet type and functions.
 pub mod wallet;
 
+/// `input` contains the input type and functions.
+pub mod input;
+
+/// `ouput` contains the output type and functions.
+pub mod output;
+
 /// `transaction` contains the transaction type and functions.
 pub mod transaction;

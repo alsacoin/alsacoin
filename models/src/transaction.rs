@@ -4,27 +4,15 @@
 
 use crate::address::Address;
 use crate::error::Error;
+use crate::input::Input;
+use crate::output::Output;
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::version::Version;
-use crypto::ecc::ed25519::Signature;
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct Input {
-    address: Address,
-    value: u64,
-    signature: Signature,
-}
-
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
-pub struct Output {
-    address: Address,
-    value: u64,
-}
 
 /// `Transaction` is the Alsacoin transaction type. It is built
 /// around the HybridTx model defined in `Chimeric Ledgers` papers.
@@ -54,57 +42,175 @@ impl Transaction {
 
     /// `set_locktime` sets the `Transaction` locktime.
     pub fn set_locktime(&mut self, locktime: Timestamp) -> Result<()> {
-        unreachable!()
+        if locktime < self.time {
+            let err = Error::InvalidTimestamp;
+            return Err(err);
+        }
+
+        self.locktime = locktime;
+
+        Ok(())
     }
 
     /// `clear_locktime` clears the `Transaction` locktime.
-    pub fn clear_locktime(&mut self) -> Result<()> {
-        unreachable!()
+    pub fn clear_locktime(&mut self) {
+        self.locktime = self.time;
     }
 
     /// `input_balance` returns the `Transaction` inputs balance.
     pub fn input_balance(&self) -> u64 {
-        unreachable!()
+        self.inputs
+            .iter()
+            .fold(0, |acc, (_, input)| acc + input.value)
     }
 
     /// `output_balance` returns the `Transaction` outputs balance.
     pub fn output_balance(&self) -> u64 {
-        unreachable!()
+        self.outputs
+            .iter()
+            .fold(0, |acc, (_, output)| acc + output.value)
     }
 
     /// `balance` returns the `Transaction` balance.
     pub fn balance(&self) -> i64 {
-        unreachable!()
+        let ibalance = self.input_balance() as i64;
+        let obalance = self.output_balance() as i64;
+        let fee = self.fee as i64;
+
+        ibalance - obalance - fee
     }
 
     /// `max_fee` returns the maximum fee available for the `Transaction`.
     pub fn max_fee(&self) -> u64 {
-        unreachable!()
+        let imbalance = self.balance() - (self.fee as i64);
+
+        if imbalance <= 0 {
+            0
+        } else {
+            imbalance as u64
+        }
     }
 
     /// `add_input` adds an `Input` in the Transaction.
-    pub fn add_input(address: Address, value: u64) -> Result<()> {
-        unreachable!()
+    pub fn add_input(&mut self, input: &Input) -> Result<()> {
+        if self.inputs.contains_key(&input.address) {
+            let err = Error::AlreadyFound;
+            return Err(err);
+        }
+
+        if self.inputs.insert(input.address, input.clone()).is_none() {
+            let err = Error::NoResult;
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
+    /// `update_input` updates an `Input` in the Transaction.
+    pub fn update_input(&mut self, input: &Input) -> Result<()> {
+        if !self.inputs.contains_key(&input.address) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if let Some(entry) = self.inputs.get(&input.address) {
+            if entry == input {
+                return Ok(());
+            }
+        }
+
+        if self.inputs.insert(input.address, input.clone()).is_none() {
+            let err = Error::NoResult;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `del_input` deletes an `Input` from the `Transaction`.
-    pub fn del_input(address: Address) -> Result<()> {
-        unreachable!()
+    pub fn del_input(&mut self, input: &Input) -> Result<()> {
+        if !self.inputs.contains_key(&input.address) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if self.inputs.remove(&input.address).is_none() {
+            let err = Error::NoResult;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `add_output` adds an `Output` in the Transaction.
-    pub fn add_output(address: Address, value: u64) -> Result<()> {
-        unreachable!()
+    pub fn add_output(&mut self, output: &Output) -> Result<()> {
+        if self.outputs.contains_key(&output.address) {
+            let err = Error::AlreadyFound;
+            return Err(err);
+        }
+
+        if self
+            .outputs
+            .insert(output.address, output.clone())
+            .is_none()
+        {
+            let err = Error::NoResult;
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
+    /// `update_output` updates an `Output` in the Transaction.
+    pub fn update_output(&mut self, output: &Output) -> Result<()> {
+        if !self.outputs.contains_key(&output.address) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if let Some(entry) = self.outputs.get(&output.address) {
+            if entry == output {
+                return Ok(());
+            }
+        }
+
+        if self
+            .outputs
+            .insert(output.address, output.clone())
+            .is_none()
+        {
+            let err = Error::NoResult;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `del_output` deletes an `Output` from the `Transaction`.
-    pub fn del_output(address: Address) -> Result<()> {
-        unreachable!()
+    pub fn del_output(&mut self, output: &Output) -> Result<()> {
+        if !self.outputs.contains_key(&output.address) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if self.outputs.remove(&output.address).is_none() {
+            let err = Error::NoResult;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `set_fee` sets the fee in the `Transaction`.
-    pub fn set_fee(&self, fee: u64) -> Result<()> {
-        unreachable!()
+    pub fn set_fee(&mut self, fee: u64) -> Result<()> {
+        if fee > self.max_fee() {
+            let err = Error::InvalidFee;
+            return Err(err);
+        }
+
+        self.fee = fee;
+
+        Ok(())
     }
 
     /// `validate` validates the `Transaction`.
