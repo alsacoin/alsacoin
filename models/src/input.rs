@@ -5,7 +5,7 @@
 use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
-use crypto::ecc::ed25519::{KeyPair, SecretKey, Signature};
+use crypto::ecc::ed25519::{KeyPair, PublicKey, SecretKey, Signature};
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
@@ -35,15 +35,15 @@ impl Input {
     }
 
     /// `random` creates a random unsigned `Input`.
-    pub fn random() -> Result<Input> {
-        let address = Address::random()?;
+    pub fn random(secret_key: &SecretKey) -> Result<Input> {
+        let address = secret_key.to_public();
         let value = Random::u64()?;
 
         Input::new(address, value)
     }
 
     /// `sign` calculates the input signature with a binary message.
-    pub fn calc_sign(&self, secret_key: &SecretKey, msg: &[u8]) -> Result<Signature> {
+    pub fn calc_signature(&self, secret_key: &SecretKey, msg: &[u8]) -> Result<Signature> {
         let kp = KeyPair::from_secret(secret_key)?;
 
         let mut clone = self.clone();
@@ -69,9 +69,40 @@ impl Input {
 
     /// `sign` signs the `Input` and update its id.
     pub fn sign(&mut self, secret_key: &SecretKey, msg: &[u8]) -> Result<()> {
-        self.signature = Some(self.calc_sign(secret_key, msg)?);
+        if self.address != secret_key.to_public() {
+            let err = Error::InvalidPublicKey;
+            return Err(err);
+        }
+
+        self.signature = Some(self.calc_signature(secret_key, msg)?);
+        self.update_checksum()?;
 
         Ok(())
+    }
+
+    /// `verify_signature` verifies the `Input` signature.
+    pub fn verify_signature(&self, public_key: &PublicKey, msg: &[u8]) -> Result<()> {
+        if public_key != &self.address {
+            let err = Error::InvalidPublicKey;
+            return Err(err);
+        }
+
+        if self.signature.is_none() {
+            let err = Error::InvalidSignature;
+            return Err(err);
+        }
+
+        let signature = self.signature.unwrap();
+
+        let mut clone = self.clone();
+        clone.signature = None;
+        clone.checksum = Digest::default();
+
+        let mut buf = Vec::new();
+        buf.extend_from_slice(msg);
+        buf.extend_from_slice(&clone.to_bytes()?);
+
+        public_key.verify(&signature, &buf).map_err(|e| e.into())
     }
 
     /// `update_checksum` updates the `Input` checksum.
@@ -96,7 +127,7 @@ impl Input {
         self.validate()?;
 
         if let Some(signature) = self.signature {
-            if signature != self.calc_sign(secret_key, msg)? {
+            if signature != self.calc_signature(secret_key, msg)? {
                 let err = Error::InvalidSignature;
                 return Err(err);
             }
@@ -127,9 +158,71 @@ impl Input {
 }
 
 #[test]
+fn test_input_new() {
+    let address = Address::random().unwrap();
+    let value = Random::u64().unwrap();
+    let res = Input::new(address, value);
+    assert!(res.is_ok());
+
+    let input = res.unwrap();
+
+    let res = input.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_input_sign() {
+    let secret_key = SecretKey::random().unwrap();
+    let address = secret_key.to_public();
+    let value = Random::u64().unwrap();
+    let mut input = Input::new(address, value).unwrap();
+
+    let msg_len = 1000;
+    let msg = Random::bytes(msg_len).unwrap();
+
+    let res = input.sign(&secret_key, &msg);
+    assert!(res.is_ok());
+
+    let res = input.validate_signature(&secret_key, &msg);
+    assert!(res.is_ok());
+
+    let public_key = secret_key.to_public();
+
+    let res = input.verify_signature(&public_key, &msg);
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_input_random() {
+    for _ in 0..10 {
+        let secret_key = SecretKey::random().unwrap();
+        let res = Input::random(&secret_key);
+        assert!(res.is_ok());
+
+        let mut input = res.unwrap();
+
+        let res = input.validate();
+        assert!(res.is_ok());
+
+        let msg_len = 1000;
+        let msg = Random::bytes(msg_len).unwrap();
+
+        let res = input.sign(&secret_key, &msg);
+        assert!(res.is_ok());
+
+        let res = input.validate();
+        assert!(res.is_ok());
+
+        let res = input.validate_signature(&secret_key, &msg);
+        assert!(res.is_ok());
+    }
+}
+
+#[test]
 fn test_input_serialize_bytes() {
     for _ in 0..10 {
-        let input_a = Input::random().unwrap();
+        let secret_key = SecretKey::random().unwrap();
+        let input_a = Input::random(&secret_key).unwrap();
 
         let res = input_a.to_bytes();
         assert!(res.is_ok());
@@ -146,7 +239,8 @@ fn test_input_serialize_bytes() {
 #[test]
 fn test_input_serialize_json() {
     for _ in 0..10 {
-        let input_a = Input::random().unwrap();
+        let secret_key = SecretKey::random().unwrap();
+        let input_a = Input::random(&secret_key).unwrap();
 
         let res = input_a.to_json();
         assert!(res.is_ok());

@@ -34,8 +34,8 @@ impl Wallet {
         Ok(wallet)
     }
 
-    /// `calc_sign` calculates the `Wallet` signature.
-    pub fn calc_sign(&self, secret_key: &SecretKey) -> Result<Signature> {
+    /// `calc_signature` calculates the `Wallet` signature.
+    pub fn calc_signature(&self, secret_key: &SecretKey) -> Result<Signature> {
         let kp = KeyPair::from_secret(secret_key)?;
 
         if kp.public_key != self.public_key {
@@ -63,9 +63,23 @@ impl Wallet {
 
     /// `sign` signs the `Wallet` and update its id.
     pub fn sign(&mut self, secret_key: &SecretKey) -> Result<()> {
-        self.signature = self.calc_sign(secret_key)?;
+        self.signature = self.calc_signature(secret_key)?;
+        self.update_checksum()?;
 
         Ok(())
+    }
+
+    /// `verify_signature` verifies the `Wallet` signature.
+    pub fn verify_signature(&self, public_key: &PublicKey) -> Result<()> {
+        let mut clone = self.clone();
+        clone.signature = Signature::default();
+        clone.checksum = Digest::default();
+
+        let buf = clone.to_bytes()?;
+
+        public_key
+            .verify(&self.signature, &buf)
+            .map_err(|e| e.into())
     }
 
     /// `update_checksum` updates the `Wallet` checksum.
@@ -93,7 +107,7 @@ impl Wallet {
     pub fn validate_signature(&self, secret_key: &SecretKey) -> Result<()> {
         self.validate()?;
 
-        if self.signature != self.calc_sign(secret_key)? {
+        if self.signature != self.calc_signature(secret_key)? {
             let err = Error::InvalidSignature;
             return Err(err);
         }
@@ -155,8 +169,28 @@ fn test_wallet_new() {
 
     let res = wallet.validate();
     assert!(res.is_ok());
+}
+
+#[test]
+fn test_wallet_sign() {
+    let secret_key = SecretKey::random().unwrap();
+    let res = Wallet::new(&secret_key);
+    assert!(res.is_ok());
+
+    let mut wallet = res.unwrap();
+
+    let res = wallet.sign(&secret_key);
+    assert!(res.is_ok());
+
+    let res = wallet.validate();
+    assert!(res.is_ok());
 
     let res = wallet.validate_signature(&secret_key);
+    assert!(res.is_ok());
+
+    let public_key = secret_key.to_public();
+
+    let res = wallet.verify_signature(&public_key);
     assert!(res.is_ok());
 }
 
