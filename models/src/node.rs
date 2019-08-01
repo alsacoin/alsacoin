@@ -33,7 +33,7 @@ impl Node {
         let node = Node {
             address: Random::bytes(address_len)?,
             stage: Stage::random()?,
-            last_seen: Timestamp::random()?,
+            last_seen: Timestamp::now(),
         };
 
         Ok(node)

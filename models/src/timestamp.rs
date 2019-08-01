@@ -4,8 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
-use chrono::{DateTime, Datelike, TimeZone, Timelike, Utc};
-use crypto::random::Random;
+use chrono::{DateTime, TimeZone, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -60,20 +59,6 @@ impl Timestamp {
         let _timestamp = dt.timestamp();
 
         Ok(Timestamp(_timestamp))
-    }
-
-    /// `random` creates a random `Timestamp`.
-    pub fn random() -> Result<Timestamp> {
-        let now = Utc::now();
-
-        let year = Random::u32_range(2019, now.year() as u32)?;
-        let month = Random::u32_range(7, now.month())?;
-        let day = Random::u32_range(25, now.day())?;
-        let hour = Random::u32_range(0, now.hour())?;
-        let min = Random::u32_range(0, 60)?;
-        let sec = Random::u32_range(0, 60)?;
-
-        Timestamp::new(year, month, day, hour, min, sec)
     }
 
     /// Returns the minimum `Timestamp`.
@@ -146,6 +131,8 @@ impl fmt::Display for Timestamp {
 
 #[test]
 fn test_timestamp_new() {
+    use crypto::random::Random;
+
     for _ in 0..10 {
         let year = Random::u32().unwrap();
         let month = Random::u32().unwrap();
@@ -187,23 +174,23 @@ fn test_timestamp_to_string() {
 }
 
 #[test]
-fn test_timestamp_random() {
-    for _ in 0..10 {
-        let res = Timestamp::random();
-        assert!(res.is_ok());
+fn test_timestamp_now() {
+    let timestamp = Timestamp::now();
 
-        let timestamp = res.unwrap();
+    let res = timestamp.validate();
+    assert!(res.is_ok());
 
-        let res = timestamp.validate();
-        assert!(res.is_ok());
-    }
+    let noisy_timestamp = Timestamp::now().with_noise();
+
+    let res = noisy_timestamp.validate();
+    assert!(res.is_ok());
 }
 
 #[test]
 fn test_timestamp_validate() {
     let date = "2012-12-12T00:00:00Z";
     let invalid_timestamp = Timestamp::parse(date).unwrap();
-    let valid_timestamp = Timestamp::random().unwrap();
+    let valid_timestamp = Timestamp::now();
 
     let res = invalid_timestamp.validate();
     assert!(res.is_err());

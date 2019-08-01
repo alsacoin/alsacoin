@@ -41,8 +41,12 @@ pub enum Error {
     AlreadyFound,
     #[fail(display = "Not found")]
     NotFound,
+    #[fail(display = "Invalid balance")]
+    InvalidBalance,
     #[fail(display = "Invalid fee")]
     InvalidFee,
+    #[fail(display = "Invalid address")]
+    InvalidAddress,
 }
 
 impl From<chrono::ParseError> for Error {

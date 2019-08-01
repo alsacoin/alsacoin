@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 /// Current Semver version of the library.
-pub const VERSION: &str = "0.9.4";
+pub const VERSION: &str = "0.1.0";
 
 /// Regex pattern of a numeric version.
 pub const NUMERIC_VERSION: &str = "^[0-9]*$";
@@ -213,7 +213,7 @@ impl Version {
     }
 
     /// Validates the `Version`.
-    fn validate(&self) -> Result<()> {
+    pub fn validate(&self) -> Result<()> {
         Self::validate_prerelease(&self.prerelease)?;
 
         Self::validate_buildmeta(&self.buildmeta)?;
