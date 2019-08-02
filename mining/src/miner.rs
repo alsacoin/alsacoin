@@ -83,6 +83,26 @@ impl Miner {
         let err = Error::NotFound;
         Err(err)
     }
+
+    /// `verify_message_mining` verifies the solution of a `mine_message` operation.
+    pub fn verify_message_mining(&self, msg: &[u8], nonce: u64, digest: Digest) -> Result<()> {
+        let nmsg = Miner::nonced_message(nonce, msg);
+
+        let hash = self.hash_message(&nmsg)?;
+        if hash != digest {
+            let err = Error::InvalidMiningSolution;
+            return Err(err);
+        }
+
+        let bits = hash.leading_zeros();
+
+        if bits >= self.difficulty {
+            Ok(())
+        } else {
+            let err = Error::InvalidMiningSolution;
+            Err(err)
+        }
+    }
 }
 
 #[test]
@@ -102,8 +122,11 @@ fn test_mine_message() {
         let res = miner.mine_message(&msg);
         assert!(res.is_ok());
 
-        let (_, digest) = res.unwrap();
+        let (nonce, digest) = res.unwrap();
         let bits = digest.leading_zeros();
-        assert!(bits >= *diff)
+        assert!(bits >= *diff);
+
+        let res = miner.verify_message_mining(&msg, nonce, digest);
+        assert!(res.is_ok());
     }
 }

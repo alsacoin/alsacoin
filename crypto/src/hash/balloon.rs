@@ -4,9 +4,10 @@ use crate::error::Error;
 use crate::hash::Blake512Hasher;
 use crate::hash::Digest;
 use crate::result::Result;
+use serde::{Deserialize, Serialize};
 
 /// Params used in Balloon hashing.
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct BalloonParams {
     /// The s_cost parameter used in Balloon hashing.
     pub s_cost: u32,

@@ -17,7 +17,7 @@ mod common;
 /// `difficulty` contains the difficulty functions.
 pub mod difficulty;
 
-/// `coinbase` contains the coinbase generation functions.
+/// `coinbase` contains the coinbase type and functions.
 pub mod coinbase;
 
 /// `miner` contains the mining types and functions.
