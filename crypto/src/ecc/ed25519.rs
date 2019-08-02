@@ -426,7 +426,7 @@ impl<'de> Deserialize<'de> for PublicKey {
 }
 
 /// `KeyPair` is a pair of Ed25519 `PublicKey` and `SecretKey`.
-#[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct KeyPair {
     pub public_key: PublicKey,
     pub secret_key: SecretKey,

@@ -86,6 +86,19 @@ impl Timestamp {
         format!("{:?}", self.0)
     }
 
+    /// `from_i64` converts an `i64` into a `Timestamp`.
+    pub fn from_i64(t: i64) -> Result<Timestamp> {
+        let t = Timestamp(t);
+        t.validate()?;
+
+        Ok(t)
+    }
+
+    /// `to_i64` returns the `Timestamp` as an `i64`.
+    pub fn to_i64(self) -> i64 {
+        self.0
+    }
+
     /// Returns the current time timestamp.
     pub fn now() -> Timestamp {
         Timestamp(Utc::now().timestamp())
@@ -171,6 +184,23 @@ fn test_timestamp_to_string() {
     let timestamp_b = Timestamp::from_string(&timestamp_str).unwrap();
 
     assert_eq!(timestamp_a, timestamp_b)
+}
+
+#[test]
+fn test_timestamp_i64() {
+    let invalid_i64 = -1_000_000_000;
+    let valid_i64 = Timestamp::now().to_i64();
+
+    let res = Timestamp::from_i64(invalid_i64);
+    assert!(res.is_err());
+
+    let res = Timestamp::from_i64(valid_i64 + 60);
+    assert!(res.is_ok());
+
+    let timestamp = res.unwrap();
+    let timestamp_i64 = timestamp.to_i64();
+
+    assert_eq!(valid_i64, timestamp_i64 - 60);
 }
 
 #[test]

@@ -19,8 +19,6 @@ pub enum Error {
     Parse { msg: String },
     #[fail(display = "Crypto: {}", msg)]
     Crypto { msg: String },
-    #[fail(display = "No result")]
-    NoResult,
     #[fail(display = "No regex match")]
     NoRegexMatch,
     #[fail(display = "Invalid version")]

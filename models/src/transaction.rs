@@ -36,14 +36,24 @@ impl Transaction {
     pub fn new() -> Result<Transaction> {
         let mut transaction = Transaction::default();
         transaction.nonce = Random::u64()?;
-
-        transaction.id = transaction.calc_id()?;
+        transaction.update_id()?;
 
         Ok(transaction)
     }
 
+    /// `set_time` sets the `Transaction` time.
+    pub fn set_time(&mut self, time: Timestamp) -> Result<()> {
+        time.validate()?;
+
+        self.time = time;
+
+        self.update_id()
+    }
+
     /// `set_locktime` sets the `Transaction` locktime.
     pub fn set_locktime(&mut self, locktime: Timestamp) -> Result<()> {
+        locktime.validate()?;
+
         if locktime < self.time {
             let err = Error::InvalidTimestamp;
             return Err(err);
@@ -51,12 +61,14 @@ impl Transaction {
 
         self.locktime = locktime;
 
-        Ok(())
+        self.update_id()
     }
 
     /// `clear_locktime` clears the `Transaction` locktime.
-    pub fn clear_locktime(&mut self) {
+    pub fn clear_locktime(&mut self) -> Result<()> {
         self.locktime = self.time;
+
+        self.update_id()
     }
 
     /// `input_balance` returns the `Transaction` inputs balance.
@@ -116,12 +128,9 @@ impl Transaction {
             return Err(err);
         }
 
-        if self.inputs.insert(input.address, input.clone()).is_none() {
-            let err = Error::NoResult;
-            return Err(err);
-        }
+        self.inputs.insert(input.address, input.clone());
 
-        Ok(())
+        self.update_id()
     }
 
     /// `update_input` updates an `Input` in the `Transaction`.
@@ -135,27 +144,21 @@ impl Transaction {
             return Ok(());
         }
 
-        if self.inputs.insert(input.address, input.clone()).is_none() {
-            let err = Error::NoResult;
-            return Err(err);
-        }
+        self.inputs.insert(input.address, input.clone());
 
-        Ok(())
+        self.update_id()
     }
 
-    /// `del_input` deletes an `Input` from the `Transaction`.
-    pub fn del_input(&mut self, input: &Input) -> Result<()> {
-        if !self.lookup_input(&input.address) {
+    /// `delete_input` deletes an `Input` from the `Transaction`.
+    pub fn delete_input(&mut self, address: &Address) -> Result<()> {
+        if !self.lookup_input(address) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if self.inputs.remove(&input.address).is_none() {
-            let err = Error::NoResult;
-            return Err(err);
-        }
+        self.inputs.remove(address);
 
-        Ok(())
+        self.update_id()
     }
 
     /// `validate_input` validates an `Input` in the `Transaction`.
@@ -185,12 +188,18 @@ impl Transaction {
     pub fn input_sign_message(&self) -> Result<Vec<u8>> {
         let mut clone = self.clone();
 
+        clone.id = Digest::default();
+
         for input in clone.clone().inputs.values_mut() {
             if input.signature.is_some() {
                 input.signature = None;
-                clone.update_input(&input)?;
             }
+
+            input.checksum = Digest::default();
+            clone.update_input(&input)?;
         }
+
+        clone.id = Digest::default();
 
         clone.to_bytes()
     }
@@ -240,7 +249,20 @@ impl Transaction {
 
         self.fee = fee;
 
-        Ok(())
+        self.update_id()
+    }
+
+    /// `update_nonce` updates the `Transaction` nonce.
+    pub fn update_nonce(&mut self) -> Result<()> {
+        let mut new_nonce = Random::u64()?;
+
+        while self.nonce != new_nonce {
+            new_nonce = Random::u64()?;
+        }
+
+        self.nonce = new_nonce;
+
+        self.update_id()
     }
 
     /// `lookup_output` look ups an `Output` in the `Transaction`.
@@ -266,16 +288,9 @@ impl Transaction {
             return Err(err);
         }
 
-        if self
-            .outputs
-            .insert(output.address, output.clone())
-            .is_none()
-        {
-            let err = Error::NoResult;
-            return Err(err);
-        }
+        self.outputs.insert(output.address, output.clone());
 
-        Ok(())
+        self.update_id()
     }
 
     /// `update_output` updates an `Output` in the `Transaction`.
@@ -289,31 +304,21 @@ impl Transaction {
             return Ok(());
         }
 
-        if self
-            .outputs
-            .insert(output.address, output.clone())
-            .is_none()
-        {
-            let err = Error::NoResult;
-            return Err(err);
-        }
+        self.outputs.insert(output.address, output.clone());
 
-        Ok(())
+        self.update_id()
     }
 
-    /// `del_output` deletes an `Output` from the `Transaction`.
-    pub fn del_output(&mut self, output: &Output) -> Result<()> {
-        if !self.lookup_output(&output.address) {
+    /// `delete_output` deletes an `Output` from the `Transaction`.
+    pub fn delete_output(&mut self, address: &Address) -> Result<()> {
+        if !self.lookup_output(address) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if self.outputs.remove(&output.address).is_none() {
-            let err = Error::NoResult;
-            return Err(err);
-        }
+        self.outputs.remove(address);
 
-        Ok(())
+        self.update_id()
     }
 
     /// `calc_id` calculates the `Transaction` id.
@@ -324,6 +329,40 @@ impl Transaction {
         let buf = clone.to_bytes()?;
         let id = Blake512Hasher::hash(&buf);
         Ok(id)
+    }
+
+    /// `update_id` updates the `Transaction` id.
+    pub fn update_id(&mut self) -> Result<()> {
+        let id = self.calc_id()?;
+        if self.id != id {
+            self.id = id;
+        }
+
+        Ok(())
+    }
+
+    /// `validate_id` validates the `Transaction` id.
+    pub fn validate_id(&self) -> Result<()> {
+        if self.id != self.calc_id()? {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
+    /// `validate_times` validates the `Transaction` time and locktime.
+    pub fn validate_times(&self) -> Result<()> {
+        self.time.validate()?;
+
+        self.locktime.validate()?;
+
+        if self.time > self.locktime {
+            let err = Error::InvalidTimestamp;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `validate_balance` validates the `Transaction` balance.
@@ -339,21 +378,11 @@ impl Transaction {
 
     /// `validate` validates the `Transaction`.
     pub fn validate(&self) -> Result<()> {
-        if self.id != self.calc_id()? {
-            let err = Error::InvalidId;
-            return Err(err);
-        }
+        self.validate_id()?;
 
         self.version.validate()?;
 
-        self.time.validate()?;
-
-        self.locktime.validate()?;
-
-        if self.time > self.locktime {
-            let err = Error::InvalidTimestamp;
-            return Err(err);
-        }
+        self.validate_times()?;
 
         self.validate_inputs()?;
 
@@ -381,6 +410,316 @@ impl Transaction {
     pub fn from_json(s: &str) -> Result<Transaction> {
         serde_json::from_str(s).map_err(|e| e.into())
     }
+}
+
+#[test]
+fn test_transaction_new() {
+    let res = Transaction::new();
+    assert!(res.is_ok());
+
+    let transaction = res.unwrap();
+    let res = transaction.validate();
+    assert!(res.is_ok())
+}
+
+#[test]
+fn test_transaction_id() {
+    let mut transaction = Transaction::new().unwrap();
+
+    let res = transaction.validate_id();
+    assert!(res.is_ok());
+
+    let mut invalid_id = Digest::random().unwrap();
+    while invalid_id == transaction.id {
+        invalid_id = Digest::random().unwrap();
+    }
+
+    transaction.id = invalid_id;
+
+    let res = transaction.validate_id();
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_transaction_times() {
+    let mut transaction = Transaction::new().unwrap();
+
+    let res = transaction.validate_times();
+    assert!(res.is_ok());
+
+    let invalid_date = "2012-12-12T00:00:00Z";
+    let invalid_timestamp = Timestamp::parse(invalid_date).unwrap();
+    let res = transaction.set_time(invalid_timestamp);
+    assert!(res.is_err());
+    let res = transaction.set_locktime(invalid_timestamp);
+    assert!(res.is_err());
+
+    transaction.time = Timestamp::now();
+    let res = transaction.validate_times();
+    assert!(res.is_ok());
+
+    let invalid_locktime_i64 = transaction.time.to_i64() - 1_000;
+    let invalid_locktime = Timestamp::from_i64(invalid_locktime_i64).unwrap();
+    transaction.locktime = invalid_locktime;
+    let res = transaction.validate_times();
+    assert!(res.is_err());
+
+    transaction.clear_locktime().unwrap();
+    assert_eq!(transaction.time, transaction.locktime);
+    let res = transaction.validate_times();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_transaction_inputs() {
+    use crypto::ecc::ed25519::KeyPair;
+
+    let mut transaction = Transaction::new().unwrap();
+
+    let mut keypairs = Vec::new();
+    for _ in 0..10 {
+        let keypair = KeyPair::new().unwrap();
+        keypairs.push(keypair);
+    }
+
+    let mut inputs = Vec::new();
+    for keypair in keypairs.iter() {
+        inputs.push(Input::random(&keypair.secret_key).unwrap());
+    }
+
+    for (i, input) in inputs.iter_mut().enumerate() {
+        let found = transaction.lookup_input(&input.address);
+        assert!(!found);
+
+        let res = transaction.get_input(&input.address);
+        assert!(res.is_err());
+
+        let res = transaction.add_input(input);
+        assert!(res.is_ok());
+
+        let found = transaction.lookup_input(&input.address);
+        assert!(found);
+
+        let res = transaction.get_input(&input.address);
+        assert!(res.is_ok());
+
+        let entry = res.unwrap();
+        assert_eq!(&entry, input);
+
+        input.value = 10;
+
+        let res = transaction.update_input(input);
+        assert!(res.is_ok());
+
+        let entry = transaction.get_input(&input.address).unwrap();
+        assert_eq!(&entry, input);
+        assert!(entry.signature.is_none());
+
+        let keypair = keypairs[i].clone();
+        assert_eq!(keypair.public_key, input.address);
+
+        let res = transaction.sign_input(&keypair.secret_key);
+        assert!(res.is_ok());
+
+        let entry = transaction.get_input(&input.address).unwrap();
+        assert!(entry.signature.is_some());
+
+        let msg = transaction.input_sign_message().unwrap();
+
+        let res = entry.verify_signature(&input.address, &msg);
+        assert!(res.is_ok());
+
+        let res = entry.validate_signature(&keypair.secret_key, &msg);
+        assert!(res.is_ok());
+
+        let res = transaction.validate_input_signature(&keypair.secret_key);
+        assert!(res.is_ok());
+
+        let res = transaction.verify_input_signature(&input.address);
+        assert!(res.is_ok());
+
+        let res = transaction.validate_input(&input.address);
+        assert!(res.is_ok());
+
+        let res = transaction.validate_inputs();
+        assert!(res.is_ok());
+
+        let res = transaction.delete_input(&input.address);
+        assert!(res.is_ok());
+
+        let found = transaction.lookup_input(&input.address);
+        assert!(!found);
+
+        let res = transaction.get_input(&input.address);
+        assert!(res.is_err());
+
+        let res = transaction.validate_inputs();
+        assert!(res.is_ok());
+    }
+}
+
+#[test]
+fn test_transaction_outputs() {
+    let mut transaction = Transaction::new().unwrap();
+
+    let mut outputs = Vec::new();
+    for _ in 0..10 {
+        outputs.push(Output::random().unwrap());
+    }
+
+    for output in outputs.iter_mut() {
+        let found = transaction.lookup_output(&output.address);
+        assert!(!found);
+
+        let res = transaction.get_output(&output.address);
+        assert!(res.is_err());
+
+        let res = transaction.add_output(output);
+        assert!(res.is_ok());
+
+        let found = transaction.lookup_output(&output.address);
+        assert!(found);
+
+        let res = transaction.get_output(&output.address);
+        assert!(res.is_ok());
+
+        let entry = res.unwrap();
+        assert_eq!(&entry, output);
+
+        output.value = 10;
+
+        let res = transaction.update_output(output);
+        assert!(res.is_ok());
+
+        let entry = transaction.get_output(&output.address).unwrap();
+        assert_eq!(&entry, output);
+
+        let res = transaction.delete_output(&output.address);
+        assert!(res.is_ok());
+
+        let found = transaction.lookup_output(&output.address);
+        assert!(!found);
+
+        let res = transaction.get_output(&output.address);
+        assert!(res.is_err());
+    }
+}
+
+#[test]
+fn test_transaction_balance() {
+    let mut transaction = Transaction::new().unwrap();
+    let mut input_balance = 0;
+    let mut output_balance = 0;
+    let mut fee = 0;
+    let mut expected_balance = 0i64;
+
+    let mut sks = Vec::new();
+    for _ in 0..10 {
+        let sk = SecretKey::new().unwrap();
+        sks.push(sk);
+    }
+
+    let mut inputs = Vec::new();
+    for sk in sks.iter() {
+        let mut input = Input::random(&sk).unwrap();
+        input.value = 10;
+        input.update_checksum().unwrap();
+        inputs.push(input);
+    }
+
+    for input in inputs.iter_mut() {
+        transaction.add_input(input).unwrap();
+        input_balance += input.value;
+        expected_balance += input.value as i64;
+
+        let max_fee = transaction.max_fee();
+        assert_eq!(max_fee, input_balance);
+
+        let balance = transaction.balance();
+        assert_eq!(balance, expected_balance);
+        assert_eq!(balance, input_balance as i64);
+
+        let res = transaction.validate_balance();
+        assert!(res.is_err());
+
+        transaction.delete_input(&input.address).unwrap();
+        input_balance -= input.value;
+        expected_balance -= input.value as i64;
+
+        let max_fee = transaction.max_fee();
+        assert_eq!(max_fee, 0);
+
+        let balance = transaction.balance();
+        assert_eq!(balance, expected_balance);
+        assert_eq!(balance, input_balance as i64);
+
+        let res = transaction.validate_balance();
+        assert!(res.is_ok());
+    }
+
+    assert_eq!(expected_balance, 0);
+
+    let mut outputs = Vec::new();
+    for _ in 0..10 {
+        let mut output = Output::random().unwrap();
+        output.value = 10;
+        outputs.push(output);
+    }
+
+    for output in outputs.iter_mut() {
+        assert_eq!(expected_balance, 0);
+
+        transaction.add_output(output).unwrap();
+        output_balance += output.value;
+        expected_balance -= output.value as i64;
+
+        let max_fee = transaction.max_fee();
+        assert_eq!(max_fee, 0);
+
+        let balance = transaction.balance();
+        assert_eq!(balance, expected_balance);
+        assert_eq!(balance, -(output_balance as i64));
+
+        let res = transaction.validate_balance();
+        assert!(res.is_err());
+
+        transaction.delete_output(&output.address).unwrap();
+        output_balance -= output.value;
+        expected_balance += output.value as i64;
+
+        let max_fee = transaction.max_fee();
+        assert_eq!(max_fee, 0);
+
+        let balance = transaction.balance();
+        assert_eq!(expected_balance, 0);
+        assert_eq!(balance, expected_balance);
+
+        let res = transaction.validate_balance();
+        assert!(res.is_ok());
+    }
+
+    let res = transaction.validate_balance();
+    assert!(res.is_ok());
+
+    fee += 10;
+    transaction.fee = fee;
+    expected_balance -= fee as i64;
+
+    let max_fee = transaction.max_fee();
+    assert_eq!(max_fee, 0);
+
+    let balance = transaction.balance();
+    assert_eq!(balance, expected_balance);
+
+    let res = transaction.validate_balance();
+    assert!(res.is_err());
+
+    let res = transaction.set_fee(fee);
+    assert!(res.is_err());
+
+    transaction.fee = 0;
+    let res = transaction.validate_balance();
+    assert!(res.is_ok());
 }
 
 #[test]
