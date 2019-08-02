@@ -5,14 +5,12 @@ sudo: required
 language: rust
 
 rust:
-  - nightly-2019-06-20
+  - nightly-2019-07-19
 
 cache: cargo
 
-before_cache: |
-  if [[ "$TRAVIS_RUST_VERSION" == nightly-2019-06-20 ]]; then
-    RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
-  fi
+before_cache:
+  - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
 
 before_install:
   - set -e
@@ -32,10 +30,8 @@ script:
 after_script:
   - set +e
 
-after_success: |
-  if [[ "$TRAVIS_RUST_VERSION" == nightly-2019-06-20 ]]; then
-    cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
-  fi
+after_success:
+  - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
 notifications:
   email:
