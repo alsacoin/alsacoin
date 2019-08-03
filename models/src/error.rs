@@ -45,6 +45,8 @@ pub enum Error {
     InvalidFee,
     #[fail(display = "Invalid address")]
     InvalidAddress,
+    #[fail(display = "Invalid distance")]
+    InvalidDistance,
 }
 
 impl From<chrono::ParseError> for Error {

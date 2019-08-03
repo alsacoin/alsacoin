@@ -3,6 +3,7 @@
 //! `output` contains the `Output` type and functions.
 
 use crate::address::Address;
+use crate::error::Error;
 use crate::result::Result;
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
@@ -11,18 +12,51 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Output {
     pub address: Address,
+    pub distance: u64,
     pub value: u64,
 }
 
 impl Output {
+    /// `new` creates a new `Output`.
+    pub fn new(address: Address, distance: u64, value: u64) -> Result<Output> {
+        if distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
+        let output = Output {
+            address,
+            distance,
+            value,
+        };
+
+        Ok(output)
+    }
+
     /// `random` creates a random `Output`.
     pub fn random() -> Result<Output> {
+        let mut distance = Random::u64()?;
+        while distance == 0 {
+            distance = Random::u64()?;
+        }
+
         let output = Output {
             address: Address::random()?,
+            distance,
             value: Random::u64()?,
         };
 
         Ok(output)
+    }
+
+    /// `validate` validates the `Output`.
+    pub fn validate(&self) -> Result<()> {
+        if self.distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `to_bytes` converts the `Output` into a CBOR binary.
@@ -43,6 +77,39 @@ impl Output {
     /// `from_json` converts a JSON string into an `Output`.
     pub fn from_json(s: &str) -> Result<Output> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+#[test]
+fn test_output_new() {
+    use crypto::random::Random;
+
+    let invalid_distance = 0;
+
+    for _ in 0..10 {
+        let address = Address::random().unwrap();
+        let valid_distance = Random::u64_range(1, 10).unwrap();
+        let value = Random::u64().unwrap();
+
+        let res = Output::new(address, valid_distance, value);
+        assert!(res.is_ok());
+
+        let res = Output::new(address, invalid_distance, value);
+        assert!(res.is_err());
+    }
+}
+
+#[test]
+fn test_output_validate() {
+    for _ in 0..10 {
+        let mut output = Output::random().unwrap();
+
+        let res = output.validate();
+        assert!(res.is_ok());
+
+        output.distance = 0;
+        let res = output.validate();
+        assert!(res.is_err());
     }
 }
 

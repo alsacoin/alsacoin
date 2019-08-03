@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Input {
     pub address: Address,
+    pub distance: u64,
     pub value: u64,
     pub signature: Option<Signature>,
     pub checksum: Digest,
@@ -21,9 +22,15 @@ pub struct Input {
 
 impl Input {
     /// `new` creates a new unsigned `Input`.
-    pub fn new(address: Address, value: u64) -> Result<Input> {
+    pub fn new(address: Address, distance: u64, value: u64) -> Result<Input> {
+        if distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
         let mut input = Input {
             address,
+            distance,
             value,
             signature: None,
             checksum: Digest::default(),
@@ -37,9 +44,13 @@ impl Input {
     /// `random` creates a random unsigned `Input`.
     pub fn random(secret_key: &SecretKey) -> Result<Input> {
         let address = secret_key.to_public();
+        let mut distance = Random::u64()?;
+        while distance == 0 {
+            distance = Random::u64()?;
+        }
         let value = Random::u64()?;
 
-        Input::new(address, value)
+        Input::new(address, distance, value)
     }
 
     /// `sign` calculates the input signature with a binary message.
@@ -114,6 +125,11 @@ impl Input {
 
     /// `validate` validates the `Input`.
     pub fn validate(&self) -> Result<()> {
+        if self.distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
         if self.checksum != self.calc_checksum()? {
             let err = Error::InvalidChecksum;
             return Err(err);
@@ -160,8 +176,12 @@ impl Input {
 #[test]
 fn test_input_new() {
     let address = Address::random().unwrap();
+    let mut distance = Random::u64().unwrap();
+    while distance == 0 {
+        distance = Random::u64().unwrap();
+    }
     let value = Random::u64().unwrap();
-    let res = Input::new(address, value);
+    let res = Input::new(address, distance, value);
     assert!(res.is_ok());
 
     let input = res.unwrap();
@@ -174,8 +194,12 @@ fn test_input_new() {
 fn test_input_sign() {
     let secret_key = SecretKey::random().unwrap();
     let address = secret_key.to_public();
+    let mut distance = Random::u64().unwrap();
+    while distance == 0 {
+        distance = Random::u64().unwrap();
+    }
     let value = Random::u64().unwrap();
-    let mut input = Input::new(address, value).unwrap();
+    let mut input = Input::new(address, distance, value).unwrap();
 
     let msg_len = 1000;
     let msg = Random::bytes(msg_len).unwrap();
