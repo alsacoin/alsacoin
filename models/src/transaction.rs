@@ -686,6 +686,42 @@ fn test_transaction_outputs() {
 }
 
 #[test]
+fn test_transaction_distance() {
+    let mut transaction = Transaction::new().unwrap();
+    let mut max_distance = transaction.distance;
+
+    let mut sks = Vec::new();
+    for _ in 0..10 {
+        let sk = SecretKey::new().unwrap();
+        sks.push(sk);
+    }
+
+    let mut inputs = Vec::new();
+    for sk in sks.iter() {
+        let mut input = Input::random(&sk).unwrap();
+        input.update_checksum().unwrap();
+        inputs.push(input);
+    }
+
+    for input in inputs.iter_mut() {
+        transaction.add_input(input).unwrap();
+
+        if input.distance > max_distance {
+            max_distance = input.distance;
+        }
+
+        assert_eq!(transaction.distance, max_distance);
+
+        let res = transaction.validate_distance();
+        assert!(res.is_ok());
+    }
+
+    transaction.distance -= 1;
+    let res = transaction.validate_distance();
+    assert!(res.is_err());
+}
+
+#[test]
 fn test_transaction_balance() {
     let mut transaction = Transaction::new().unwrap();
     let mut input_balance = 0;
