@@ -5,6 +5,7 @@
 use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
+use crate::transaction::Transaction;
 use crypto::ecc::ed25519::{KeyPair, PublicKey, SecretKey, Signature};
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
@@ -39,6 +40,18 @@ impl Input {
         input.update_checksum()?;
 
         Ok(input)
+    }
+
+    /// `from_transaction_output` creates a new `Input` from a `Transaction` `Output`.
+    pub fn from_transaction_output(transaction: &Transaction, address: &Address) -> Result<Input> {
+        transaction.validate()?;
+
+        let output = transaction.get_output(&address)?;
+        let address = output.address;
+        let distance = transaction.distance;
+        let value = output.value;
+
+        Input::new(address, distance, value)
     }
 
     /// `random` creates a random unsigned `Input`.

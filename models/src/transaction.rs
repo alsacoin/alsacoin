@@ -214,6 +214,18 @@ impl Transaction {
         Ok(())
     }
 
+    /// `validate_outputs` validates all the `Output`s in the `Transaction`.
+    pub fn validate_outputs(&self) -> Result<()> {
+        for (address, output) in self.clone().outputs {
+            if address != output.address {
+                let err = Error::InvalidAddress;
+                return Err(err);
+            }
+        }
+
+        Ok(())
+    }
+
     /// `input_sign_message` returns the binary message to use when signing an `Input` in the
     /// `Transaction`.
     pub fn input_sign_message(&self) -> Result<Vec<u8>> {
@@ -657,6 +669,9 @@ fn test_transaction_outputs() {
         let res = transaction.add_output(output);
         assert!(res.is_ok());
 
+        let res = transaction.validate_outputs();
+        assert!(res.is_ok());
+
         let found = transaction.lookup_output(&output.address);
         assert!(found);
 
@@ -671,6 +686,9 @@ fn test_transaction_outputs() {
         let res = transaction.update_output(output);
         assert!(res.is_ok());
 
+        let res = transaction.validate_outputs();
+        assert!(res.is_ok());
+
         let entry = transaction.get_output(&output.address).unwrap();
         assert_eq!(&entry, output);
 
@@ -683,6 +701,9 @@ fn test_transaction_outputs() {
         let res = transaction.get_output(&output.address);
         assert!(res.is_err());
     }
+
+    let res = transaction.validate_outputs();
+    assert!(res.is_ok());
 }
 
 #[test]
