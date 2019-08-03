@@ -18,13 +18,14 @@ use std::collections::BTreeMap;
 
 /// `Transaction` is the Alsacoin transaction type. It is built
 /// around the HybridTx model defined in `Chimeric Ledgers` papers.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub id: Digest,
     pub version: Version,
     pub stage: Stage,
     pub time: Timestamp,
     pub locktime: Timestamp,
+    pub distance: u64,
     pub inputs: BTreeMap<Address, Input>,
     pub outputs: BTreeMap<Address, Output>,
     pub fee: u64,
@@ -34,8 +35,19 @@ pub struct Transaction {
 impl Transaction {
     /// `new` creates a new `Transaction`.
     pub fn new() -> Result<Transaction> {
-        let mut transaction = Transaction::default();
-        transaction.nonce = Random::u64()?;
+        let mut transaction = Transaction {
+            id: Digest::default(),
+            version: Version::default(),
+            stage: Stage::default(),
+            time: Timestamp::default(),
+            locktime: Timestamp::default(),
+            distance: 1,
+            inputs: BTreeMap::default(),
+            outputs: BTreeMap::default(),
+            fee: 0,
+            nonce: Random::u64()?,
+        };
+
         transaction.update_id()?;
 
         Ok(transaction)
@@ -123,6 +135,8 @@ impl Transaction {
 
     /// `add_input` adds an `Input` in the Transaction.
     pub fn add_input(&mut self, input: &Input) -> Result<()> {
+        input.validate()?;
+
         if self.lookup_input(&input.address) {
             let err = Error::AlreadyFound;
             return Err(err);
@@ -130,11 +144,17 @@ impl Transaction {
 
         self.inputs.insert(input.address, input.clone());
 
+        if input.distance > self.distance {
+            self.distance = input.distance;
+        }
+
         self.update_id()
     }
 
     /// `update_input` updates an `Input` in the `Transaction`.
     pub fn update_input(&mut self, input: &Input) -> Result<()> {
+        input.validate()?;
+
         if !self.lookup_input(&input.address) {
             let err = Error::NotFound;
             return Err(err);
@@ -145,6 +165,10 @@ impl Transaction {
         }
 
         self.inputs.insert(input.address, input.clone());
+
+        if input.distance > self.distance {
+            self.distance = input.distance;
+        }
 
         self.update_id()
     }
@@ -158,6 +182,8 @@ impl Transaction {
 
         self.inputs.remove(address);
 
+        self.update_distance()?;
+
         self.update_id()
     }
 
@@ -168,6 +194,11 @@ impl Transaction {
 
         if &input.address != address {
             let err = Error::InvalidAddress;
+            return Err(err);
+        }
+
+        if input.distance > self.distance {
+            let err = Error::InvalidDistance;
             return Err(err);
         }
 
@@ -195,7 +226,7 @@ impl Transaction {
                 input.signature = None;
             }
 
-            input.checksum = Digest::default();
+            input.update_checksum()?;
             clone.update_input(&input)?;
         }
 
@@ -211,6 +242,7 @@ impl Transaction {
 
         let msg = self.input_sign_message()?;
         input.sign(secret_key, &msg)?;
+        input.validate()?;
 
         self.update_input(&input)
     }
@@ -250,6 +282,26 @@ impl Transaction {
         self.fee = fee;
 
         self.update_id()
+    }
+
+    /// `update_distance` updates the `Transaction` distance.
+    pub fn update_distance(&mut self) -> Result<()> {
+        let mut distance = self.distance;
+
+        if distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
+        for input in self.inputs.values() {
+            if input.distance > distance {
+                distance = input.distance;
+            }
+        }
+
+        self.distance = distance;
+
+        Ok(())
     }
 
     /// `update_nonce` updates the `Transaction` nonce.
@@ -351,6 +403,25 @@ impl Transaction {
         Ok(())
     }
 
+    /// `validate_distance` validates the `Transaction` distance.
+    pub fn validate_distance(&self) -> Result<()> {
+        if self.distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
+        let max_distance = self.distance;
+
+        for input in self.inputs.values() {
+            if input.distance > max_distance {
+                let err = Error::InvalidDistance;
+                return Err(err);
+            }
+        }
+
+        Ok(())
+    }
+
     /// `validate_times` validates the `Transaction` time and locktime.
     pub fn validate_times(&self) -> Result<()> {
         self.time.validate()?;
@@ -386,6 +457,8 @@ impl Transaction {
 
         self.validate_inputs()?;
 
+        self.validate_distance()?;
+
         self.validate_balance()?;
 
         Ok(())
@@ -409,6 +482,12 @@ impl Transaction {
     /// `from_json` converts a JSON string into an `Transaction`.
     pub fn from_json(s: &str) -> Result<Transaction> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl Default for Transaction {
+    fn default() -> Transaction {
+        Transaction::new().unwrap()
     }
 }
 
@@ -507,6 +586,7 @@ fn test_transaction_inputs() {
         assert_eq!(&entry, input);
 
         input.value = 10;
+        input.update_checksum().unwrap();
 
         let res = transaction.update_input(input);
         assert!(res.is_ok());
