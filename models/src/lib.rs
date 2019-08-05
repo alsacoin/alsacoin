@@ -31,6 +31,12 @@ pub mod account;
 /// `wallet` contains the wallet type and functions.
 pub mod wallet;
 
+/// `signer` contains the signer type and functions.
+pub mod signer;
+
+/// `signers` contains the signers type and functions.
+pub mod signers;
+
 /// `input` contains the input type and functions.
 pub mod input;
 
