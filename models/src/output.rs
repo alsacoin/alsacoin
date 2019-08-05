@@ -5,6 +5,7 @@
 use crate::address::Address;
 use crate::result::Result;
 use crypto::random::Random;
+use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 
 /// `Output` is an output in an Alsacoin `Transaction`.
@@ -12,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct Output {
     pub address: Address,
     pub amount: u64,
+    pub digest: Option<Digest>,
 }
 
 impl Output {
@@ -20,6 +22,7 @@ impl Output {
         let output = Output {
             address: Address::random()?,
             amount: Random::u64()?,
+            digest: None,
         };
 
         Ok(output)
