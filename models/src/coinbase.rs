@@ -30,6 +30,16 @@ pub struct Coinbase {
 impl Coinbase {
     /// `new` creates a new unmined `Coinbase`.
     pub fn new(distance: u64, difficulty: u64) -> Result<Coinbase> {
+        if distance == 0 {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
+        if difficulty == 0 {
+            let err = Error::InvalidDifficulty;
+            return Err(err);
+        }
+
         let mut coinbase = Coinbase::default();
 
         coinbase.distance = distance;
@@ -39,6 +49,13 @@ impl Coinbase {
         coinbase.update_checksum()?;
 
         Ok(coinbase)
+    }
+
+    /// `clear` clears the `Coinbase` of the mining proof.
+    pub fn clear(&mut self) -> Result<()> {
+        self.nonce = 0;
+        self.digest = Digest::default();
+        self.update_checksum()
     }
 
     /// `calc_amount` calculates the `Coinbase` amount given the transaction
@@ -318,6 +335,11 @@ fn test_coinbase_mine() {
 
         let res = coinbase.validate_mining_proof(&msg);
         assert!(res.is_ok());
+
+        let res = coinbase.clear();
+        assert!(res.is_ok());
+        assert_eq!(coinbase.nonce, 0);
+        assert_eq!(coinbase.digest, Digest::default());
     }
 }
 

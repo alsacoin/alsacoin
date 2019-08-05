@@ -287,6 +287,83 @@ impl Transaction {
         input.verify_signature(address, &msg)
     }
 
+    /// `set_coinbase` sets the `Transaction` `Coinbase`.
+    pub fn set_coinbase(&mut self, difficulty: u64) -> Result<()> {
+        if difficulty == 0 {
+            let err = Error::InvalidDifficulty;
+            return Err(err);
+        }
+
+        let coinbase = Coinbase::new(self.distance, difficulty)?;
+        self.coinbase = Some(coinbase);
+
+        Ok(())
+    }
+
+    /// `mining_message` returns the binary message used in mining.
+    pub fn mining_message(&self) -> Result<Vec<u8>> {
+        if self.coinbase.is_none() {
+            let err = Error::InvalidCoinbase;
+            return Err(err);
+        }
+
+        let mut clone = self.clone();
+        clone.id = Digest::default();
+
+        if let Some(mut coinbase) = clone.coinbase {
+            coinbase.validate()?;
+            coinbase.clear()?;
+            clone.coinbase = Some(coinbase);
+        }
+
+        clone.to_bytes()
+    }
+
+    /// `mine` mines the `Transaction` `Coinbase`.
+    pub fn mine(&mut self) -> Result<()> {
+        if self.coinbase.is_none() {
+            let err = Error::InvalidCoinbase;
+            return Err(err);
+        }
+
+        if let Some(mut coinbase) = self.coinbase {
+            let msg = self.mining_message()?;
+            coinbase.mine(&msg)?;
+            self.coinbase = Some(coinbase);
+        }
+
+        Ok(())
+    }
+
+    /// `verify_mining_proof` verifies the `Transaction` mined `Coinbase` proof.
+    pub fn validate_mining_proof(&self) -> Result<()> {
+        if self.coinbase.is_none() {
+            let err = Error::InvalidCoinbase;
+            return Err(err);
+        }
+
+        if let Some(coinbase) = self.coinbase {
+            let msg = self.mining_message()?;
+            coinbase.validate_mining_proof(&msg)?;
+        }
+
+        Ok(())
+    }
+
+    /// `validate_coinbase` validates the `Transaction` `Coinbase`.
+    pub fn validate_coinbase(&self) -> Result<()> {
+        if let Some(coinbase) = self.coinbase {
+            if coinbase.distance != self.distance {
+                let err = Error::InvalidCoinbase;
+                return Err(err);
+            }
+
+            coinbase.validate()?;
+        }
+
+        Ok(())
+    }
+
     /// `set_fee` sets the fee in the `Transaction`.
     pub fn set_fee(&mut self, fee: u64) -> Result<()> {
         if fee > self.max_fee() {
@@ -475,6 +552,8 @@ impl Transaction {
         self.validate_distance()?;
 
         self.validate_balance()?;
+
+        self.validate_coinbase()?;
 
         Ok(())
     }
@@ -860,6 +939,64 @@ fn test_transaction_balance() {
     transaction.fee = 0;
     let res = transaction.validate_balance();
     assert!(res.is_ok());
+}
+
+#[test]
+fn test_transaction_coinbase() {
+    use crypto::random::Random;
+
+    let invalid_difficulty = 0;
+
+    for _ in 0..10 {
+        let mut transaction = Transaction::default();
+        let valid_difficulty = Random::u64_range(1, 10).unwrap();
+
+        let res = transaction.validate_coinbase();
+        assert!(res.is_ok());
+
+        let res = transaction.set_coinbase(invalid_difficulty);
+        assert!(res.is_err());
+
+        let res = transaction.set_coinbase(valid_difficulty);
+        assert!(res.is_ok());
+
+        let res = transaction.validate_coinbase();
+        assert!(res.is_ok());
+    }
+}
+
+#[test]
+fn test_transaction_mine() {
+    use crypto::random::Random;
+
+    for _ in 0..10 {
+        let mut transaction = Transaction::default();
+        let difficulty = Random::u64_range(1, 10).unwrap();
+
+        transaction.set_coinbase(difficulty).unwrap();
+
+        let res = transaction.mine();
+        assert!(res.is_ok());
+
+        let res = transaction.validate_coinbase();
+        assert!(res.is_ok());
+
+        let res = transaction.validate_mining_proof();
+        assert!(res.is_ok());
+
+        let mut coinbase = transaction.coinbase.unwrap();
+
+        if coinbase.nonce == u64::max_value() {
+            coinbase.nonce = 0;
+        } else {
+            coinbase.nonce += 1;
+        }
+
+        transaction.coinbase = Some(coinbase);
+
+        let res = transaction.validate_mining_proof();
+        assert!(res.is_err());
+    }
 }
 
 #[test]
