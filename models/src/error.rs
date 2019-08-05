@@ -19,6 +19,10 @@ pub enum Error {
     Parse { msg: String },
     #[fail(display = "Crypto: {}", msg)]
     Crypto { msg: String },
+    #[fail(display = "Mining: {}", msg)]
+    Mining { msg: String },
+    #[fail(display = "Out of bound")]
+    OutOfBound,
     #[fail(display = "No regex match")]
     NoRegexMatch,
     #[fail(display = "Invalid version")]
@@ -88,5 +92,12 @@ impl From<crypto::error::Error> for Error {
     fn from(err: crypto::error::Error) -> Error {
         let msg = format!("{}", err);
         Error::Crypto { msg }
+    }
+}
+
+impl From<mining::error::Error> for Error {
+    fn from(err: mining::error::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Mining { msg }
     }
 }

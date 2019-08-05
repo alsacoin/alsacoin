@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Output {
     pub address: Address,
-    pub value: u64,
+    pub amount: u64,
 }
 
 impl Output {
@@ -19,7 +19,7 @@ impl Output {
     pub fn random() -> Result<Output> {
         let output = Output {
             address: Address::random()?,
-            value: Random::u64()?,
+            amount: Random::u64()?,
         };
 
         Ok(output)

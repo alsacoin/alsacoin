@@ -2,12 +2,12 @@
 //!
 //! The `coinbase` module contains the `Coinbase` type and functions.
 
-use crate::common::riemmann_zeta_2;
 use crate::error::Error;
-use crate::miner::Miner;
 use crate::result::Result;
 use crypto::hash::balloon::BalloonParams;
 use crypto::hash::{Blake512Hasher, Digest};
+use mining::common::riemmann_zeta_2;
+use mining::miner::Miner;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
@@ -16,7 +16,7 @@ use serde_json;
 pub const COINBASE_BASE_AMOUNT: u64 = 1_000_000_000;
 
 /// `Coinbase` is the Alsacoin coinbase output type.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Coinbase {
     pub params: BalloonParams,
     pub distance: u64,
@@ -108,7 +108,7 @@ impl Coinbase {
         let miner = Miner::new(self.params, self.difficulty)?;
         let mmsg = self.mining_message(msg)?;
 
-        miner.mine_message(&mmsg)
+        miner.mine_message(&mmsg).map_err(|e| e.into())
     }
 
     /// `mine` mines the `Coinbase`.
@@ -140,7 +140,9 @@ impl Coinbase {
         let miner = Miner::new(self.params, self.difficulty)?;
         let mmsg = self.mining_message(msg)?;
 
-        miner.verify_message_mining(&mmsg, self.nonce, self.digest)
+        miner
+            .verify_message_mining(&mmsg, self.nonce, self.digest)
+            .map_err(|e| e.into())
     }
 
     /// `to_bytes` converts the `Coinbase` into a CBOR binary.

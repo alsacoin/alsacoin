@@ -7,7 +7,7 @@ use crate::result::Result;
 use serde::{Deserialize, Serialize};
 
 /// Params used in Balloon hashing.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct BalloonParams {
     /// The s_cost parameter used in Balloon hashing.
     pub s_cost: u32,

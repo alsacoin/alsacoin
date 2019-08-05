@@ -16,14 +16,14 @@ use serde::{Deserialize, Serialize};
 pub struct Input {
     pub address: Address,
     pub distance: u64,
-    pub value: u64,
+    pub amount: u64,
     pub signature: Option<Signature>,
     pub checksum: Digest,
 }
 
 impl Input {
     /// `new` creates a new unsigned `Input`.
-    pub fn new(address: Address, distance: u64, value: u64) -> Result<Input> {
+    pub fn new(address: Address, distance: u64, amount: u64) -> Result<Input> {
         if distance == 0 {
             let err = Error::InvalidDistance;
             return Err(err);
@@ -32,7 +32,7 @@ impl Input {
         let mut input = Input {
             address,
             distance,
-            value,
+            amount,
             signature: None,
             checksum: Digest::default(),
         };
@@ -49,9 +49,9 @@ impl Input {
         let output = transaction.get_output(&address)?;
         let address = output.address;
         let distance = transaction.distance;
-        let value = output.value;
+        let amount = output.amount;
 
-        Input::new(address, distance, value)
+        Input::new(address, distance, amount)
     }
 
     /// `random` creates a random unsigned `Input`.
@@ -61,9 +61,9 @@ impl Input {
         while distance == 0 {
             distance = Random::u64()?;
         }
-        let value = Random::u64()?;
+        let amount = Random::u64()?;
 
-        Input::new(address, distance, value)
+        Input::new(address, distance, amount)
     }
 
     /// `sign` calculates the input signature with a binary message.
@@ -193,8 +193,8 @@ fn test_input_new() {
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
-    let value = Random::u64().unwrap();
-    let res = Input::new(address, distance, value);
+    let amount = Random::u64().unwrap();
+    let res = Input::new(address, distance, amount);
     assert!(res.is_ok());
 
     let input = res.unwrap();
@@ -211,8 +211,8 @@ fn test_input_sign() {
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
-    let value = Random::u64().unwrap();
-    let mut input = Input::new(address, distance, value).unwrap();
+    let amount = Random::u64().unwrap();
+    let mut input = Input::new(address, distance, amount).unwrap();
 
     let msg_len = 1000;
     let msg = Random::bytes(msg_len).unwrap();

@@ -13,4 +13,3 @@ futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nig
 
 crypto = { path = "../crypto" }
 store = { path = "../store" }
-models = { path = "../models" }

@@ -3,6 +3,7 @@
 //! `transaction` contains the `Transaction` type and functions.
 
 use crate::address::Address;
+use crate::coinbase::Coinbase;
 use crate::error::Error;
 use crate::input::Input;
 use crate::output::Output;
@@ -28,6 +29,7 @@ pub struct Transaction {
     pub distance: u64,
     pub inputs: BTreeMap<Address, Input>,
     pub outputs: BTreeMap<Address, Output>,
+    pub coinbase: Option<Coinbase>,
     pub fee: u64,
     pub nonce: u64,
 }
@@ -44,6 +46,7 @@ impl Transaction {
             distance: 1,
             inputs: BTreeMap::default(),
             outputs: BTreeMap::default(),
+            coinbase: None,
             fee: 0,
             nonce: Random::u64()?,
         };
@@ -87,14 +90,14 @@ impl Transaction {
     pub fn input_balance(&self) -> u64 {
         self.inputs
             .iter()
-            .fold(0, |acc, (_, input)| acc + input.value)
+            .fold(0, |acc, (_, input)| acc + input.amount)
     }
 
     /// `output_balance` returns the `Transaction` outputs balance.
     pub fn output_balance(&self) -> u64 {
         self.outputs
             .iter()
-            .fold(0, |acc, (_, output)| acc + output.value)
+            .fold(0, |acc, (_, output)| acc + output.amount)
     }
 
     /// `balance` returns the `Transaction` balance.
@@ -597,7 +600,7 @@ fn test_transaction_inputs() {
         let entry = res.unwrap();
         assert_eq!(&entry, input);
 
-        input.value = 10;
+        input.amount = 10;
         input.update_checksum().unwrap();
 
         let res = transaction.update_input(input);
@@ -681,7 +684,7 @@ fn test_transaction_outputs() {
         let entry = res.unwrap();
         assert_eq!(&entry, output);
 
-        output.value = 10;
+        output.amount = 10;
 
         let res = transaction.update_output(output);
         assert!(res.is_ok());
@@ -759,15 +762,15 @@ fn test_transaction_balance() {
     let mut inputs = Vec::new();
     for sk in sks.iter() {
         let mut input = Input::random(&sk).unwrap();
-        input.value = 10;
+        input.amount = 10;
         input.update_checksum().unwrap();
         inputs.push(input);
     }
 
     for input in inputs.iter_mut() {
         transaction.add_input(input).unwrap();
-        input_balance += input.value;
-        expected_balance += input.value as i64;
+        input_balance += input.amount;
+        expected_balance += input.amount as i64;
 
         let max_fee = transaction.max_fee();
         assert_eq!(max_fee, input_balance);
@@ -780,8 +783,8 @@ fn test_transaction_balance() {
         assert!(res.is_err());
 
         transaction.delete_input(&input.address).unwrap();
-        input_balance -= input.value;
-        expected_balance -= input.value as i64;
+        input_balance -= input.amount;
+        expected_balance -= input.amount as i64;
 
         let max_fee = transaction.max_fee();
         assert_eq!(max_fee, 0);
@@ -799,7 +802,7 @@ fn test_transaction_balance() {
     let mut outputs = Vec::new();
     for _ in 0..10 {
         let mut output = Output::random().unwrap();
-        output.value = 10;
+        output.amount = 10;
         outputs.push(output);
     }
 
@@ -807,8 +810,8 @@ fn test_transaction_balance() {
         assert_eq!(expected_balance, 0);
 
         transaction.add_output(output).unwrap();
-        output_balance += output.value;
-        expected_balance -= output.value as i64;
+        output_balance += output.amount;
+        expected_balance -= output.amount as i64;
 
         let max_fee = transaction.max_fee();
         assert_eq!(max_fee, 0);
@@ -821,8 +824,8 @@ fn test_transaction_balance() {
         assert!(res.is_err());
 
         transaction.delete_output(&output.address).unwrap();
-        output_balance -= output.value;
-        expected_balance += output.value as i64;
+        output_balance -= output.amount;
+        expected_balance += output.amount as i64;
 
         let max_fee = transaction.max_fee();
         assert_eq!(max_fee, 0);
