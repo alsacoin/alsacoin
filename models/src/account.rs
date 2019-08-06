@@ -8,19 +8,19 @@ use crate::result::Result;
 use crypto::hash::Blake512Hasher;
 use crypto::hash::Digest;
 use crypto::random::Random;
+use crate::signers::Signers;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
 
 /// `Account` is the type used to represent an Alsacoin account
-/// of a user, account which is identified by an ID and
-/// an `Address`.
+/// of a user, account which is identified by an `Address`.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct Account {
-    pub id: Digest,
+    pub address: Address,
     pub prev_id: Option<Digest>,
     pub counter: u64,
-    pub address: Address,
+    pub signers: Signers,
     pub value: u64, // NB: gonna be confidential
 }
 

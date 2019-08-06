@@ -2,8 +2,8 @@
 //!
 //! `signer` is the module containing the account signer type and functions.
 
-use crate::address::Address;
 use crate::result::Result;
+use crypto::ecc::ed25519::PublicKey;
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
@@ -12,7 +12,7 @@ use serde_json;
 /// `Signer` is a single signer of an `Account`.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct Signer {
-    pub address: Address,
+    pub public_key: PublicKey,
     pub weight: u64,
 }
 
@@ -20,7 +20,7 @@ impl Signer {
     /// `random` creates a new random `Signer`.
     pub fn random() -> Result<Signer> {
         let signer = Signer {
-            address: Address::random()?,
+            public_key: PublicKey::random()?,
             weight: Random::u64()?,
         };
 

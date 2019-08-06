@@ -6,7 +6,8 @@ use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crate::signer::Signer;
-use crypto::hash::{Digest, Blake512Hasher};
+use crypto::ecc::ed25519::PublicKey;
+use crypto::hash::Blake512Hasher;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
@@ -15,8 +16,8 @@ use std::collections::BTreeMap;
 /// `Signers` contains the signers of an `Account`, with their weight and threshold.
 #[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct Signers {
-    pub id: Digest,
-    pub signers: BTreeMap<Address, Signer>,
+    pub address: Address,
+    pub signers: BTreeMap<PublicKey, Signer>,
     pub threshold: u64,
 }
 
@@ -24,24 +25,24 @@ impl Signers {
     /// `new` creates a new `Signers`.
     pub fn new() -> Result<Signers> {
         let mut signers = Signers::default();
-        signers.update_id()?;
+        signers.update_address()?;
 
         Ok(signers)
     }
 
-    /// `calc_id` calculates the `Signers` id.
-    pub fn calc_id(&self) -> Result<Digest> {
+    /// `calc_address` calculates the `Signers` address.
+    pub fn calc_address(&self) -> Result<Address> {
         let mut clone = self.clone();
-        clone.id = Digest::default();
+        clone.address = Address::default();
 
         let buf = clone.to_bytes()?;
         let digest = Blake512Hasher::hash(&buf);
         Ok(digest)
     }
 
-    /// `update_id` updates the `Signers` id.
-    pub fn update_id(&mut self) -> Result<()> {
-        self.id = self.calc_id()?;
+    /// `update_address` updates the `Signers` address.
+    pub fn update_address(&mut self) -> Result<()> {
+        self.address = self.calc_address()?;
 
         Ok(())
     }
@@ -66,72 +67,82 @@ impl Signers {
             .fold(0, |acc, signer| acc + signer.weight)
     }
 
+    /// `set_threshold` sets the `Signers` threshold.
+    pub fn set_threshold(&mut self, threshold: u64) -> Result<()> {
+        if threshold > self.total_weight() {
+            let err = Error::InvalidThreshold;
+            return Err(err);
+        }
+
+        self.update_address()
+    }
+
     /// `lookup` looks up a signer in `Signers`.
-    pub fn lookup(&self, address: &Address) -> bool {
-        self.signers.contains_key(address)
+    pub fn lookup(&self, public_key: &PublicKey) -> bool {
+        self.signers.contains_key(public_key)
     }
 
     /// `get` gets a signer in `Signers`.
-    pub fn get(&self, address: &Address) -> Result<Signer> {
-        if !self.lookup(address) {
+    pub fn get(&self, public_key: &PublicKey) -> Result<Signer> {
+        if !self.lookup(public_key) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        let signer = self.signers.get(address).unwrap().clone();
+        let signer = self.signers.get(public_key).unwrap().clone();
         Ok(signer)
     }
 
     /// `add` adds a signer in `Signers`.
     pub fn add(&mut self, signer: &Signer) -> Result<()> {
-        if self.lookup(&signer.address) {
+        if self.lookup(&signer.public_key) {
             let err = Error::AlreadyFound;
             return Err(err);
         }
 
-        self.signers.insert(signer.address, signer.clone());
+        self.signers.insert(signer.public_key, signer.clone());
 
-        self.update_id()
+        self.update_address()
     }
 
     /// `update` updates a signer in `Signers`.
     pub fn update(&mut self, signer: &Signer) -> Result<()> {
-        if !self.lookup(&signer.address) {
+        if !self.lookup(&signer.public_key) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if signer == &self.get(&signer.address)? {
+        if signer == &self.get(&signer.public_key)? {
             return Ok(());
         }
 
-        self.signers.insert(signer.address, signer.clone());
+        self.signers.insert(signer.public_key, signer.clone());
 
-        self.update_id()
+        self.update_address()
     }
 
     /// `delete` deletes a signer in `Signers`.
-    pub fn delete(&mut self, address: &Address) -> Result<()> {
-        if !self.lookup(address) {
+    pub fn delete(&mut self, public_key: &PublicKey) -> Result<()> {
+        if !self.lookup(public_key) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.signers.remove(address);
+        self.signers.remove(public_key);
 
-        self.update_id()
+        self.update_address()
     }
 
     /// `validate` validates the `Signers`.
     pub fn validate(&self) -> Result<()> {
-        if self.id != self.calc_id()? {
+        if self.address != self.calc_address()? {
             let err = Error::InvalidId;
             return Err(err);
         }
 
-        for (address, signer) in &self.signers {
-            if address != &signer.address {
-                let err = Error::InvalidAddress;
+        for (public_key, signer) in &self.signers {
+            if public_key != &signer.public_key {
+                let err = Error::InvalidPublicKey;
                 return Err(err);
             }
         }
@@ -172,31 +183,31 @@ fn test_signers_ops() {
     for _ in 0..10 {
         let signer = Signer::random().unwrap();
 
-        let found = signers.lookup(&signer.address);
+        let found = signers.lookup(&signer.public_key);
         assert!(!found);
 
-        let res = signers.get(&signer.address);
+        let res = signers.get(&signer.public_key);
         assert!(res.is_err());
 
-        let res = signers.delete(&signer.address);
+        let res = signers.delete(&signer.public_key);
         assert!(res.is_err());
 
         let res = signers.add(&signer);
         assert!(res.is_ok());
 
-        let found = signers.lookup(&signer.address);
+        let found = signers.lookup(&signer.public_key);
         assert!(found);
 
-        let res = signers.get(&signer.address);
+        let res = signers.get(&signer.public_key);
         assert!(res.is_ok());
 
         let entry = res.unwrap();
         assert_eq!(signer, entry);
 
-        let res = signers.delete(&signer.address);
+        let res = signers.delete(&signer.public_key);
         assert!(res.is_ok());
 
-        let found = signers.lookup(&signer.address);
+        let found = signers.lookup(&signer.public_key);
         assert!(!found);
     }
 }
@@ -210,9 +221,9 @@ fn test_signers_weight() {
     let mut expected_total_weight = 0;
 
     for _ in 0..10 {
-        let address = Address::random().unwrap();
+        let public_key = PublicKey::random().unwrap();
         let weight = Random::u64_range(1, 11).unwrap();
-        let signer = Signer { address, weight };
+        let signer = Signer { public_key, weight };
 
         signers.add(&signer).unwrap();
 
@@ -239,9 +250,9 @@ fn test_signers_validate() {
     assert!(res.is_ok());
 
     for _ in 0..10 {
-        let address = Address::random().unwrap();
+        let public_key = PublicKey::random().unwrap();
         let weight = Random::u64_range(1, 11).unwrap();
-        let signer = Signer { address, weight };
+        let signer = Signer { public_key, weight };
 
         signers.add(&signer).unwrap();
 
@@ -257,6 +268,12 @@ fn test_signers_validate() {
     assert!(res.is_err());
 
     signers.threshold = signers.total_weight();
+    let res = signers.validate();
+    assert!(res.is_err());
+
+    let res = signers.set_threshold(signers.total_weight());
+    assert!(res.is_ok());
+
     let res = signers.validate();
     assert!(res.is_ok());
 }
