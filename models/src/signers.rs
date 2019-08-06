@@ -69,10 +69,7 @@ impl Signers {
 
     /// `set_threshold` sets the `Signers` threshold.
     pub fn set_threshold(&mut self, threshold: u64) -> Result<()> {
-        if threshold > self.total_weight() {
-            let err = Error::InvalidThreshold;
-            return Err(err);
-        }
+        self.threshold = threshold;
 
         self.update_address()
     }

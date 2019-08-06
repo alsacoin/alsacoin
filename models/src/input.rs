@@ -143,6 +143,33 @@ impl Input {
         Ok(())
     }
 
+    /// `signatures_weight` returns the sum of the weights of
+    /// the actual signers.
+    pub fn signatures_weight(&self) -> Result<u64> {
+        self.validate()?;
+
+        let mut sigs_weight = 0;
+
+        for pk in self.signatures.keys() {
+            let signer = self.account.signers.get(&pk)?;
+            sigs_weight += signer.weight;
+        }
+
+        Ok(sigs_weight)
+    }
+
+    /// `fully_signed` returns if the `Input` has reached the
+    /// threshold.
+    pub fn fully_signed(&self) -> Result<bool> {
+        self.validate()?;
+
+        if self.signatures_weight()? >= self.account.signers.threshold {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// `to_bytes` converts the `Input` into a CBOR binary.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         serde_cbor::to_vec(self).map_err(|e| e.into())
@@ -194,13 +221,27 @@ fn test_input_sign() {
     use crate::signers::Signers;
     use crypto::random::Random;
 
-    let secret_key = SecretKey::random().unwrap();
-    let public_key = secret_key.to_public();
-    let weight = Random::u64().unwrap();
-    let signer = Signer { public_key, weight };
+    let secret_key_a = SecretKey::random().unwrap();
+    let public_key_a = secret_key_a.to_public();
+    let secret_key_b = SecretKey::random().unwrap();
+    let public_key_b = secret_key_b.to_public();
+    let msg_len = 1000;
+    let msg = Random::bytes(msg_len).unwrap();
+    let weight = 10;
+    let signer_a = Signer {
+        public_key: public_key_a,
+        weight,
+    };
+    let signer_b = Signer {
+        public_key: public_key_b,
+        weight,
+    };
 
     let mut signers = Signers::new().unwrap();
-    signers.add(&signer).unwrap();
+    signers.threshold = 20;
+
+    signers.add(&signer_a).unwrap();
+    signers.add(&signer_b).unwrap();
 
     let value = Random::u64().unwrap();
     let account = Account::new(&signers, value).unwrap();
@@ -212,16 +253,31 @@ fn test_input_sign() {
     let amount = Random::u64().unwrap();
     let mut input = Input::new(&account, distance, amount).unwrap();
 
-    let msg_len = 1000;
-    let msg = Random::bytes(msg_len).unwrap();
-
-    let res = input.sign(&secret_key, &msg);
+    let res = input.sign(&secret_key_a, &msg);
     assert!(res.is_ok());
 
-    let public_key = secret_key.to_public();
-
-    let res = input.verify_signature(&public_key, &msg);
+    let res = input.verify_signature(&public_key_a, &msg);
     assert!(res.is_ok());
+
+    let res = input.signatures_weight();
+    assert!(res.is_ok());
+
+    let sigs_weight = res.unwrap();
+    assert_eq!(sigs_weight, signer_a.weight);
+
+    let res = input.fully_signed();
+    assert!(res.is_ok());
+    assert!(!res.unwrap());
+
+    let res = input.sign(&secret_key_b, &msg);
+    assert!(res.is_ok());
+
+    let sigs_weight = input.signatures_weight().unwrap();
+    assert_eq!(sigs_weight, input.account.signers.threshold);
+
+    let res = input.fully_signed();
+    assert!(res.is_ok());
+    assert!(res.unwrap());
 }
 
 #[test]
