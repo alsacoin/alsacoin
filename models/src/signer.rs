@@ -1,6 +1,6 @@
 //! # Signer
 //!
-//! `signer` is the module containing the output signer type and functions.
+//! `signer` is the module containing the account signer type and functions.
 
 use crate::address::Address;
 use crate::result::Result;
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
 
-/// `Signer` is a single signer of a `Transaction` `Output`.
+/// `Signer` is a single signer of an `Account`.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct Signer {
     pub address: Address,

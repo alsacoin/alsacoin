@@ -55,6 +55,8 @@ pub enum Error {
     InvalidDifficulty,
     #[fail(display = "Invalid coinbase")]
     InvalidCoinbase,
+    #[fail(display = "Invalid threshold")]
+    InvalidThreshold,
 }
 
 impl From<chrono::ParseError> for Error {

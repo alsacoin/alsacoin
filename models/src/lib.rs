@@ -25,17 +25,17 @@ pub mod node;
 /// `address` contains the address type and functions.
 pub mod address;
 
-/// `account` contains the account type and functions.
-pub mod account;
-
-/// `wallet` contains the wallet type and functions.
-pub mod wallet;
-
 /// `signer` contains the signer type and functions.
 pub mod signer;
 
 /// `signers` contains the signers type and functions.
 pub mod signers;
+
+/// `account` contains the account type and functions.
+pub mod account;
+
+/// `wallet` contains the wallet type and functions.
+pub mod wallet;
 
 /// `input` contains the input type and functions.
 pub mod input;

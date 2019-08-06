@@ -4,8 +4,8 @@
 
 use crate::address::Address;
 use crate::result::Result;
-use crypto::random::Random;
 use crypto::hash::Digest;
+use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 
 /// `Output` is an output in an Alsacoin `Transaction`.
