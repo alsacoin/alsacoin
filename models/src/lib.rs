@@ -43,5 +43,5 @@ pub mod output;
 /// `coinbase` contains the coinbase type and functions.
 pub mod coinbase;
 
-// /// `transaction` contains the transaction type and functions.
-//pub mod transaction;
+/// `transaction` contains the transaction type and functions.
+pub mod transaction;
