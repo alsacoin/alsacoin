@@ -89,7 +89,7 @@ impl Signers {
             return Err(err);
         }
 
-        let signer = self.signers.get(public_key).unwrap().clone();
+        let signer = *self.signers.get(public_key).unwrap();
         Ok(signer)
     }
 
