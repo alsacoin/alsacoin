@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub struct Output {
     pub address: Address,
     pub amount: u64,
-    pub digest: Option<Digest>,
+    pub custom_digest: Option<Digest>,
 }
 
 impl Output {
@@ -22,7 +22,7 @@ impl Output {
         let output = Output {
             address: Address::random()?,
             amount: Random::u64()?,
-            digest: None,
+            custom_digest: None,
         };
 
         Ok(output)

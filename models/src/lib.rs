@@ -34,14 +34,14 @@ pub mod signers;
 /// `account` contains the account type and functions.
 pub mod account;
 
-// /// `input` contains the input type and functions.
-//pub mod input;
+/// `input` contains the input type and functions.
+pub mod input;
 
-// /// `ouput` contains the output type and functions.
-//pub mod output;
+/// `ouput` contains the output type and functions.
+pub mod output;
 
-// /// `coinbase` contains the coinbase type and functions.
-//pub mod coinbase;
+/// `coinbase` contains the coinbase type and functions.
+pub mod coinbase;
 
 // /// `transaction` contains the transaction type and functions.
 //pub mod transaction;

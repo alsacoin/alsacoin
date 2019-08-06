@@ -136,7 +136,7 @@ impl Signers {
     /// `validate` validates the `Signers`.
     pub fn validate(&self) -> Result<()> {
         if self.address != self.calc_address()? {
-            let err = Error::InvalidId;
+            let err = Error::InvalidAddress;
             return Err(err);
         }
 

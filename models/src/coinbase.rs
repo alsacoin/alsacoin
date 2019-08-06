@@ -2,10 +2,11 @@
 //!
 //! The `coinbase` module contains the `Coinbase` type and functions.
 
+use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crypto::hash::balloon::BalloonParams;
-use crypto::hash::{Blake512Hasher, Digest};
+use crypto::hash::Digest;
 use mining::common::riemmann_zeta_2;
 use mining::miner::Miner;
 use serde::{Deserialize, Serialize};
@@ -18,18 +19,19 @@ pub const COINBASE_BASE_AMOUNT: u64 = 1_000_000_000;
 /// `Coinbase` is the Alsacoin coinbase output type.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Coinbase {
-    pub params: BalloonParams,
+    pub address: Address,
     pub distance: u64,
     pub difficulty: u64,
+    pub custom_digest: Digest,
+    pub amount: u64,
+    pub params: BalloonParams,
     pub nonce: u64,
     pub digest: Digest,
-    pub amount: u64,
-    pub checksum: Digest,
 }
 
 impl Coinbase {
     /// `new` creates a new unmined `Coinbase`.
-    pub fn new(distance: u64, difficulty: u64) -> Result<Coinbase> {
+    pub fn new(address: &Address, distance: u64, difficulty: u64) -> Result<Coinbase> {
         if distance == 0 {
             let err = Error::InvalidDistance;
             return Err(err);
@@ -41,21 +43,18 @@ impl Coinbase {
         }
 
         let mut coinbase = Coinbase::default();
-
+        coinbase.address = address.to_owned();
         coinbase.distance = distance;
         coinbase.difficulty = difficulty;
-
         coinbase.update_amount()?;
-        coinbase.update_checksum()?;
 
         Ok(coinbase)
     }
 
     /// `clear` clears the `Coinbase` of the mining proof.
-    pub fn clear(&mut self) -> Result<()> {
+    pub fn clear(&mut self) {
         self.nonce = 0;
         self.digest = Digest::default();
-        self.update_checksum()
     }
 
     /// `calc_amount` calculates the `Coinbase` amount given the transaction
@@ -84,22 +83,6 @@ impl Coinbase {
         Ok(())
     }
 
-    /// `calc_checksum` calculates the `Coinbase` checksum.
-    pub fn calc_checksum(&self) -> Result<Digest> {
-        let mut copy = *self;
-        copy.checksum = Digest::default();
-
-        let buf = copy.to_bytes()?;
-        let checksum = Blake512Hasher::hash(&buf);
-        Ok(checksum)
-    }
-
-    /// `update_checksum` updates the `Coinbase` checksum.
-    pub fn update_checksum(&mut self) -> Result<()> {
-        self.checksum = self.calc_checksum()?;
-        Ok(())
-    }
-
     /// `mining_message` returns the `Coinbase` mining message
     /// given an other provided binary message.
     pub fn mining_message(self, msg: &[u8]) -> Result<Vec<u8>> {
@@ -110,7 +93,6 @@ impl Coinbase {
         let mut copy = self;
         copy.nonce = 0;
         copy.digest = Digest::default();
-        copy.checksum = Digest::default();
 
         let buf = copy.to_bytes()?;
 
@@ -135,7 +117,7 @@ impl Coinbase {
         self.nonce = nonce;
         self.digest = digest;
 
-        self.update_checksum()
+        Ok(())
     }
 
     /// `validate` validates the unmined `Coinbase`.
@@ -185,19 +167,16 @@ impl Coinbase {
 
 impl Default for Coinbase {
     fn default() -> Coinbase {
-        let mut coinbase = Coinbase {
+        Coinbase {
+            address: Address::default(),
             params: BalloonParams::default(),
             distance: 1,
             difficulty: 1,
+            custom_digest: Digest::default(),
             nonce: 0,
             digest: Digest::default(),
             amount: 0,
-            checksum: Digest::default(),
-        };
-
-        coinbase.update_checksum().unwrap();
-
-        coinbase
+        }
     }
 }
 
@@ -206,15 +185,16 @@ fn test_coinbase_new() {
     let hs = [1, 1000, 1_000_000];
     let ds = [1, 255, 512];
 
-    let res = Coinbase::new(0, 1);
+    let address = Address::random().unwrap();
+    let res = Coinbase::new(&address, 0, 1);
     assert!(res.is_err());
 
-    let res = Coinbase::new(1, 0);
+    let res = Coinbase::new(&address, 1, 0);
     assert!(res.is_err());
 
     for h in hs.iter() {
         for d in ds.iter() {
-            let res = Coinbase::new(*h, *d);
+            let res = Coinbase::new(&address, *h, *d);
             assert!(res.is_ok());
         }
     }
@@ -244,7 +224,8 @@ fn test_coinbase_amount() {
 
     for (i, h) in hs.iter().enumerate() {
         for (j, d) in ds.iter().enumerate() {
-            let res = Coinbase::new(*h, *d);
+            let address = Address::random().unwrap();
+            let res = Coinbase::new(&address, *h, *d);
             assert!(res.is_ok());
 
             let mut coinbase = res.unwrap();
@@ -314,12 +295,13 @@ fn test_coinbase_mine() {
     use crypto::random::Random;
 
     for _ in 0..10 {
+        let address = Address::random().unwrap();
         let distance = Random::u64_range(1, 3).unwrap();
         let difficulty = Random::u64_range(1, 3).unwrap();
         let msg_len = 1000;
         let msg = Random::bytes(msg_len).unwrap();
 
-        let mut coinbase = Coinbase::new(distance, difficulty).unwrap();
+        let mut coinbase = Coinbase::new(&address, distance, difficulty).unwrap();
         let res = coinbase.validate_mining_proof(&msg);
         assert!(res.is_err());
 
@@ -336,8 +318,7 @@ fn test_coinbase_mine() {
         let res = coinbase.validate_mining_proof(&msg);
         assert!(res.is_ok());
 
-        let res = coinbase.clear();
-        assert!(res.is_ok());
+        coinbase.clear();
         assert_eq!(coinbase.nonce, 0);
         assert_eq!(coinbase.digest, Digest::default());
     }
@@ -348,9 +329,10 @@ fn test_coinbase_serialize_bytes() {
     use crypto::random::Random;
 
     for _ in 0..10 {
+        let address = Address::random().unwrap();
         let distance = Random::u64_range(1, 10).unwrap();
         let difficulty = Random::u64_range(1, 10).unwrap();
-        let coinbase_a = Coinbase::new(difficulty, distance).unwrap();
+        let coinbase_a = Coinbase::new(&address, difficulty, distance).unwrap();
 
         let res = coinbase_a.to_bytes();
         assert!(res.is_ok());
@@ -369,9 +351,10 @@ fn test_coinbase_serialize_json() {
     use crypto::random::Random;
 
     for _ in 0..10 {
+        let address = Address::random().unwrap();
         let distance = Random::u64_range(1, 10).unwrap();
         let difficulty = Random::u64_range(1, 10).unwrap();
-        let coinbase_a = Coinbase::new(difficulty, distance).unwrap();
+        let coinbase_a = Coinbase::new(&address, difficulty, distance).unwrap();
 
         let res = coinbase_a.to_json();
         assert!(res.is_ok());

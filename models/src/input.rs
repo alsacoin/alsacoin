@@ -2,46 +2,45 @@
 //!
 //! `input` contains the `Input` type and functions.
 
+use crate::account::Account;
 use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
-use crate::transaction::Transaction;
+use std::collections::BTreeMap;
+//use crate::transaction::Transaction;
 use crypto::ecc::ed25519::{KeyPair, PublicKey, SecretKey, Signature};
-use crypto::hash::{Blake512Hasher, Digest};
-use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 
 /// `Input` is an input in an Alsacoin `Transaction`.
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct Input {
     pub address: Address,
-    pub distance: u64,
+    pub account: Account,
+    pub signatures: BTreeMap<PublicKey, Signature>,
     pub amount: u64,
-    pub signature: Option<Signature>,
-    pub checksum: Digest,
+    pub distance: u64,
 }
 
 impl Input {
     /// `new` creates a new unsigned `Input`.
-    pub fn new(address: Address, distance: u64, amount: u64) -> Result<Input> {
+    pub fn new(account: &Account, distance: u64, amount: u64) -> Result<Input> {
+        account.validate()?;
+
         if distance == 0 {
             let err = Error::InvalidDistance;
             return Err(err);
         }
 
-        let mut input = Input {
-            address,
-            distance,
-            amount,
-            signature: None,
-            checksum: Digest::default(),
-        };
-
-        input.update_checksum()?;
+        let mut input = Input::default();
+        input.address = account.address;
+        input.account = account.to_owned();
+        input.amount = amount;
+        input.distance = distance;
 
         Ok(input)
     }
 
+    /*
     /// `from_transaction_output` creates a new `Input` from a `Transaction` `Output`.
     pub fn from_transaction_output(transaction: &Transaction, address: &Address) -> Result<Input> {
         transaction.validate()?;
@@ -53,113 +52,92 @@ impl Input {
 
         Input::new(address, distance, amount)
     }
+    */
 
-    /// `random` creates a random unsigned `Input`.
-    pub fn random(secret_key: &SecretKey) -> Result<Input> {
-        let address = secret_key.to_public();
-        let mut distance = Random::u64()?;
-        while distance == 0 {
-            distance = Random::u64()?;
-        }
-        let amount = Random::u64()?;
+    /// `signature_message` returns the binary message to sign from a binary seed.
+    pub fn signature_message(&self, seed: &[u8]) -> Result<Vec<u8>> {
+        let mut clone = self.clone();
+        clone.signatures = BTreeMap::default();
 
-        Input::new(address, distance, amount)
+        let mut msg = Vec::new();
+        msg.extend_from_slice(seed);
+        msg.extend_from_slice(&clone.to_bytes()?);
+
+        Ok(msg)
     }
 
-    /// `sign` calculates the input signature with a binary message.
-    pub fn calc_signature(&self, secret_key: &SecretKey, msg: &[u8]) -> Result<Signature> {
+    /// `calc_signature` calculates the input signature given a binary seed.
+    pub fn calc_signature(&self, secret_key: &SecretKey, seed: &[u8]) -> Result<Signature> {
         let kp = KeyPair::from_secret(secret_key)?;
 
-        let mut clone = self.clone();
-        clone.signature = None;
-        clone.checksum = Digest::default();
+        if !self.account.signers.lookup(&kp.public_key) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
 
-        let mut buf = Vec::new();
-        buf.extend_from_slice(msg);
-        buf.extend_from_slice(&clone.to_bytes()?);
+        let msg = self.signature_message(seed)?;
 
-        kp.sign(&buf).map_err(|e| e.into())
-    }
-
-    /// `calc_checksum` calculates the `Input` checksum.
-    pub fn calc_checksum(&self) -> Result<Digest> {
-        let mut clone = self.clone();
-        clone.checksum = Digest::default();
-
-        let buf = clone.to_bytes()?;
-        let checksum = Blake512Hasher::hash(&buf);
-        Ok(checksum)
+        kp.sign(&msg).map_err(|e| e.into())
     }
 
     /// `sign` signs the `Input` and update its id.
     pub fn sign(&mut self, secret_key: &SecretKey, msg: &[u8]) -> Result<()> {
-        if self.address != secret_key.to_public() {
-            let err = Error::InvalidPublicKey;
+        let public_key = secret_key.to_public();
+
+        if !self.account.signers.lookup(&public_key) {
+            let err = Error::NotFound;
             return Err(err);
         }
 
-        self.signature = Some(self.calc_signature(secret_key, msg)?);
-        self.update_checksum()?;
+        let signature = self.calc_signature(secret_key, msg)?;
+
+        self.signatures.insert(public_key, signature);
 
         Ok(())
     }
 
     /// `verify_signature` verifies the `Input` signature.
-    pub fn verify_signature(&self, public_key: &PublicKey, msg: &[u8]) -> Result<()> {
-        if public_key != &self.address {
-            let err = Error::InvalidPublicKey;
+    pub fn verify_signature(&self, public_key: &PublicKey, seed: &[u8]) -> Result<()> {
+        if !self.account.signers.lookup(&public_key) {
+            let err = Error::NotFound;
             return Err(err);
         }
 
-        if self.signature.is_none() {
-            let err = Error::InvalidSignature;
-            return Err(err);
-        }
+        let signature = self.signatures.get(public_key).unwrap();
 
-        let signature = self.signature.unwrap();
+        let msg = self.signature_message(seed)?;
 
-        let mut clone = self.clone();
-        clone.signature = None;
-        clone.checksum = Digest::default();
-
-        let mut buf = Vec::new();
-        buf.extend_from_slice(msg);
-        buf.extend_from_slice(&clone.to_bytes()?);
-
-        public_key.verify(&signature, &buf).map_err(|e| e.into())
-    }
-
-    /// `update_checksum` updates the `Input` checksum.
-    pub fn update_checksum(&mut self) -> Result<()> {
-        self.checksum = self.calc_checksum()?;
-
-        Ok(())
+        public_key.verify(&signature, &msg).map_err(|e| e.into())
     }
 
     /// `validate` validates the `Input`.
     pub fn validate(&self) -> Result<()> {
+        self.account.validate()?;
+
         if self.distance == 0 {
             let err = Error::InvalidDistance;
             return Err(err);
         }
 
-        if self.checksum != self.calc_checksum()? {
-            let err = Error::InvalidChecksum;
-            return Err(err);
+        for pk in self.signatures.keys() {
+            if !self.account.signers.lookup(&pk) {
+                let err = Error::InvalidPublicKey;
+                return Err(err);
+            }
         }
 
         Ok(())
     }
 
-    /// `validate_signature` validates the `Input` signature.
-    pub fn validate_signature(&self, secret_key: &SecretKey, msg: &[u8]) -> Result<()> {
-        self.validate()?;
-
-        if let Some(signature) = self.signature {
-            if signature != self.calc_signature(secret_key, msg)? {
-                let err = Error::InvalidSignature;
+    /// `verify_signature` verifies all the `Input` signatures.
+    pub fn verify_signatures(&self, seed: &[u8]) -> Result<()> {
+        for pk in self.signatures.keys() {
+            if !self.account.signers.lookup(&pk) {
+                let err = Error::InvalidPublicKey;
                 return Err(err);
             }
+
+            self.verify_signature(&pk, seed)?;
         }
 
         Ok(())
@@ -188,13 +166,20 @@ impl Input {
 
 #[test]
 fn test_input_new() {
-    let address = Address::random().unwrap();
+    use crate::signers::Signers;
+    use crypto::random::Random;
+
+    let signers = Signers::new().unwrap();
+    let value = Random::u64().unwrap();
+    let account = Account::new(&signers, value).unwrap();
+
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
+
     let amount = Random::u64().unwrap();
-    let res = Input::new(address, distance, amount);
+    let res = Input::new(&account, distance, amount);
     assert!(res.is_ok());
 
     let input = res.unwrap();
@@ -205,22 +190,32 @@ fn test_input_new() {
 
 #[test]
 fn test_input_sign() {
+    use crate::signer::Signer;
+    use crate::signers::Signers;
+    use crypto::random::Random;
+
     let secret_key = SecretKey::random().unwrap();
-    let address = secret_key.to_public();
+    let public_key = secret_key.to_public();
+    let weight = Random::u64().unwrap();
+    let signer = Signer { public_key, weight };
+
+    let mut signers = Signers::new().unwrap();
+    signers.add(&signer).unwrap();
+
+    let value = Random::u64().unwrap();
+    let account = Account::new(&signers, value).unwrap();
+
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
     let amount = Random::u64().unwrap();
-    let mut input = Input::new(address, distance, amount).unwrap();
+    let mut input = Input::new(&account, distance, amount).unwrap();
 
     let msg_len = 1000;
     let msg = Random::bytes(msg_len).unwrap();
 
     let res = input.sign(&secret_key, &msg);
-    assert!(res.is_ok());
-
-    let res = input.validate_signature(&secret_key, &msg);
     assert!(res.is_ok());
 
     let public_key = secret_key.to_public();
@@ -230,36 +225,62 @@ fn test_input_sign() {
 }
 
 #[test]
-fn test_input_random() {
-    for _ in 0..10 {
-        let secret_key = SecretKey::random().unwrap();
-        let res = Input::random(&secret_key);
-        assert!(res.is_ok());
+fn test_input_validate() {
+    use crate::signers::Signers;
+    use crypto::random::Random;
 
-        let mut input = res.unwrap();
+    let signers = Signers::new().unwrap();
+    let value = Random::u64().unwrap();
+    let account = Account::new(&signers, value).unwrap();
 
-        let res = input.validate();
-        assert!(res.is_ok());
-
-        let msg_len = 1000;
-        let msg = Random::bytes(msg_len).unwrap();
-
-        let res = input.sign(&secret_key, &msg);
-        assert!(res.is_ok());
-
-        let res = input.validate();
-        assert!(res.is_ok());
-
-        let res = input.validate_signature(&secret_key, &msg);
-        assert!(res.is_ok());
+    let mut distance = Random::u64().unwrap();
+    while distance == 0 {
+        distance = Random::u64().unwrap();
     }
+
+    let amount = Random::u64().unwrap();
+    let mut input = Input::new(&account, distance, amount).unwrap();
+
+    let res = input.validate();
+    assert!(res.is_ok());
+
+    input.distance = 0;
+    let res = input.validate();
+    assert!(res.is_err());
+
+    input.distance += 1;
+
+    let mut invalid_public_key = PublicKey::random().unwrap();
+    while input.account.signers.lookup(&invalid_public_key) {
+        invalid_public_key = PublicKey::random().unwrap();
+    }
+
+    let invalid_signature = Signature::default();
+
+    input
+        .signatures
+        .insert(invalid_public_key, invalid_signature);
+    let res = input.validate();
+    assert!(res.is_err());
 }
 
 #[test]
 fn test_input_serialize_bytes() {
+    use crate::signers::Signers;
+    use crypto::random::Random;
+
     for _ in 0..10 {
-        let secret_key = SecretKey::random().unwrap();
-        let input_a = Input::random(&secret_key).unwrap();
+        let signers = Signers::new().unwrap();
+        let value = Random::u64().unwrap();
+        let account = Account::new(&signers, value).unwrap();
+
+        let mut distance = Random::u64().unwrap();
+        while distance == 0 {
+            distance = Random::u64().unwrap();
+        }
+
+        let amount = Random::u64().unwrap();
+        let input_a = Input::new(&account, distance, amount).unwrap();
 
         let res = input_a.to_bytes();
         assert!(res.is_ok());
@@ -275,9 +296,21 @@ fn test_input_serialize_bytes() {
 
 #[test]
 fn test_input_serialize_json() {
+    use crate::signers::Signers;
+    use crypto::random::Random;
+
     for _ in 0..10 {
-        let secret_key = SecretKey::random().unwrap();
-        let input_a = Input::random(&secret_key).unwrap();
+        let signers = Signers::new().unwrap();
+        let value = Random::u64().unwrap();
+        let account = Account::new(&signers, value).unwrap();
+
+        let mut distance = Random::u64().unwrap();
+        while distance == 0 {
+            distance = Random::u64().unwrap();
+        }
+
+        let amount = Random::u64().unwrap();
+        let input_a = Input::new(&account, distance, amount).unwrap();
 
         let res = input_a.to_json();
         assert!(res.is_ok());
