@@ -6,9 +6,23 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::traits::Store;
 use futures::{future, stream, TryFuture, TryStream};
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+#[derive(Clone, Default, Serialize, Deserialize)]
 pub struct MemoryStore(BTreeMap<Vec<u8>, Vec<u8>>);
+
+impl MemoryStore {
+    /// `new` creates a new `MemoryStore`.
+    pub fn new() -> MemoryStore {
+        MemoryStore::default()
+    }
+
+    /// `clear` clears the `MemoryStore`.
+    pub fn clear(&mut self) {
+        self.0.clear()
+    }
+}
 
 impl Store for MemoryStore {
     type Key = Vec<u8>;
