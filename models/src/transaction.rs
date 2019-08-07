@@ -620,32 +620,45 @@ fn test_transaction_times() {
     assert!(res.is_ok());
 }
 
-/*
 #[test]
 fn test_transaction_inputs() {
-    use crypto::ecc::ed25519::KeyPair;
+    use crate::account::Account;
+    use crate::signer::Signer;
+    use crate::signers::Signers;
+    use crypto::random::Random;
 
     let mut transaction = Transaction::new().unwrap();
 
-    let mut keypairs = Vec::new();
     for _ in 0..10 {
-        let keypair = KeyPair::new().unwrap();
-        keypairs.push(keypair);
-    }
+        let secret_key = SecretKey::random().unwrap();
+        let public_key = secret_key.to_public();
 
-    let mut inputs = Vec::new();
-    for keypair in keypairs.iter() {
-        inputs.push(Input::random(&keypair.secret_key).unwrap());
-    }
+        let threshold = 10;
+        let weight = threshold;
 
-    for (i, input) in inputs.iter_mut().enumerate() {
+        let signer = Signer { public_key, weight };
+        let mut signers = Signers::new().unwrap();
+        signers.add(&signer).unwrap();
+        signers.set_threshold(threshold).unwrap();
+
+        let value = Random::u64().unwrap();
+        let account = Account::new(&signers, value).unwrap();
+
+        let mut distance = Random::u64().unwrap();
+        while distance == 0 {
+            distance = Random::u64().unwrap();
+        }
+
+        let amount = Random::u64().unwrap();
+        let mut input = Input::new(&account, distance, amount).unwrap();
+
         let found = transaction.lookup_input(&input.address);
         assert!(!found);
 
         let res = transaction.get_input(&input.address);
         assert!(res.is_err());
 
-        let res = transaction.add_input(input);
+        let res = transaction.add_input(&input);
         assert!(res.is_ok());
 
         let found = transaction.lookup_input(&input.address);
@@ -655,33 +668,34 @@ fn test_transaction_inputs() {
         assert!(res.is_ok());
 
         let entry = res.unwrap();
-        assert_eq!(&entry, input);
+        assert_eq!(entry, input);
 
         input.amount = 10;
-        input.update_checksum().unwrap();
 
-        let res = transaction.update_input(input);
+        let res = transaction.update_input(&input);
         assert!(res.is_ok());
 
         let entry = transaction.get_input(&input.address).unwrap();
-        assert_eq!(&entry, input);
-        assert!(entry.signature.is_none());
+        assert_eq!(entry, input);
 
-        let keypair = keypairs[i].clone();
-        assert_eq!(keypair.public_key, input.address);
+        let res = entry.fully_signed();
+        assert!(res.is_ok());
+        assert!(!res.unwrap());
 
-        let res = transaction.sign_input(&keypair.secret_key);
+        let res = transaction.sign_input(&secret_key, &input.address);
         assert!(res.is_ok());
 
         let entry = transaction.get_input(&input.address).unwrap();
-        assert!(entry.signature.is_some());
+        let res = entry.fully_signed();
+        assert!(res.is_ok());
+        assert!(res.unwrap());
 
         let msg = transaction.input_sign_message().unwrap();
 
-        let res = entry.verify_signature(&input.address, &msg);
+        let res = entry.verify_signature(&public_key, &msg);
         assert!(res.is_ok());
 
-        let res = transaction.verify_input_signature(&input.address);
+        let res = transaction.verify_input_signature(&public_key, &input.address);
         assert!(res.is_ok());
 
         let res = transaction.validate_input(&input.address);
@@ -703,25 +717,21 @@ fn test_transaction_inputs() {
         assert!(res.is_ok());
     }
 }
-*/
 
 #[test]
 fn test_transaction_outputs() {
     let mut transaction = Transaction::new().unwrap();
 
-    let mut outputs = Vec::new();
     for _ in 0..10 {
-        outputs.push(Output::random().unwrap());
-    }
+        let mut output = Output::random().unwrap();
 
-    for output in outputs.iter_mut() {
         let found = transaction.lookup_output(&output.address);
         assert!(!found);
 
         let res = transaction.get_output(&output.address);
         assert!(res.is_err());
 
-        let res = transaction.add_output(output);
+        let res = transaction.add_output(&output);
         assert!(res.is_ok());
 
         let res = transaction.validate_outputs();
@@ -734,18 +744,18 @@ fn test_transaction_outputs() {
         assert!(res.is_ok());
 
         let entry = res.unwrap();
-        assert_eq!(&entry, output);
+        assert_eq!(entry, output);
 
         output.amount = 10;
 
-        let res = transaction.update_output(output);
+        let res = transaction.update_output(&output);
         assert!(res.is_ok());
 
         let res = transaction.validate_outputs();
         assert!(res.is_ok());
 
         let entry = transaction.get_output(&output.address).unwrap();
-        assert_eq!(&entry, output);
+        assert_eq!(entry, output);
 
         let res = transaction.delete_output(&output.address);
         assert!(res.is_ok());
@@ -761,27 +771,38 @@ fn test_transaction_outputs() {
     assert!(res.is_ok());
 }
 
-/*
 #[test]
 fn test_transaction_distance() {
+    use crate::account::Account;
+    use crate::signer::Signer;
+    use crate::signers::Signers;
+    use crypto::random::Random;
+
     let mut transaction = Transaction::new().unwrap();
     let mut max_distance = transaction.distance;
 
-    let mut sks = Vec::new();
     for _ in 0..10 {
-        let sk = SecretKey::new().unwrap();
-        sks.push(sk);
-    }
+        let public_key = PublicKey::random().unwrap();
+        let weight = Random::u64().unwrap();
+        let threshold = weight;
 
-    let mut inputs = Vec::new();
-    for sk in sks.iter() {
-        let mut input = Input::random(&sk).unwrap();
-        input.update_checksum().unwrap();
-        inputs.push(input);
-    }
+        let signer = Signer { public_key, weight };
+        let mut signers = Signers::new().unwrap();
+        signers.add(&signer).unwrap();
+        signers.set_threshold(threshold).unwrap();
 
-    for input in inputs.iter_mut() {
-        transaction.add_input(input).unwrap();
+        let value = Random::u64().unwrap();
+        let account = Account::new(&signers, value).unwrap();
+
+        let mut distance = Random::u64().unwrap();
+        while distance == 0 {
+            distance = Random::u64().unwrap();
+        }
+
+        let amount = Random::u64().unwrap();
+        let input = Input::new(&account, distance, amount).unwrap();
+
+        transaction.add_input(&input).unwrap();
 
         if input.distance > max_distance {
             max_distance = input.distance;
@@ -797,33 +818,42 @@ fn test_transaction_distance() {
     let res = transaction.validate_distance();
     assert!(res.is_err());
 }
-*/
 
-/*
 #[test]
 fn test_transaction_balance() {
+    use crate::account::Account;
+    use crate::signer::Signer;
+    use crate::signers::Signers;
+    use crypto::random::Random;
+
     let mut transaction = Transaction::new().unwrap();
     let mut input_balance = 0;
     let mut output_balance = 0;
     let mut fee = 0;
     let mut expected_balance = 0i64;
 
-    let mut sks = Vec::new();
     for _ in 0..10 {
-        let sk = SecretKey::new().unwrap();
-        sks.push(sk);
-    }
+        let public_key = PublicKey::random().unwrap();
+        let weight = Random::u64().unwrap();
+        let threshold = weight;
 
-    let mut inputs = Vec::new();
-    for sk in sks.iter() {
-        let mut input = Input::random(&sk).unwrap();
-        input.amount = 10;
-        input.update_checksum().unwrap();
-        inputs.push(input);
-    }
+        let signer = Signer { public_key, weight };
+        let mut signers = Signers::new().unwrap();
+        signers.add(&signer).unwrap();
+        signers.set_threshold(threshold).unwrap();
 
-    for input in inputs.iter_mut() {
-        transaction.add_input(input).unwrap();
+        let value = Random::u64().unwrap();
+        let account = Account::new(&signers, value).unwrap();
+
+        let mut distance = Random::u64().unwrap();
+        while distance == 0 {
+            distance = Random::u64().unwrap();
+        }
+
+        let amount = 10;
+        let input = Input::new(&account, distance, amount).unwrap();
+
+        transaction.add_input(&input).unwrap();
         input_balance += input.amount;
         expected_balance += input.amount as i64;
 
@@ -854,17 +884,11 @@ fn test_transaction_balance() {
 
     assert_eq!(expected_balance, 0);
 
-    let mut outputs = Vec::new();
     for _ in 0..10 {
         let mut output = Output::random().unwrap();
         output.amount = 10;
-        outputs.push(output);
-    }
 
-    for output in outputs.iter_mut() {
-        assert_eq!(expected_balance, 0);
-
-        transaction.add_output(output).unwrap();
+        transaction.add_output(&output).unwrap();
         output_balance += output.amount;
         expected_balance -= output.amount as i64;
 
@@ -916,7 +940,6 @@ fn test_transaction_balance() {
     let res = transaction.validate_balance();
     assert!(res.is_ok());
 }
-*/
 
 #[test]
 fn test_transaction_coinbase() {

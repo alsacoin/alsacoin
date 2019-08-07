@@ -6,10 +6,10 @@ use crate::account::Account;
 use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
-use std::collections::BTreeMap;
-//use crate::transaction::Transaction;
+use crate::transaction::Transaction;
 use crypto::ecc::ed25519::{KeyPair, PublicKey, SecretKey, Signature};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 
 /// `Input` is an input in an Alsacoin `Transaction`.
 #[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
@@ -40,19 +40,16 @@ impl Input {
         Ok(input)
     }
 
-    /*
     /// `from_transaction_output` creates a new `Input` from a `Transaction` `Output`.
-    pub fn from_transaction_output(transaction: &Transaction, address: &Address) -> Result<Input> {
+    pub fn from_transaction_output(transaction: &Transaction, account: &Account) -> Result<Input> {
         transaction.validate()?;
 
-        let output = transaction.get_output(&address)?;
-        let address = output.address;
+        let output = transaction.get_output(&account.address)?;
         let distance = transaction.distance;
         let amount = output.amount;
 
-        Input::new(address, distance, amount)
+        Input::new(account, distance, amount)
     }
-    */
 
     /// `signature_message` returns the binary message to sign from a binary seed.
     pub fn signature_message(&self, seed: &[u8]) -> Result<Vec<u8>> {
