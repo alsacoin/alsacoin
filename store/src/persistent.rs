@@ -2,9 +2,9 @@
 //
 // `persistent` contains the persistent store type and functions.
 
-use crate::error::Error;
+use crate::result::Result;
 use crate::traits::Store;
-use futures::{TryFuture, TryStream};
+use futures::{future::BoxFuture, stream::BoxStream};
 use rkv::SingleStore;
 
 pub struct PersistentStore {
@@ -29,12 +29,12 @@ impl Store for PersistentStore {
         self.keys_size + self.values_size
     }
 
-    fn lookup(&self, _key: &Self::Key) -> Box<dyn TryFuture<Ok = bool, Error = Error>> {
+    fn lookup(&self, _key: &Self::Key) -> BoxFuture<Result<bool>> {
         // TODO
         unreachable!()
     }
 
-    fn get(&self, _key: &Self::Key) -> Box<dyn TryFuture<Ok = Self::Value, Error = Error>> {
+    fn get(&self, _key: &Self::Key) -> BoxFuture<Result<Self::Value>> {
         // TODO
         unreachable!()
     }
@@ -45,44 +45,32 @@ impl Store for PersistentStore {
         _to: &Self::Key,
         _count: u32,
         _skip: u32,
-    ) -> Box<dyn TryStream<Ok = Self::Value, Error = Error>> {
+    ) -> BoxFuture<Result<BoxStream<Self::Value>>> {
         // TODO
         unreachable!()
     }
 
-    fn count(
-        &self,
-        _from: &Self::Key,
-        _to: &Self::Key,
-        _skip: u32,
-    ) -> Box<dyn TryFuture<Ok = u32, Error = Error>> {
+    fn count(&self, _from: &Self::Key, _to: &Self::Key, _skip: u32) -> BoxFuture<Result<u32>> {
         // TODO
         unreachable!()
     }
 
-    fn insert(
-        &mut self,
-        _key: &Self::Key,
-        _value: &Self::Value,
-    ) -> Box<dyn TryFuture<Ok = (), Error = Error>> {
+    fn insert(&mut self, _key: &Self::Key, _value: &Self::Value) -> BoxFuture<Result<()>> {
         // TODO
         unreachable!()
     }
 
-    fn insert_batch(
-        &mut self,
-        _items: &[(Self::Key, Self::Value)],
-    ) -> Box<dyn TryFuture<Ok = (), Error = Error>> {
+    fn insert_batch(&mut self, _items: &[(Self::Key, Self::Value)]) -> BoxFuture<Result<()>> {
         // TODO
         unreachable!()
     }
 
-    fn remove(&mut self, _key: &Self::Key) -> Box<dyn TryFuture<Ok = (), Error = Error>> {
+    fn remove(&mut self, _key: &Self::Key) -> BoxFuture<Result<()>> {
         // TODO
         unreachable!()
     }
 
-    fn remove_batch(&mut self, _keys: &[Self::Key]) -> Box<dyn TryFuture<Ok = (), Error = Error>> {
+    fn remove_batch(&mut self, _keys: &[Self::Key]) -> BoxFuture<Result<()>> {
         // TODO
         unreachable!()
     }

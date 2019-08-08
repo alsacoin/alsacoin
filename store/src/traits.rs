@@ -1,7 +1,7 @@
 //! `traits` contains Alsacoin's storage traits.
 
-use crate::error::Error;
-use futures::{TryFuture, TryStream};
+use crate::result::Result;
+use futures::{future::BoxFuture, stream::BoxStream};
 
 /// `Store` is the trait implemented by `Alsacoin` stores.
 pub trait Store {
@@ -20,10 +20,10 @@ pub trait Store {
     fn size(&self) -> u32;
 
     /// `lookup` looks up a `Store` value by key.
-    fn lookup(&self, key: &Self::Key) -> Box<dyn TryFuture<Ok = bool, Error = Error>>;
+    fn lookup(&self, key: &Self::Key) -> BoxFuture<Result<bool>>;
 
     /// `get` returns a `Store` value by key.
-    fn get(&self, key: &Self::Key) -> Box<dyn TryFuture<Ok = Self::Value, Error = Error>>;
+    fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self::Value>>;
 
     /// `query` queries the `Store` for values.
     fn query(
@@ -32,32 +32,20 @@ pub trait Store {
         to: &Self::Key,
         count: u32,
         skip: u32,
-    ) -> Box<dyn TryStream<Ok = Self::Value, Error = Error>>;
+    ) -> BoxFuture<Result<BoxStream<Self::Value>>>;
 
     /// `count` counts `Store` items matching a specific query.
-    fn count(
-        &self,
-        from: &Self::Key,
-        to: &Self::Key,
-        skip: u32,
-    ) -> Box<dyn TryFuture<Ok = u32, Error = Error>>;
+    fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>>;
 
     /// `insert` inserts an item in the `Store`.
-    fn insert(
-        &mut self,
-        key: &Self::Key,
-        value: &Self::Value,
-    ) -> Box<dyn TryFuture<Ok = (), Error = Error>>;
+    fn insert(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>>;
 
     /// `insert_batch` inserts one or more items in the `Store`.
-    fn insert_batch(
-        &mut self,
-        items: &[(Self::Key, Self::Value)],
-    ) -> Box<dyn TryFuture<Ok = (), Error = Error>>;
+    fn insert_batch(&mut self, items: &[(Self::Key, Self::Value)]) -> BoxFuture<Result<()>>;
 
     /// `remove` removes an item from the `Store`.
-    fn remove(&mut self, key: &Self::Key) -> Box<dyn TryFuture<Ok = (), Error = Error>>;
+    fn remove(&mut self, key: &Self::Key) -> BoxFuture<Result<()>>;
 
     /// `remove_batch` removes one or more items from the `Store`.
-    fn remove_batch(&mut self, keys: &[Self::Key]) -> Box<dyn TryFuture<Ok = (), Error = Error>>;
+    fn remove_batch(&mut self, keys: &[Self::Key]) -> BoxFuture<Result<()>>;
 }

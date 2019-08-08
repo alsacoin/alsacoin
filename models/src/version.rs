@@ -144,6 +144,7 @@ impl Version {
     }
 
     /// Stringify the `Version`.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         let mut res = String::new();
 
