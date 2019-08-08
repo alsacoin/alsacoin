@@ -10,7 +10,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Default, Serialize, Deserialize)]
-pub struct MemoryStore(BTreeMap<Vec<u8>, Vec<u8>>);
+pub struct MemoryStore {
+    db: BTreeMap<Vec<u8>, Vec<u8>>,
+    keys_size: u32,
+    values_size: u32,
+}
 
 impl MemoryStore {
     /// `new` creates a new `MemoryStore`.
@@ -20,7 +24,7 @@ impl MemoryStore {
 
     /// `clear` clears the `MemoryStore`.
     pub fn clear(&mut self) {
-        self.0.clear()
+        self.db.clear()
     }
 }
 
@@ -28,13 +32,25 @@ impl Store for MemoryStore {
     type Key = Vec<u8>;
     type Value = Vec<u8>;
 
+    fn keys_size(&self) -> u32 {
+        self.keys_size
+    }
+
+    fn values_size(&self) -> u32 {
+        self.values_size
+    }
+
+    fn size(&self) -> u32 {
+        self.keys_size + self.values_size
+    }
+
     fn lookup(&self, key: &Self::Key) -> Box<dyn TryFuture<Ok = bool, Error = Error>> {
-        let res = self.0.contains_key(key);
+        let res = self.db.contains_key(key);
         Box::new(future::ok(res))
     }
 
     fn get(&self, key: &Self::Key) -> Box<dyn TryFuture<Ok = Self::Value, Error = Error>> {
-        match self.0.get(key) {
+        match self.db.get(key) {
             Some(value) => Box::new(future::ok(value.to_owned())),
             None => {
                 let err = Error::NotFound;
@@ -51,7 +67,7 @@ impl Store for MemoryStore {
         skip: u32,
     ) -> Box<dyn TryStream<Ok = Self::Value, Error = Error>> {
         let res: Vec<Result<Self::Value>> = self
-            .0
+            .db
             .iter()
             .filter(|(k, _)| (from <= k) && (to > k))
             .skip(skip as usize)
@@ -71,7 +87,7 @@ impl Store for MemoryStore {
         skip: u32,
     ) -> Box<dyn TryFuture<Ok = u32, Error = Error>> {
         let res = self
-            .0
+            .db
             .iter()
             .filter(|(k, _)| (from <= k) && (to > k))
             .skip(skip as usize)
@@ -85,7 +101,9 @@ impl Store for MemoryStore {
         key: &Self::Key,
         value: &Self::Value,
     ) -> Box<dyn TryFuture<Ok = (), Error = Error>> {
-        self.0.insert(key.to_owned(), value.to_owned());
+        self.db.insert(key.to_owned(), value.to_owned());
+        self.keys_size += key.len() as u32;
+        self.values_size += value.len() as u32;
         Box::new(future::ok(()))
     }
 
@@ -98,8 +116,12 @@ impl Store for MemoryStore {
     }
 
     fn remove(&mut self, key: &Self::Key) -> Box<dyn TryFuture<Ok = (), Error = Error>> {
-        match self.0.remove(key) {
-            Some(_) => Box::new(future::ok(())),
+        match self.db.remove(key) {
+            Some(value) => {
+                self.keys_size -= key.len() as u32;
+                self.values_size -= value.len() as u32;
+                Box::new(future::ok(()))
+            }
             None => {
                 let err = Error::NotFound;
                 Box::new(future::err(err))

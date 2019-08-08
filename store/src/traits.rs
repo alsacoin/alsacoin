@@ -10,6 +10,15 @@ pub trait Store {
     /// The type of a `Store` value.
     type Value;
 
+    /// `keys_size` returns the size of the store keys.
+    fn keys_size(&self) -> u32;
+
+    /// `values_size` returns the size of the store values.
+    fn values_size(&self) -> u32;
+
+    /// `size` returns the size of the store items.
+    fn size(&self) -> u32;
+
     /// `lookup` looks up a `Store` value by key.
     fn lookup(&self, key: &Self::Key) -> Box<dyn TryFuture<Ok = bool, Error = Error>>;
 

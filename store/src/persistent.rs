@@ -7,11 +7,27 @@ use crate::traits::Store;
 use futures::{TryFuture, TryStream};
 use rkv::SingleStore;
 
-pub struct PersistentStore(SingleStore);
+pub struct PersistentStore {
+    _db: SingleStore,
+    keys_size: u32,
+    values_size: u32,
+}
 
 impl Store for PersistentStore {
     type Key = Vec<u8>;
     type Value = Vec<u8>;
+
+    fn keys_size(&self) -> u32 {
+        self.keys_size
+    }
+
+    fn values_size(&self) -> u32 {
+        self.values_size
+    }
+
+    fn size(&self) -> u32 {
+        self.keys_size + self.values_size
+    }
 
     fn lookup(&self, _key: &Self::Key) -> Box<dyn TryFuture<Ok = bool, Error = Error>> {
         // TODO
