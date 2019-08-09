@@ -5,12 +5,63 @@
 use crate::result::Result;
 use crate::traits::Store;
 use futures::future::BoxFuture;
-use rkv::SingleStore;
+use rkv::{Manager, Rkv, SingleStore, StoreOptions};
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
 
 pub struct PersistentStore {
-    _db: SingleStore,
+    path: PathBuf,
+    manager: Arc<RwLock<Rkv>>,
     keys_size: u32,
     values_size: u32,
+}
+
+impl PersistentStore {
+    /// `new` creates a new `PersistentStore`.
+    pub fn new(path: &Path) -> Result<PersistentStore> {
+        let manager = Manager::singleton()
+            .write()
+            .unwrap()
+            .get_or_create(path, Rkv::new)
+            .unwrap();
+
+        let mut store = PersistentStore {
+            path: path.into(),
+            manager,
+            keys_size: 0,
+            values_size: 0,
+        };
+
+        store.update_size()?;
+
+        Ok(store)
+    }
+
+    /// `open` returns a `PersistentStore` store handle.
+    fn open(&self, name: &str) -> Result<SingleStore> {
+        let env = self.manager.read()?;
+        env.open_single(name, StoreOptions::create())
+            .map_err(|e| e.into())
+    }
+
+    /// `path` returns the `PersistentStore` path.
+    pub fn path(&self) -> &Path {
+        self.path.as_path()
+    }
+
+    /// `update_size` udpates the `PersistentStore` cached sizes.
+    pub fn update_size(&mut self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `clear` clears the `PersistentStore`.
+    pub fn clear(&mut self, name: &str) -> Result<()> {
+        let env = self.manager.read()?;
+        let mut writer = env.write()?;
+        self.open(name)?.clear(&mut writer)?;
+        writer.commit().map_err(|e| e.into())
+    }
 }
 
 impl Store for PersistentStore {
