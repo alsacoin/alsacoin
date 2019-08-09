@@ -1,7 +1,7 @@
 //! `traits` contains Alsacoin's storage traits.
 
 use crate::result::Result;
-use futures::{future::BoxFuture, stream::BoxStream};
+use futures::future::BoxFuture;
 
 /// `Store` is the trait implemented by `Alsacoin` stores.
 pub trait Store {
@@ -25,6 +25,7 @@ pub trait Store {
     /// `get` returns a `Store` value by key.
     fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self::Value>>;
 
+    // TODO: de-lame query: use streams
     /// `query` queries the `Store` for values.
     fn query(
         &self,
@@ -32,7 +33,7 @@ pub trait Store {
         to: &Self::Key,
         count: u32,
         skip: u32,
-    ) -> BoxFuture<Result<BoxStream<Self::Value>>>;
+    ) -> BoxFuture<Result<Vec<Self::Value>>>;
 
     /// `count` counts `Store` items matching a specific query.
     fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>>;

@@ -6,7 +6,6 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::traits::Store;
 use futures::future::{self, BoxFuture};
-use futures::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -62,13 +61,11 @@ impl Store for MemoryStore {
 
     fn query(
         &self,
-        _from: &Self::Key,
-        _to: &Self::Key,
-        _count: u32,
-        _skip: u32,
-    ) -> BoxFuture<Result<BoxStream<Self::Value>>> {
-        unreachable!()
-        /*
+        from: &Self::Key,
+        to: &Self::Key,
+        count: u32,
+        skip: u32,
+    ) -> BoxFuture<Result<Vec<Self::Value>>> {
         let res: Vec<Self::Value> = self
             .db
             .iter()
@@ -78,10 +75,7 @@ impl Store for MemoryStore {
             .map(|(_, v)| v.to_owned())
             .collect();
 
-        // TODO: de-lame
-
-        Box::pin(future::ok(Box::pin(stream::iter(res))))
-        */
+        Box::pin(future::ok(res))
     }
 
     fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>> {
@@ -180,6 +174,10 @@ fn test_memory_store() {
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 1);
 
+            let res = store.query(&key, &key, 0, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().len(), 0);
+
             let res = store.lookup(&key).await;
             assert!(res.is_ok());
             assert!(res.unwrap());
@@ -194,6 +192,10 @@ fn test_memory_store() {
             let res = store.count(&key, &key, 0).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 0);
+
+            let res = store.query(&key, &key, 0, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());

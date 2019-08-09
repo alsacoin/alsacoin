@@ -4,7 +4,7 @@
 
 use crate::result::Result;
 use crate::traits::Store;
-use futures::{future::BoxFuture, stream::BoxStream};
+use futures::future::BoxFuture;
 use rkv::SingleStore;
 
 pub struct PersistentStore {
@@ -45,7 +45,7 @@ impl Store for PersistentStore {
         _to: &Self::Key,
         _count: u32,
         _skip: u32,
-    ) -> BoxFuture<Result<BoxStream<Self::Value>>> {
+    ) -> BoxFuture<Result<Vec<Self::Value>>> {
         // TODO
         unreachable!()
     }
