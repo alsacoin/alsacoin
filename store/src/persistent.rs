@@ -5,12 +5,13 @@
 use crate::error::Error;
 use crate::result::Result;
 use crate::traits::Store;
-use futures::future::BoxFuture;
+use futures::future::{self, BoxFuture};
 use rkv::{Manager, Rkv, SingleStore, StoreOptions, Value};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 
 pub struct PersistentStore {
+    name: String,
     path: PathBuf,
     manager: Arc<RwLock<Rkv>>,
     keys_size: u32,
@@ -19,7 +20,7 @@ pub struct PersistentStore {
 
 impl PersistentStore {
     /// `new` creates a new `PersistentStore`.
-    pub fn new(path: &Path) -> Result<PersistentStore> {
+    pub fn new(name: &str, path: &Path) -> Result<PersistentStore> {
         let manager = Manager::singleton()
             .write()
             .unwrap()
@@ -27,6 +28,7 @@ impl PersistentStore {
             .unwrap();
 
         let mut store = PersistentStore {
+            name: name.into(),
             path: path.into(),
             manager,
             keys_size: 0,
@@ -39,9 +41,9 @@ impl PersistentStore {
     }
 
     /// `open` returns a `PersistentStore` store handle.
-    fn open(&self, name: &str) -> Result<SingleStore> {
+    fn open(&self) -> Result<SingleStore> {
         let env = self.manager.read()?;
-        env.open_single(name, StoreOptions::create())
+        env.open_single(self.name.as_str(), StoreOptions::create())
             .map_err(|e| e.into())
     }
 
@@ -56,11 +58,19 @@ impl PersistentStore {
         unreachable!()
     }
 
-    /// `get` gets a key-value pair from the `PersistentStore`.
-    pub fn get(&self, name: &str, key: &[u8]) -> Result<Vec<u8>> {
+    /// `_lookup` looks up a key-value pair from the `PersistentStore`.
+    fn _lookup(&self, key: &[u8]) -> Result<bool> {
         let env = self.manager.read()?;
         let reader = env.read()?;
-        if let Some(value) = self.open(name)?.get(&reader, key)? {
+        let found = self.open()?.get(&reader, key)?.is_some();
+        Ok(found)
+    }
+
+    /// `_get` gets a key-value pair from the `PersistentStore`.
+    fn _get(&self, key: &[u8]) -> Result<Vec<u8>> {
+        let env = self.manager.read()?;
+        let reader = env.read()?;
+        if let Some(value) = self.open()?.get(&reader, key)? {
             value.to_bytes().map_err(|e| e.into())
         } else {
             let err = Error::NotFound;
@@ -68,22 +78,41 @@ impl PersistentStore {
         }
     }
 
-    /// `iter` returns the `PersistentStore` iterator over the key-value pairs.
-    pub fn iter(
-        &self,
-        name: &str,
-        from: &[u8],
-        to: &[u8],
-        count: u32,
-        skip: u32,
-    ) -> Result<Vec<Vec<u8>>> {
+    /// `_count` returns the count of a list of values from the `PersistentStore`.
+    fn _count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
+        let env = self.manager.read()?;
+        let reader = env.read()?;
+        let mut skipped = 0;
+        let mut count = 0;
+
+        for res in self.open()?.iter_start(&reader)? {
+            let (k, v) = res?;
+
+            if (from <= k) && (to > k) {
+                if skipped >= skip {
+                    if v.is_some() {
+                        count += 1;
+                    } else {
+                        break;
+                    }
+                }
+
+                skipped += 1;
+            }
+        }
+
+        Ok(count)
+    }
+
+    /// `_query` returns a list of values from the `PersistentStore`.
+    fn _query(&self, from: &[u8], to: &[u8], count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
         let env = self.manager.read()?;
         let reader = env.read()?;
         let mut values = Vec::new();
         let mut skipped = 0;
         let mut counted = 0;
 
-        for res in self.open(name)?.iter_start(&reader)? {
+        for res in self.open()?.iter_start(&reader)? {
             let (k, v) = res?;
 
             if (from <= k) && (to > k) {
@@ -107,29 +136,52 @@ impl PersistentStore {
         Ok(values)
     }
 
-    /// `put` puts a binary key-value pair in the `PersistentStore`.
-    pub fn put(&mut self, name: &str, key: &[u8], value: &[u8]) -> Result<()> {
+    /// `_insert` inserts a binary key-value pair in the `PersistentStore`.
+    fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         let env = self.manager.read()?;
         let mut writer = env.write()?;
-        self.open(name)?
-            .put(&mut writer, key, &Value::Blob(value))?;
-        writer.commit().map_err(|e| e.into())
+        self.open()?.put(&mut writer, key, &Value::Blob(value))?;
+        writer.commit()?;
+
+        self.keys_size += key.len() as u32;
+        self.values_size += value.len() as u32;
+
+        Ok(())
     }
 
-    /// `delete` deletes a key-value pair from the `PersistentStore`.
-    pub fn delete(&mut self, name: &str, key: &[u8]) -> Result<()> {
+    /// `_remove` removes a key-value pair from the `PersistentStore`.
+    fn _remove(&mut self, key: &[u8]) -> Result<()> {
         let env = self.manager.read()?;
-        let mut writer = env.write()?;
-        self.open(name)?.delete(&mut writer, key)?;
-        writer.commit().map_err(|e| e.into())
+        let reader = env.read()?;
+
+        if let Some(value) = self.open()?.get(&reader, key)? {
+            let value_size = value.to_bytes()?.len();
+
+            let mut writer = env.write()?;
+            self.open()?.delete(&mut writer, key)?;
+            writer.commit()?;
+
+            self.keys_size -= key.len() as u32;
+            self.values_size -= value_size as u32;
+
+            Ok(())
+        } else {
+            let err = Error::NotFound;
+            Err(err)
+        }
     }
 
     /// `clear` clears the `PersistentStore`.
-    pub fn clear(&mut self, name: &str) -> Result<()> {
+    pub fn clear(&mut self) -> Result<()> {
         let env = self.manager.read()?;
         let mut writer = env.write()?;
-        self.open(name)?.clear(&mut writer)?;
-        writer.commit().map_err(|e| e.into())
+        self.open()?.clear(&mut writer)?;
+        writer.commit()?;
+
+        self.keys_size = 0;
+        self.values_size = 0;
+
+        Ok(())
     }
 }
 
@@ -149,49 +201,142 @@ impl Store for PersistentStore {
         self.keys_size + self.values_size
     }
 
-    fn lookup(&self, _key: &Self::Key) -> BoxFuture<Result<bool>> {
-        // TODO
-        unreachable!()
+    fn lookup(&self, key: &Self::Key) -> BoxFuture<Result<bool>> {
+        let res = self._lookup(key);
+        Box::pin(future::ready(res))
     }
 
-    fn get(&self, _key: &Self::Key) -> BoxFuture<Result<Self::Value>> {
-        // TODO
-        unreachable!()
+    fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self::Value>> {
+        let res = self._get(key);
+        Box::pin(future::ready(res))
     }
 
     fn query(
         &self,
-        _from: &Self::Key,
-        _to: &Self::Key,
-        _count: u32,
-        _skip: u32,
+        from: &Self::Key,
+        to: &Self::Key,
+        count: u32,
+        skip: u32,
     ) -> BoxFuture<Result<Vec<Self::Value>>> {
-        // TODO
-        unreachable!()
+        let res = self._query(from, to, count, skip);
+        Box::pin(future::ready(res))
     }
 
-    fn count(&self, _from: &Self::Key, _to: &Self::Key, _skip: u32) -> BoxFuture<Result<u32>> {
-        // TODO
-        unreachable!()
+    fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>> {
+        let res = self._count(from, to, skip);
+        Box::pin(future::ready(res))
     }
 
-    fn insert(&mut self, _key: &Self::Key, _value: &Self::Value) -> BoxFuture<Result<()>> {
-        // TODO
-        unreachable!()
+    fn insert(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>> {
+        let res = self._insert(key, value);
+        Box::pin(future::ready(res))
     }
 
     fn insert_batch(&mut self, _items: &[(Self::Key, Self::Value)]) -> BoxFuture<Result<()>> {
-        // TODO
-        unreachable!()
+        let err = Error::NotImplemented;
+        Box::pin(future::err(err))
     }
 
-    fn remove(&mut self, _key: &Self::Key) -> BoxFuture<Result<()>> {
-        // TODO
-        unreachable!()
+    fn remove(&mut self, key: &Self::Key) -> BoxFuture<Result<()>> {
+        let res = self._remove(key);
+        Box::pin(future::ready(res))
     }
 
     fn remove_batch(&mut self, _keys: &[Self::Key]) -> BoxFuture<Result<()>> {
-        // TODO
-        unreachable!()
+        let err = Error::NotImplemented;
+        Box::pin(future::err(err))
+    }
+}
+
+#[test]
+fn test_persistent_store() {
+    use crypto::random::Random;
+    use std::path::Path;
+    use std::sync::{Arc, Mutex};
+
+    let name = "test";
+    let path = Path::new("test.db"); // TODO: use tempfile
+    let res = PersistentStore::new(name, &path);
+    assert!(res.is_ok());
+    let inner_store = res.unwrap();
+
+    let store = Arc::new(Mutex::new(inner_store));
+    let key_len = 100;
+    let value_len = 1000;
+    let expected_size = Arc::new(Mutex::new(0));;
+
+    let items: Vec<(Vec<u8>, Vec<u8>)> = (0..10)
+        .map(|_| {
+            (
+                Random::bytes(key_len).unwrap(),
+                Random::bytes(value_len).unwrap(),
+            )
+        })
+        .collect();
+
+    for (key, value) in &items {
+        let store = Arc::clone(&store);
+        let expected_size = Arc::clone(&expected_size);
+
+        let _ = async move {
+            let mut store = store.lock().unwrap();
+            let mut expected_size = expected_size.lock().unwrap();
+
+            let size = store.size();
+            assert_eq!(size, *expected_size);
+
+            let res = store.count(&key, &key, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap(), 0);
+
+            let res = store.lookup(&key).await;
+            assert!(res.is_ok());
+            assert!(!res.unwrap());
+
+            let res = store.get(&key).await;
+            assert!(res.is_err());
+
+            let res = store.insert_batch(&[]).await;
+            assert!(res.is_err());
+
+            let res = store.insert(&key, &value).await;
+            assert!(res.is_ok());
+
+            *expected_size += (key.len() + value.len()) as u32;
+
+            let res = store.count(&key, &key, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap(), 1);
+
+            let res = store.query(&key, &key, 0, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap().len(), 0);
+
+            let res = store.lookup(&key).await;
+            assert!(res.is_ok());
+            assert!(res.unwrap());
+
+            let res = store.get(&key).await;
+            assert!(res.is_ok());
+            assert_eq!(&res.unwrap(), value);
+
+            let res = store.remove(&key).await;
+            assert!(res.is_ok());
+
+            let res = store.count(&key, &key, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap(), 0);
+
+            let res = store.query(&key, &key, 0, 0).await;
+            assert!(res.is_ok());
+            assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+            let res = store.lookup(&key).await;
+            assert!(res.is_ok());
+            assert!(!res.unwrap());
+
+            let res = store.get(&key).await;
+            assert!(res.is_err());
+        };
     }
 }
