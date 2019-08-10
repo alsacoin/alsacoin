@@ -14,4 +14,21 @@ categories = ["cryptography", "cryptocurrency", "blockchain"]
 travis-ci = { repository = "alsacoin/alsacoin", branch = "master" }
 
 [workspace]
-members = ["crypto", "store",  "mining", "models", "consensus", "config"]
+members = ["crypto", "store",  "mining", "models", "consensus",  "network", "config"]
+
+[dependencies]
+failure = "~0.1"
+serde = { version = "~1.0", features = ["derive"] }
+serde_cbor = "~0.10"
+serde_json = "~1.0"
+chrono = "~0.4"
+num = { version = "~0.2", features = ["std", "rand", "serde"] }
+clap = { version = "~2", features = ["suggestions", "color", "vec_map", "yaml", "wrap_help"] }
+
+crypto = { path = "crypto" }
+mining = { path = "mining" }
+store = { path = "store" }
+models = { path = "models" }
+consensus = { path = "consensus" }
+config = { path = "config" }
+

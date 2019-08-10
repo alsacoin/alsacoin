@@ -1,20 +1,21 @@
 [package]
-name = "consensus"
+name = "network"
 version = "0.1.0"
 authors = ["chritchens <chritchens@gmail.com>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 failure = "~0.1"
-enum-display-derive = "~0.1"
 serde = { version = "~1.0", features = ["derive"] }
 serde_cbor = "~0.10"
 serde_json = "~1.0"
-futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
+chrono = "~0.4"
+num = { version = "~0.2", features = ["std", "rand", "serde"] }
+reqwest = { version = "~0.9", features = ["trust-dns"] }
+rocket = { version = "~0.4", features = ["tls"]}
 
 crypto = { path = "../crypto" }
 mining = { path = "../mining" }
 store = { path = "../store" }
 models = { path = "../models" }
+consensus = { path = "../consensus" }
