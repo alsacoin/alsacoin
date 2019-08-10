@@ -161,6 +161,7 @@ impl SecretKey {
     }
 
     /// `to_string` returns a `SecretKey` hex string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
     }
@@ -344,6 +345,7 @@ impl PublicKey {
     }
 
     /// `to_string` returns a `PublicKey` hex string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
     }
@@ -570,6 +572,7 @@ impl KeyPair {
     }
 
     /// `to_string` returns a `KeyPair` hex string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
     }
@@ -660,6 +663,7 @@ impl Signature {
     }
 
     /// `to_string` returns a `Signature` hex string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.to_bytes().as_ref())
     }

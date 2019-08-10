@@ -93,6 +93,7 @@ impl Digest {
     }
 
     /// `to_string` returns a `Digest` hex string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         base16::encode_lower(self.0.as_ref())
     }
