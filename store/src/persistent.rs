@@ -6,31 +6,21 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::traits::Store;
 use futures::future::{self, BoxFuture};
-use rkv::{Manager, Rkv, SingleStore, StoreOptions, Value};
-use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use unqlite::{Config, Cursor, Direction, UnQLite, KV};
 
 pub struct PersistentStore {
-    name: String,
-    path: PathBuf,
-    manager: Arc<RwLock<Rkv>>,
+    db: UnQLite,
     keys_size: u32,
     values_size: u32,
 }
 
 impl PersistentStore {
     /// `new` creates a new `PersistentStore`.
-    pub fn new(name: &str, path: &Path) -> Result<PersistentStore> {
-        let manager = Manager::singleton()
-            .write()
-            .unwrap()
-            .get_or_create(path, Rkv::new)
-            .unwrap();
+    pub fn new(path: &str) -> Result<PersistentStore> {
+        let db = UnQLite::create(path);
 
         let mut store = PersistentStore {
-            name: name.into(),
-            path: path.into(),
-            manager,
+            db,
             keys_size: 0,
             values_size: 0,
         };
@@ -40,16 +30,17 @@ impl PersistentStore {
         Ok(store)
     }
 
-    /// `open` returns a `PersistentStore` store handle.
-    fn open(&self) -> Result<SingleStore> {
-        let env = self.manager.read()?;
-        env.open_single(self.name.as_str(), StoreOptions::create())
-            .map_err(|e| e.into())
-    }
+    /// `new_from_db` creates a new `PersistentStore` from an UnQlite database.
+    pub fn new_from_db(db: UnQLite) -> Result<PersistentStore> {
+        let mut store = PersistentStore {
+            db,
+            keys_size: 0,
+            values_size: 0,
+        };
 
-    /// `path` returns the `PersistentStore` path.
-    pub fn path(&self) -> &Path {
-        self.path.as_path()
+        store.update_size()?;
+
+        Ok(store)
     }
 
     /// `update_size` udpates the `PersistentStore` cached sizes.
@@ -57,50 +48,55 @@ impl PersistentStore {
         Ok(()) // TODO
     }
 
+    /// `log_errors` logs the `PersistentStore` errors.
+    pub fn log_errors(&self) -> Option<String> {
+        self.db.err_log()
+    }
+
     /// `_lookup` looks up a key-value pair from the `PersistentStore`.
-    fn _lookup(&self, key: &[u8]) -> Result<bool> {
-        let env = self.manager.read()?;
-        let reader = env.read()?;
-        let found = self.open()?.get(&reader, key)?.is_some();
-        Ok(found)
+    fn _lookup(&self, key: &[u8]) -> bool {
+        self.db.kv_contains(key)
     }
 
     /// `_get` gets a key-value pair from the `PersistentStore`.
     fn _get(&self, key: &[u8]) -> Result<Vec<u8>> {
-        let env = self.manager.read()?;
-        let reader = env.read()?;
-        if let Some(value) = self.open()?.get(&reader, key)? {
-            value.to_bytes().map_err(|e| e.into())
-        } else {
+        if !self._lookup(key) {
             let err = Error::NotFound;
-            Err(err)
+            return Err(err);
         }
+
+        self.db.kv_fetch(key).map_err(|e| e.into())
     }
 
     /// `_count` returns the count of a list of values from the `PersistentStore`.
     fn _count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
-        let env = self.manager.read()?;
-        let store = env.open_single(self.name.as_str(), StoreOptions::create())?;
-        let reader = env.read()?;
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
         let mut skipped = 0;
         let mut count = 0;
 
-        let store_iter = store.iter_start(&reader)?;
+        let mut entry = self.db.seek(from, Direction::Ge);
 
-        for res in store_iter {
-            let (k, v) = res?;
+        loop {
+            if entry.is_none() {
+                break;
+            }
 
-            if (from <= k) && (to > k) {
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
                 if skipped >= skip {
-                    if v.is_some() {
-                        count += 1;
-                    } else {
-                        break;
-                    }
+                    count += 1;
                 } else {
                     skipped += 1;
                 }
             }
+
+            entry = item.next();
         }
 
         Ok(count)
@@ -108,24 +104,30 @@ impl PersistentStore {
 
     /// `_query` returns a list of values from the `PersistentStore`.
     fn _query(&self, from: &[u8], to: &[u8], count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
-        let env = self.manager.read()?;
-        let reader = env.read()?;
-        let mut values = Vec::new();
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
         let mut skipped = 0;
         let mut counted = 0;
+        let mut values = Vec::new();
 
-        for res in self.open()?.iter_start(&reader)? {
-            let (k, v) = res?;
+        let mut entry = self.db.seek(from, Direction::Ge);
 
-            if (from <= k) && (to > k) {
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
                 if skipped >= skip {
                     if counted <= count {
-                        if let Some(value) = v {
-                            values.push(value.to_bytes()?);
-                            counted += 1;
-                        } else {
-                            break;
-                        }
+                        values.push(item.value());
+                        counted += 1;
                     } else {
                         break;
                     }
@@ -133,6 +135,8 @@ impl PersistentStore {
                     skipped += 1;
                 }
             }
+
+            entry = item.next();
         }
 
         Ok(values)
@@ -140,48 +144,68 @@ impl PersistentStore {
 
     /// `_insert` inserts a binary key-value pair in the `PersistentStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        let env = self.manager.read()?;
-        let mut writer = env.write()?;
-        self.open()?.put(&mut writer, key, &Value::Blob(value))?;
-        writer.commit()?;
-
+        self.db.kv_store(key, value)?;
         self.keys_size += key.len() as u32;
         self.values_size += value.len() as u32;
 
         Ok(())
     }
 
+    /// `_create` inserts a non-existing binary key-value pair in the `PersistentStore`.
+    fn _create(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        if self._lookup(key) {
+            let err = Error::AlreadyFound;
+            return Err(err);
+        }
+
+        self._insert(key, value)
+    }
+
+    /// `_update` updates an existing key-value pair in the `PersistentStore`.
+    pub fn _update(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        if !self._lookup(key) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self._insert(key, value)
+    }
+
     /// `_remove` removes a key-value pair from the `PersistentStore`.
     fn _remove(&mut self, key: &[u8]) -> Result<()> {
-        let env = self.manager.read()?;
-        let reader = env.read()?;
-
-        if let Some(value) = self.open()?.get(&reader, key)? {
-            let value_size = value.to_bytes()?.len();
-
-            let mut writer = env.write()?;
-            self.open()?.delete(&mut writer, key)?;
-            writer.commit()?;
-
-            self.keys_size -= key.len() as u32;
-            self.values_size -= value_size as u32;
-
-            Ok(())
-        } else {
+        if !self._lookup(key) {
             let err = Error::NotFound;
-            Err(err)
+            return Err(err);
         }
+
+        let value_len = self.db.kv_fetch_length(key)?;
+
+        self.db.kv_delete(key)?;
+        self.keys_size -= key.len() as u32;
+        self.values_size -= value_len as u32;
+
+        Ok(())
     }
 
     /// `clear` clears the `PersistentStore`.
     pub fn clear(&mut self) -> Result<()> {
-        let env = self.manager.read()?;
-        let mut writer = env.write()?;
-        self.open()?.clear(&mut writer)?;
-        writer.commit()?;
+        let mut entry = self.db.first();
 
-        self.keys_size = 0;
-        self.values_size = 0;
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+            let value_len = item.value().len();
+
+            self.db.kv_delete(&key)?;
+            self.keys_size -= key.len() as u32;
+            self.values_size -= value_len as u32;
+
+            entry = item.next();
+        }
 
         Ok(())
     }
@@ -205,7 +229,7 @@ impl Store for PersistentStore {
 
     fn lookup(&self, key: &Self::Key) -> BoxFuture<Result<bool>> {
         let res = self._lookup(key);
-        Box::pin(future::ready(res))
+        Box::pin(future::ok(res))
     }
 
     fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self::Value>> {
@@ -252,14 +276,10 @@ impl Store for PersistentStore {
 
 #[test]
 fn test_persistent_store_sync_ops() {
-    /*
     use crypto::random::Random;
-    use tempfile::Builder;
 
-    let name = "test";
-    let path_root = Builder::new().prefix("test_db").tempdir().unwrap();
-    let path = path_root.path();
-    let res = PersistentStore::new(name, &path);
+    let temp_db = UnQLite::create_temp();
+    let res = PersistentStore::new_from_db(temp_db);
     assert!(res.is_ok());
     let mut store = res.unwrap();
 
@@ -284,9 +304,8 @@ fn test_persistent_store_sync_ops() {
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = store._lookup(&key);
-        assert!(res.is_ok());
-        assert!(!res.unwrap());
+        let found = store._lookup(&key);
+        assert!(!found);
 
         let res = store._get(&key);
         assert!(res.is_err());
@@ -296,6 +315,7 @@ fn test_persistent_store_sync_ops() {
 
         expected_size += (key.len() + value.len()) as u32;
 
+        /*
         let res = store._count(&key, &key, 0);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
@@ -303,10 +323,10 @@ fn test_persistent_store_sync_ops() {
         let res = store._query(&key, &key, 0, 0);
         assert!(res.is_ok());
         assert_eq!(res.unwrap().len(), 0);
+        */
 
-        let res = store._lookup(&key);
-        assert!(res.is_ok());
-        assert!(res.unwrap());
+        let found = store._lookup(&key);
+        assert!(found);
 
         let res = store._get(&key);
         assert!(res.is_ok());
@@ -315,6 +335,9 @@ fn test_persistent_store_sync_ops() {
         let res = store._remove(&key);
         assert!(res.is_ok());
 
+        expected_size -= (key.len() + value.len()) as u32;
+
+        /*
         let res = store._count(&key, &key, 0);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
@@ -322,29 +345,23 @@ fn test_persistent_store_sync_ops() {
         let res = store._query(&key, &key, 0, 0);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![value.to_owned()]);
+        */
 
-        let res = store._lookup(&key);
-        assert!(res.is_ok());
-        assert!(!res.unwrap());
+        let found = store._lookup(&key);
+        assert!(!found);
 
         let res = store._get(&key);
         assert!(res.is_err());
     }
-    */
 }
 
 #[test]
 fn test_persistent_store_async_ops() {
-    /*
     use crypto::random::Random;
     use std::sync::{Arc, Mutex};
-    use tempfile::Builder;
 
-    let name = "test";
-    let path_root = Builder::new().prefix("test_db").tempdir().unwrap();
-    let path = path_root.path();
-    let res = PersistentStore::new(name, &path);
-    assert!(res.is_ok());
+    let temp_db = UnQLite::create_temp();
+    let res = PersistentStore::new_from_db(temp_db);
     let inner_store = res.unwrap();
     let store = Arc::new(Mutex::new(inner_store));
 
@@ -391,6 +408,7 @@ fn test_persistent_store_async_ops() {
 
             *expected_size += (key.len() + value.len()) as u32;
 
+            /*
             let res = store.count(&key, &key, 0).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 1);
@@ -398,6 +416,7 @@ fn test_persistent_store_async_ops() {
             let res = store.query(&key, &key, 0, 0).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap().len(), 0);
+            */
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());
@@ -410,6 +429,9 @@ fn test_persistent_store_async_ops() {
             let res = store.remove(&key).await;
             assert!(res.is_ok());
 
+            *expected_size -= (key.len() + value.len()) as u32;
+
+            /*
             let res = store.count(&key, &key, 0).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 0);
@@ -417,6 +439,7 @@ fn test_persistent_store_async_ops() {
             let res = store.query(&key, &key, 0, 0).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), vec![value.to_owned()]);
+            */
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());
@@ -426,5 +449,4 @@ fn test_persistent_store_async_ops() {
             assert!(res.is_err());
         };
     }
-    */
 }

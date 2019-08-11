@@ -7,6 +7,7 @@ use rkv::{Manager, Rkv};
 use std::convert::From;
 use std::io;
 use std::sync::{PoisonError, RwLockReadGuard, RwLockWriteGuard};
+use unqlite::Error as UnQLiteError;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -22,6 +23,8 @@ pub enum Error {
     InvalidKey,
     #[fail(display = "Invalid value")]
     InvalidValue,
+    #[fail(display = "Invalid range")]
+    InvalidRange,
     #[fail(display = "Not found")]
     NotFound,
     #[fail(display = "Already found")]
@@ -44,6 +47,13 @@ impl From<PoisonError<RwLockReadGuard<'_, Rkv>>> for Error {
 
 impl From<PoisonError<RwLockWriteGuard<'_, Manager>>> for Error {
     fn from(error: PoisonError<RwLockWriteGuard<'_, Manager>>) -> Error {
+        let msg = format!("{}", error);
+        Error::Store { msg }
+    }
+}
+
+impl From<UnQLiteError> for Error {
+    fn from(error: UnQLiteError) -> Error {
         let msg = format!("{}", error);
         Error::Store { msg }
     }
