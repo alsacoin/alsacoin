@@ -15,6 +15,7 @@ before_cache:
 before_install:
   - set -e
   - rustup self update
+  # - sudo apt update && sudo apt install llvm
 
 install:
   - echo "installing clippy"

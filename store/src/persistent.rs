@@ -54,8 +54,7 @@ impl PersistentStore {
 
     /// `update_size` udpates the `PersistentStore` cached sizes.
     pub fn update_size(&mut self) -> Result<()> {
-        // TODO
-        unreachable!()
+        Ok(()) // TODO
     }
 
     /// `_lookup` looks up a key-value pair from the `PersistentStore`.
@@ -81,11 +80,14 @@ impl PersistentStore {
     /// `_count` returns the count of a list of values from the `PersistentStore`.
     fn _count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
         let env = self.manager.read()?;
+        let store = env.open_single(self.name.as_str(), StoreOptions::create())?;
         let reader = env.read()?;
         let mut skipped = 0;
         let mut count = 0;
 
-        for res in self.open()?.iter_start(&reader)? {
+        let store_iter = store.iter_start(&reader)?;
+
+        for res in store_iter {
             let (k, v) = res?;
 
             if (from <= k) && (to > k) {
@@ -95,9 +97,9 @@ impl PersistentStore {
                     } else {
                         break;
                     }
+                } else {
+                    skipped += 1;
                 }
-
-                skipped += 1;
             }
         }
 
@@ -127,9 +129,9 @@ impl PersistentStore {
                     } else {
                         break;
                     }
+                } else {
+                    skipped += 1;
                 }
-
-                skipped += 1;
             }
         }
 
@@ -249,18 +251,100 @@ impl Store for PersistentStore {
 }
 
 #[test]
-fn test_persistent_store() {
+fn test_persistent_store_sync_ops() {
     use crypto::random::Random;
-    use std::path::Path;
-    use std::sync::{Arc, Mutex};
+    use tempfile::Builder;
 
     let name = "test";
-    let path = Path::new("test.db"); // TODO: use tempfile
+    let path_root = Builder::new().prefix("test_db").tempdir().unwrap();
+    let path = path_root.path();
+    let res = PersistentStore::new(name, &path);
+    assert!(res.is_ok());
+    let mut store = res.unwrap();
+
+    let key_len = 100;
+    let value_len = 1000;
+    let mut expected_size = 0;
+
+    let items: Vec<(Vec<u8>, Vec<u8>)> = (0..10)
+        .map(|_| {
+            (
+                Random::bytes(key_len).unwrap(),
+                Random::bytes(value_len).unwrap(),
+            )
+        })
+        .collect();
+
+    for (key, value) in &items {
+        let size = store.size();
+        assert_eq!(size, expected_size);
+
+        let res = store._count(&key, &key, 0);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = store._lookup(&key);
+        assert!(res.is_ok());
+        assert!(!res.unwrap());
+
+        let res = store._get(&key);
+        assert!(res.is_err());
+
+        let res = store._insert(&key, &value);
+        assert!(res.is_ok());
+
+        expected_size += (key.len() + value.len()) as u32;
+
+        let res = store._count(&key, &key, 0);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = store._query(&key, &key, 0, 0);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap().len(), 0);
+
+        let res = store._lookup(&key);
+        assert!(res.is_ok());
+        assert!(res.unwrap());
+
+        let res = store._get(&key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = store._remove(&key);
+        assert!(res.is_ok());
+
+        let res = store._count(&key, &key, 0);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = store._query(&key, &key, 0, 0);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = store._lookup(&key);
+        assert!(res.is_ok());
+        assert!(!res.unwrap());
+
+        let res = store._get(&key);
+        assert!(res.is_err());
+    }
+}
+
+#[test]
+fn test_persistent_store_async_ops() {
+    use crypto::random::Random;
+    use std::sync::{Arc, Mutex};
+    use tempfile::Builder;
+
+    let name = "test";
+    let path_root = Builder::new().prefix("test_db").tempdir().unwrap();
+    let path = path_root.path();
     let res = PersistentStore::new(name, &path);
     assert!(res.is_ok());
     let inner_store = res.unwrap();
-
     let store = Arc::new(Mutex::new(inner_store));
+
     let key_len = 100;
     let value_len = 1000;
     let expected_size = Arc::new(Mutex::new(0));;
