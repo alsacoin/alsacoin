@@ -46,6 +46,12 @@ pub trait Store {
     /// `insert` inserts an item in the `Store`.
     fn insert(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>>;
 
+    /// `create` creates a previously not existing item in the `Store`.
+    fn create(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>>;
+
+    /// `update` updates a previously existing item in the `Store`.
+    fn update(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>>;
+
     /// `insert_batch` inserts one or more items in the `Store`.
     fn insert_batch(&mut self, items: &[(Self::Key, Self::Value)]) -> BoxFuture<Result<()>>;
 

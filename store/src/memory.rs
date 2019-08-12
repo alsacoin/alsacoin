@@ -269,6 +269,16 @@ impl Store for MemoryStore {
         Box::pin(future::ready(res))
     }
 
+    fn create(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>> {
+        let res = self._create(key, value);
+        Box::pin(future::ready(res))
+    }
+
+    fn update(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>> {
+        let res = self._update(key, value);
+        Box::pin(future::ready(res))
+    }
+
     fn insert_batch(&mut self, _items: &[(Self::Key, Self::Value)]) -> BoxFuture<Result<()>> {
         let err = Error::NotImplemented;
         Box::pin(future::err(err))
