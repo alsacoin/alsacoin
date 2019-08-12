@@ -2,11 +2,8 @@
 //!
 //! `error` contains the `store` crate `Error` type.
 
-use rkv::error::{DataError, MigrateError, StoreError};
-use rkv::{Manager, Rkv};
 use std::convert::From;
 use std::io;
-use std::sync::{PoisonError, RwLockReadGuard, RwLockWriteGuard};
 use unqlite::Error as UnQLiteError;
 
 #[derive(Debug, Fail)]
@@ -40,43 +37,8 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<PoisonError<RwLockReadGuard<'_, Rkv>>> for Error {
-    fn from(error: PoisonError<RwLockReadGuard<'_, Rkv>>) -> Error {
-        let msg = format!("{}", error);
-        Error::Store { msg }
-    }
-}
-
-impl From<PoisonError<RwLockWriteGuard<'_, Manager>>> for Error {
-    fn from(error: PoisonError<RwLockWriteGuard<'_, Manager>>) -> Error {
-        let msg = format!("{}", error);
-        Error::Store { msg }
-    }
-}
-
 impl From<UnQLiteError> for Error {
     fn from(error: UnQLiteError) -> Error {
-        let msg = format!("{}", error);
-        Error::Store { msg }
-    }
-}
-
-impl From<StoreError> for Error {
-    fn from(error: StoreError) -> Error {
-        let msg = format!("{}", error);
-        Error::Store { msg }
-    }
-}
-
-impl From<DataError> for Error {
-    fn from(error: DataError) -> Error {
-        let msg = format!("{}", error);
-        Error::Store { msg }
-    }
-}
-
-impl From<MigrateError> for Error {
-    fn from(error: MigrateError) -> Error {
         let msg = format!("{}", error);
         Error::Store { msg }
     }

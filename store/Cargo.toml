@@ -11,7 +11,6 @@ serde = { version = "~1.0", features = ["derive"] }
 serde_cbor = "~0.10"
 futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
 tempfile = "~3.1"
-rkv = { version = "=0.9.7", features = ["backtrace"] }
 unqlite = "~1.4"
 
 crypto = { path = "../crypto" }
