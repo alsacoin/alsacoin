@@ -77,37 +77,11 @@ impl MemoryStore {
                         .map(|(_, v)| v.to_owned())
                         .collect()
                 }
-            } else {
-                if let Some(skip) = skip {
-                    if let Some(count) = count {
-                        self.db
-                            .iter()
-                            .filter(|(k, _)| (from <= k))
-                            .skip(skip as usize)
-                            .take(count as usize)
-                            .map(|(_, v)| v.to_owned())
-                            .collect()
-                    } else {
-                        self.db
-                            .iter()
-                            .filter(|(k, _)| (from <= k))
-                            .skip(skip as usize)
-                            .map(|(_, v)| v.to_owned())
-                            .collect()
-                    }
-                } else {
-                    self.db
-                        .iter()
-                        .filter(|(k, _)| (from <= k))
-                        .map(|(_, v)| v.to_owned())
-                        .collect()
-                }
-            }
-        } else {
-            if let Some(skip) = skip {
+            } else if let Some(skip) = skip {
                 if let Some(count) = count {
                     self.db
                         .iter()
+                        .filter(|(k, _)| (from <= k))
                         .skip(skip as usize)
                         .take(count as usize)
                         .map(|(_, v)| v.to_owned())
@@ -115,13 +89,35 @@ impl MemoryStore {
                 } else {
                     self.db
                         .iter()
+                        .filter(|(k, _)| (from <= k))
                         .skip(skip as usize)
                         .map(|(_, v)| v.to_owned())
                         .collect()
                 }
             } else {
-                self.db.iter().map(|(_, v)| v.to_owned()).collect()
+                self.db
+                    .iter()
+                    .filter(|(k, _)| (from <= k))
+                    .map(|(_, v)| v.to_owned())
+                    .collect()
             }
+        } else if let Some(skip) = skip {
+            if let Some(count) = count {
+                self.db
+                    .iter()
+                    .skip(skip as usize)
+                    .take(count as usize)
+                    .map(|(_, v)| v.to_owned())
+                    .collect()
+            } else {
+                self.db
+                    .iter()
+                    .skip(skip as usize)
+                    .map(|(_, v)| v.to_owned())
+                    .collect()
+            }
+        } else {
+            self.db.iter().map(|(_, v)| v.to_owned()).collect()
         };
 
         Ok(res)
@@ -148,23 +144,19 @@ impl MemoryStore {
                         .filter(|(k, _)| (from <= k) && (to > k))
                         .count() as u32
                 }
+            } else if let Some(skip) = skip {
+                self.db
+                    .iter()
+                    .filter(|(k, _)| (from <= k))
+                    .skip(skip as usize)
+                    .count() as u32
             } else {
-                if let Some(skip) = skip {
-                    self.db
-                        .iter()
-                        .filter(|(k, _)| (from <= k))
-                        .skip(skip as usize)
-                        .count() as u32
-                } else {
-                    self.db.iter().filter(|(k, _)| (from <= k)).count() as u32
-                }
+                self.db.iter().filter(|(k, _)| (from <= k)).count() as u32
             }
+        } else if let Some(skip) = skip {
+            self.db.iter().skip(skip as usize).count() as u32
         } else {
-            if let Some(skip) = skip {
-                self.db.iter().skip(skip as usize).count() as u32
-            } else {
-                self.db.iter().count() as u32
-            }
+            self.db.iter().count() as u32
         };
 
         Ok(res)

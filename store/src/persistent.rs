@@ -108,150 +108,230 @@ impl PersistentStore {
         self.db.kv_fetch(key).map_err(|e| e.into())
     }
 
+    fn _count_complete(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut skipped = 0;
+        let mut count = 0;
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    count += 1;
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_no_skip(&self, from: &[u8], to: &[u8]) -> Result<u32> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut count = 0;
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                count += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_no_from(&self, to: &[u8], skip: u32) -> Result<u32> {
+        let mut skipped = 0;
+        let mut count = 0;
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    count += 1;
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_no_from_no_skip(&self, to: &[u8]) -> Result<u32> {
+        let mut count = 0;
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                count += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_no_to(&self, from: &[u8], skip: u32) -> Result<u32> {
+        let mut skipped = 0;
+        let mut count = 0;
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            if skipped >= skip {
+                count += 1;
+            } else {
+                skipped += 1;
+            }
+
+            entry = entry.unwrap().next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_no_to_no_skip(&self, from: &[u8]) -> Result<u32> {
+        let mut count = 0;
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            count += 1;
+
+            entry = entry.unwrap().next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_no_from_no_to(&self, skip: u32) -> Result<u32> {
+        let mut skipped = 0;
+        let mut count = 0;
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            if skipped >= skip {
+                count += 1;
+            } else {
+                skipped += 1;
+            }
+
+            entry = entry.unwrap().next();
+        }
+
+        Ok(count)
+    }
+
+    fn _count_none(&self) -> Result<u32> {
+        let mut count = 0;
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            count += 1;
+
+            entry = entry.unwrap().next();
+        }
+
+        Ok(count)
+    }
+
     /// `_count` returns the count of a list of values from the `PersistentStore`.
     fn _count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
-        let res: u32 = if let Some(from) = from {
+        if let Some(from) = from {
             if let Some(to) = to {
-                if let Some(skip) = skip {
-                    if from < to {
-                        let err = Error::InvalidRange;
-                        return Err(err);
-                    }
-
-                    let mut skipped = 0;
-                    let mut count = 0;
-
-                    let mut entry = self.db.seek(from, Direction::Ge);
-
-                    loop {
-                        if entry.is_none() {
-                            break;
-                        }
-
-                        let item = entry.unwrap();
-                        let key = item.key();
-
-                        if to > key.as_slice() {
-                            if skipped >= skip {
-                                count += 1;
-                            } else {
-                                skipped += 1;
-                            }
-                        }
-
-                        entry = item.next();
-                    }
-
-                    count
-                } else {
-                    if from < to {
-                        let err = Error::InvalidRange;
-                        return Err(err);
-                    }
-
-                    let mut count = 0;
-
-                    let mut entry = self.db.seek(from, Direction::Ge);
-
-                    loop {
-                        if entry.is_none() {
-                            break;
-                        }
-
-                        let item = entry.unwrap();
-                        let key = item.key();
-
-                        if to > key.as_slice() {
-                            count += 1;
-                        }
-
-                        entry = item.next();
-                    }
-
-                    count
+                if from < to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
                 }
+
+                if let Some(skip) = skip {
+                    self._count_complete(from, to, skip)
+                } else {
+                    self._count_no_skip(from, to)
+                }
+            } else if let Some(skip) = skip {
+                self._count_no_to(from, skip)
             } else {
-                if let Some(skip) = skip {
-                    let mut skipped = 0;
-                    let mut count = 0;
-
-                    let mut entry = self.db.seek(from, Direction::Ge);
-
-                    loop {
-                        if entry.is_none() {
-                            break;
-                        }
-
-                        if skipped >= skip {
-                            count += 1;
-                        } else {
-                            skipped += 1;
-                        }
-
-                        entry = entry.unwrap().next();
-                    }
-
-                    count
-                } else {
-                    let mut count = 0;
-
-                    let mut entry = self.db.seek(from, Direction::Ge);
-
-                    loop {
-                        if entry.is_none() {
-                            break;
-                        }
-
-                        count += 1;
-
-                        entry = entry.unwrap().next();
-                    }
-
-                    count
-                }
+                self._count_no_to_no_skip(from)
             }
-        } else {
+        } else if let Some(to) = to {
             if let Some(skip) = skip {
-                let mut skipped = 0;
-                let mut count = 0;
-
-                let mut entry = self.db.first();
-
-                loop {
-                    if entry.is_none() {
-                        break;
-                    }
-
-                    if skipped >= skip {
-                        count += 1;
-                    } else {
-                        skipped += 1;
-                    }
-
-                    entry = entry.unwrap().next();
-                }
-
-                count
+                self._count_no_from(to, skip)
             } else {
-                let mut count = 0;
-
-                let mut entry = self.db.first();
-
-                loop {
-                    if entry.is_none() {
-                        break;
-                    }
-
-                    count += 1;
-
-                    entry = entry.unwrap().next();
-                }
-
-                count
+                self._count_no_from_no_skip(to)
             }
-        };
-
-        Ok(res)
+        } else if let Some(skip) = skip {
+            self._count_no_from_no_to(skip)
+        } else {
+            self._count_none()
+        }
     }
 
     fn _query_complete(
@@ -741,18 +821,16 @@ impl PersistentStore {
             } else {
                 self._query_no_from_no_skip_no_count(to)
             }
-        } else {
-            if let Some(skip) = skip {
-                if let Some(count) = count {
-                    self._query_no_from_no_to(skip, count)
-                } else {
-                    self._query_no_from_no_to_no_count(skip)
-                }
-            } else if let Some(count) = count {
-                self._query_no_from_no_to_no_skip(count)
+        } else if let Some(skip) = skip {
+            if let Some(count) = count {
+                self._query_no_from_no_to(skip, count)
             } else {
-                self._query_none()
+                self._query_no_from_no_to_no_count(skip)
             }
+        } else if let Some(count) = count {
+            self._query_no_from_no_to_no_skip(count)
+        } else {
+            self._query_none()
         }
     }
 
