@@ -5,8 +5,11 @@
 use crate::error::Error;
 use crate::result::Result;
 use crate::traits::Store;
+use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use futures::future::{self, BoxFuture};
-use unqlite::{Config, Cursor, Direction, UnQLite, KV};
+use std::io::Cursor;
+use unqlite::Cursor as StoreCursor;
+use unqlite::{Config, Direction, UnQLite, KV};
 
 pub struct PersistentStore {
     db: UnQLite,
@@ -25,7 +28,7 @@ impl PersistentStore {
             values_size: 0,
         };
 
-        store.update_size()?;
+        store.init_size()?;
 
         Ok(store)
     }
@@ -38,14 +41,51 @@ impl PersistentStore {
             values_size: 0,
         };
 
-        store.update_size()?;
+        store.init_size()?;
 
         Ok(store)
     }
 
-    /// `update_size` udpates the `PersistentStore` cached sizes.
-    pub fn update_size(&mut self) -> Result<()> {
-        Ok(()) // TODO
+    /// `sizes_to_bytes` returns the binary representation of the store sizes.
+    pub fn sizes_to_bytes(&self) -> Result<Vec<u8>> {
+        let mut buf = Vec::new();
+        buf.write_u32::<BigEndian>(self.keys_size)?;
+        buf.write_u32::<BigEndian>(self.values_size)?;
+        Ok(buf)
+    }
+
+    /// `sizes_from_bytes` returns the store sizes from a binary representation.
+    pub fn sizes_from_bytes(buf: &[u8]) -> Result<(u32, u32)> {
+        if buf.len() != 8 {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        let mut reader = Cursor::new(buf);
+        let keys_size = reader.read_u32::<BigEndian>()?;
+        let values_size = reader.read_u32::<BigEndian>()?;
+
+        Ok((keys_size, values_size))
+    }
+
+    /// `init_size` initializes the `PersistentStore` cached sizes.
+    fn init_size(&mut self) -> Result<()> {
+        if !self._lookup(b"sizes") {
+            self.db.kv_store(b"sizes", &[0u8; 4]).map_err(|e| e.into())
+        } else {
+            let buf = self._get(b"sizes")?;
+            let (keys_size, values_size) = Self::sizes_from_bytes(&buf)?;
+
+            self.keys_size = keys_size;
+            self.values_size = values_size;
+            Ok(())
+        }
+    }
+
+    /// `update_size` updates the `PersistentStore` cached sizes.
+    fn update_size(&mut self) -> Result<()> {
+        let buf = self.sizes_to_bytes()?;
+        self.db.kv_store(b"sizes", &buf).map_err(|e| e.into())
     }
 
     /// `log_errors` logs the `PersistentStore` errors.
@@ -147,6 +187,7 @@ impl PersistentStore {
         self.db.kv_store(key, value)?;
         self.keys_size += key.len() as u32;
         self.values_size += value.len() as u32;
+        self.update_size()?;
 
         Ok(())
     }
@@ -183,6 +224,7 @@ impl PersistentStore {
         self.db.kv_delete(key)?;
         self.keys_size -= key.len() as u32;
         self.values_size -= value_len as u32;
+        self.update_size()?;
 
         Ok(())
     }
@@ -315,6 +357,15 @@ fn test_persistent_store_sync_ops() {
 
         expected_size += (key.len() + value.len()) as u32;
 
+        let res = store.sizes_to_bytes();
+        assert!(res.is_ok());
+        let sizes_buf = res.unwrap();
+        let res = PersistentStore::sizes_from_bytes(&sizes_buf);
+        assert!(res.is_ok());
+        let (keys_size, values_size) = res.unwrap();
+        assert_eq!(store.keys_size(), keys_size);
+        assert_eq!(store.values_size(), values_size);
+
         /*
         let res = store._count(&key, &key, 0);
         assert!(res.is_ok());
@@ -336,6 +387,15 @@ fn test_persistent_store_sync_ops() {
         assert!(res.is_ok());
 
         expected_size -= (key.len() + value.len()) as u32;
+
+        let res = store.sizes_to_bytes();
+        assert!(res.is_ok());
+        let sizes_buf = res.unwrap();
+        let res = PersistentStore::sizes_from_bytes(&sizes_buf);
+        assert!(res.is_ok());
+        let (keys_size, values_size) = res.unwrap();
+        assert_eq!(store.keys_size(), keys_size);
+        assert_eq!(store.values_size(), values_size);
 
         /*
         let res = store._count(&key, &key, 0);
@@ -408,6 +468,15 @@ fn test_persistent_store_async_ops() {
 
             *expected_size += (key.len() + value.len()) as u32;
 
+            let res = store.sizes_to_bytes();
+            assert!(res.is_ok());
+            let sizes_buf = res.unwrap();
+            let res = PersistentStore::sizes_from_bytes(&sizes_buf);
+            assert!(res.is_ok());
+            let (keys_size, values_size) = res.unwrap();
+            assert_eq!(store.keys_size(), keys_size);
+            assert_eq!(store.values_size(), values_size);
+
             /*
             let res = store.count(&key, &key, 0).await;
             assert!(res.is_ok());
@@ -430,6 +499,15 @@ fn test_persistent_store_async_ops() {
             assert!(res.is_ok());
 
             *expected_size -= (key.len() + value.len()) as u32;
+
+            let res = store.sizes_to_bytes();
+            assert!(res.is_ok());
+            let sizes_buf = res.unwrap();
+            let res = PersistentStore::sizes_from_bytes(&sizes_buf);
+            assert!(res.is_ok());
+            let (keys_size, values_size) = res.unwrap();
+            assert_eq!(store.keys_size(), keys_size);
+            assert_eq!(store.values_size(), values_size);
 
             /*
             let res = store.count(&key, &key, 0).await;
