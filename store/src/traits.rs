@@ -54,4 +54,7 @@ pub trait Store {
 
     /// `remove_batch` removes one or more items from the `Store`.
     fn remove_batch(&mut self, keys: &[Self::Key]) -> BoxFuture<Result<()>>;
+
+    /// `clear` clears the `Store`.
+    fn clear(&mut self) -> BoxFuture<Result<()>>;
 }

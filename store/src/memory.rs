@@ -205,9 +205,11 @@ impl MemoryStore {
         }
     }
 
-    /// `clear` clears the `MemoryStore`.
-    pub fn clear(&mut self) {
-        self.db.clear()
+    /// `_clear` clears the `MemoryStore`.
+    fn _clear(&mut self) {
+        self.db.clear();
+        self.keys_size = 0;
+        self.values_size = 0;
     }
 }
 
@@ -281,6 +283,11 @@ impl Store for MemoryStore {
         let err = Error::NotImplemented;
         Box::pin(future::err(err))
     }
+
+    fn clear(&mut self) -> BoxFuture<Result<()>> {
+        self._clear();
+        Box::pin(future::ok(()))
+    }
 }
 
 #[test]
@@ -353,6 +360,13 @@ fn test_memory_store_sync_ops() {
 
         let res = store._get(&key);
         assert!(res.is_err());
+
+        let res = store._insert(&key, &value);
+        assert!(res.is_ok());
+
+        store._clear();
+        assert_eq!(store.keys_size(), 0);
+        assert_eq!(store.values_size(), 0);
     }
 }
 
