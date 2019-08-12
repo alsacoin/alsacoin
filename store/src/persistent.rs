@@ -109,41 +109,158 @@ impl PersistentStore {
     }
 
     /// `_count` returns the count of a list of values from the `PersistentStore`.
-    fn _count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
-        if from < to {
-            let err = Error::InvalidRange;
-            return Err(err);
-        }
+    fn _count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
+        let res: u32 = if let Some(from) = from {
+            if let Some(to) = to {
+                if let Some(skip) = skip {
+                    if from < to {
+                        let err = Error::InvalidRange;
+                        return Err(err);
+                    }
 
-        let mut skipped = 0;
-        let mut count = 0;
+                    let mut skipped = 0;
+                    let mut count = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+                    let mut entry = self.db.seek(from, Direction::Ge);
 
-        loop {
-            if entry.is_none() {
-                break;
-            }
+                    loop {
+                        if entry.is_none() {
+                            break;
+                        }
 
-            let item = entry.unwrap();
-            let key = item.key();
+                        let item = entry.unwrap();
+                        let key = item.key();
 
-            if to > key.as_slice() {
-                if skipped >= skip {
-                    count += 1;
+                        if to > key.as_slice() {
+                            if skipped >= skip {
+                                count += 1;
+                            } else {
+                                skipped += 1;
+                            }
+                        }
+
+                        entry = item.next();
+                    }
+
+                    count
                 } else {
-                    skipped += 1;
+                    if from < to {
+                        let err = Error::InvalidRange;
+                        return Err(err);
+                    }
+
+                    let mut count = 0;
+
+                    let mut entry = self.db.seek(from, Direction::Ge);
+
+                    loop {
+                        if entry.is_none() {
+                            break;
+                        }
+
+                        let item = entry.unwrap();
+                        let key = item.key();
+
+                        if to > key.as_slice() {
+                            count += 1;
+                        }
+
+                        entry = item.next();
+                    }
+
+                    count
+                }
+            } else {
+                if let Some(skip) = skip {
+                    let mut skipped = 0;
+                    let mut count = 0;
+
+                    let mut entry = self.db.seek(from, Direction::Ge);
+
+                    loop {
+                        if entry.is_none() {
+                            break;
+                        }
+
+                        if skipped >= skip {
+                            count += 1;
+                        } else {
+                            skipped += 1;
+                        }
+
+                        entry = entry.unwrap().next();
+                    }
+
+                    count
+                } else {
+                    let mut count = 0;
+
+                    let mut entry = self.db.seek(from, Direction::Ge);
+
+                    loop {
+                        if entry.is_none() {
+                            break;
+                        }
+
+                        count += 1;
+
+                        entry = entry.unwrap().next();
+                    }
+
+                    count
                 }
             }
+        } else {
+            if let Some(skip) = skip {
+                let mut skipped = 0;
+                let mut count = 0;
 
-            entry = item.next();
-        }
+                let mut entry = self.db.first();
 
-        Ok(count)
+                loop {
+                    if entry.is_none() {
+                        break;
+                    }
+
+                    if skipped >= skip {
+                        count += 1;
+                    } else {
+                        skipped += 1;
+                    }
+
+                    entry = entry.unwrap().next();
+                }
+
+                count
+            } else {
+                let mut count = 0;
+
+                let mut entry = self.db.first();
+
+                loop {
+                    if entry.is_none() {
+                        break;
+                    }
+
+                    count += 1;
+
+                    entry = entry.unwrap().next();
+                }
+
+                count
+            }
+        };
+
+        Ok(res)
     }
 
-    /// `_query` returns a list of values from the `PersistentStore`.
-    fn _query(&self, from: &[u8], to: &[u8], count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
+    fn _query_complete(
+        &self,
+        from: &[u8],
+        to: &[u8],
+        count: u32,
+        skip: u32,
+    ) -> Result<Vec<Vec<u8>>> {
         if from < to {
             let err = Error::InvalidRange;
             return Err(err);
@@ -168,8 +285,6 @@ impl PersistentStore {
                     if counted <= count {
                         values.push(item.value());
                         counted += 1;
-                    } else {
-                        break;
                     }
                 } else {
                     skipped += 1;
@@ -180,6 +295,465 @@ impl PersistentStore {
         }
 
         Ok(values)
+    }
+
+    fn _query_no_count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<Vec<Vec<u8>>> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut skipped = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    values.push(item.value());
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_skip(&self, from: &[u8], to: &[u8], count: u32) -> Result<Vec<Vec<u8>>> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() && counted <= count {
+                values.push(item.value());
+                counted += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_skip_no_count(&self, from: &[u8], to: &[u8]) -> Result<Vec<Vec<u8>>> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                values.push(item.value());
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from(&self, to: &[u8], count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
+        let mut skipped = 0;
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    if counted <= count {
+                        values.push(item.value());
+                        counted += 1;
+                    }
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from_no_count(&self, to: &[u8], skip: u32) -> Result<Vec<Vec<u8>>> {
+        let mut skipped = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    values.push(item.value());
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from_no_skip(&self, to: &[u8], count: u32) -> Result<Vec<Vec<u8>>> {
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() && counted <= count {
+                values.push(item.value());
+                counted += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from_no_skip_no_count(&self, to: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                values.push(item.value());
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_to(&self, from: &[u8], count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
+        let mut skipped = 0;
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if skipped >= skip {
+                if counted <= count {
+                    values.push(item.value());
+                    counted += 1;
+                }
+            } else {
+                skipped += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_to_no_count(&self, from: &[u8], skip: u32) -> Result<Vec<Vec<u8>>> {
+        let mut skipped = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if skipped >= skip {
+                values.push(item.value());
+            } else {
+                skipped += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_to_no_skip(&self, from: &[u8], count: u32) -> Result<Vec<Vec<u8>>> {
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if counted <= count {
+                values.push(item.value());
+                counted += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_to_no_skip_no_count(&self, from: &[u8]) -> Result<Vec<Vec<u8>>> {
+        let mut values = Vec::new();
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            values.push(item.value());
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from_no_to(&self, count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
+        let mut skipped = 0;
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if skipped >= skip {
+                if counted <= count {
+                    values.push(item.value());
+                    counted += 1;
+                }
+            } else {
+                skipped += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from_no_to_no_count(&self, skip: u32) -> Result<Vec<Vec<u8>>> {
+        let mut skipped = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if skipped >= skip {
+                values.push(item.value());
+            } else {
+                skipped += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_no_from_no_to_no_skip(&self, count: u32) -> Result<Vec<Vec<u8>>> {
+        let mut counted = 0;
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if counted <= count {
+                values.push(item.value());
+                counted += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    fn _query_none(&self) -> Result<Vec<Vec<u8>>> {
+        let mut values = Vec::new();
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            values.push(item.value());
+
+            entry = item.next();
+        }
+
+        Ok(values)
+    }
+
+    /// `_query` returns a list of values from the `PersistentStore`.
+    fn _query(
+        &self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        count: Option<u32>,
+        skip: Option<u32>,
+    ) -> Result<Vec<Vec<u8>>> {
+        if let Some(from) = from {
+            if let Some(to) = to {
+                if from < to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
+                }
+
+                if let Some(skip) = skip {
+                    if let Some(count) = count {
+                        self._query_complete(from, to, skip, count)
+                    } else {
+                        self._query_no_count(from, to, skip)
+                    }
+                } else if let Some(count) = count {
+                    self._query_no_skip(from, to, count)
+                } else {
+                    self._query_no_skip_no_count(from, to)
+                }
+            } else if let Some(skip) = skip {
+                if let Some(count) = count {
+                    self._query_no_to(from, skip, count)
+                } else {
+                    self._query_no_to_no_count(from, skip)
+                }
+            } else if let Some(count) = count {
+                self._query_no_to_no_skip(from, count)
+            } else {
+                self._query_no_to_no_skip_no_count(from)
+            }
+        } else if let Some(to) = to {
+            if let Some(skip) = skip {
+                if let Some(count) = count {
+                    self._query_no_from(to, skip, count)
+                } else {
+                    self._query_no_from_no_count(to, skip)
+                }
+            } else if let Some(count) = count {
+                self._query_no_from_no_skip(to, count)
+            } else {
+                self._query_no_from_no_skip_no_count(to)
+            }
+        } else {
+            if let Some(skip) = skip {
+                if let Some(count) = count {
+                    self._query_no_from_no_to(skip, count)
+                } else {
+                    self._query_no_from_no_to_no_count(skip)
+                }
+            } else if let Some(count) = count {
+                self._query_no_from_no_to_no_skip(count)
+            } else {
+                self._query_none()
+            }
+        }
     }
 
     /// `_insert` inserts a binary key-value pair in the `PersistentStore`.
@@ -281,16 +855,25 @@ impl Store for PersistentStore {
 
     fn query(
         &self,
-        from: &Self::Key,
-        to: &Self::Key,
-        count: u32,
-        skip: u32,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        count: Option<u32>,
+        skip: Option<u32>,
     ) -> BoxFuture<Result<Vec<Self::Value>>> {
+        let from = from.map(|from| from.as_slice());
+        let to = to.map(|to| to.as_slice());
         let res = self._query(from, to, count, skip);
         Box::pin(future::ready(res))
     }
 
-    fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>> {
+    fn count(
+        &self,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        skip: Option<u32>,
+    ) -> BoxFuture<Result<u32>> {
+        let from = from.map(|from| from.as_slice());
+        let to = to.map(|to| to.as_slice());
         let res = self._count(from, to, skip);
         Box::pin(future::ready(res))
     }
@@ -342,7 +925,7 @@ fn test_persistent_store_sync_ops() {
         let size = store.size();
         assert_eq!(size, expected_size);
 
-        let res = store._count(&key, &key, 0);
+        let res = store._count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
@@ -366,15 +949,13 @@ fn test_persistent_store_sync_ops() {
         assert_eq!(store.keys_size(), keys_size);
         assert_eq!(store.values_size(), values_size);
 
-        /*
-        let res = store._count(&key, &key, 0);
+        let res = store._count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
 
-        let res = store._query(&key, &key, 0, 0);
+        let res = store._query(Some(&key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap().len(), 0);
-        */
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
         let found = store._lookup(&key);
         assert!(found);
@@ -397,15 +978,13 @@ fn test_persistent_store_sync_ops() {
         assert_eq!(store.keys_size(), keys_size);
         assert_eq!(store.values_size(), values_size);
 
-        /*
-        let res = store._count(&key, &key, 0);
+        let res = store._count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = store._query(&key, &key, 0, 0);
+        let res = store._query(Some(&key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), vec![value.to_owned()]);
-        */
+        assert_eq!(res.unwrap(), vec![] as Vec<Vec<u8>>);
 
         let found = store._lookup(&key);
         assert!(!found);
@@ -449,7 +1028,7 @@ fn test_persistent_store_async_ops() {
             let size = store.size();
             assert_eq!(size, *expected_size);
 
-            let res = store.count(&key, &key, 0).await;
+            let res = store.count(Some(&key), None, None).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 0);
 
@@ -477,15 +1056,13 @@ fn test_persistent_store_async_ops() {
             assert_eq!(store.keys_size(), keys_size);
             assert_eq!(store.values_size(), values_size);
 
-            /*
-            let res = store.count(&key, &key, 0).await;
+            let res = store.count(Some(&key), None, None).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 1);
 
-            let res = store.query(&key, &key, 0, 0).await;
+            let res = store.query(Some(&key), None, None, None).await;
             assert!(res.is_ok());
-            assert_eq!(res.unwrap().len(), 0);
-            */
+            assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());
@@ -509,15 +1086,13 @@ fn test_persistent_store_async_ops() {
             assert_eq!(store.keys_size(), keys_size);
             assert_eq!(store.values_size(), values_size);
 
-            /*
-            let res = store.count(&key, &key, 0).await;
+            let res = store.count(Some(&key), None, None).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 0);
 
-            let res = store.query(&key, &key, 0, 0).await;
+            let res = store.query(Some(&key), None, None, None).await;
             assert!(res.is_ok());
-            assert_eq!(res.unwrap(), vec![value.to_owned()]);
-            */
+            assert_eq!(res.unwrap(), vec![] as Vec<Vec<u8>>);
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());

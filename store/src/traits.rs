@@ -29,14 +29,19 @@ pub trait Store {
     /// `query` queries the `Store` for values.
     fn query(
         &self,
-        from: &Self::Key,
-        to: &Self::Key,
-        count: u32,
-        skip: u32,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        count: Option<u32>,
+        skip: Option<u32>,
     ) -> BoxFuture<Result<Vec<Self::Value>>>;
 
     /// `count` counts `Store` items matching a specific query.
-    fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>>;
+    fn count(
+        &self,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        skip: Option<u32>,
+    ) -> BoxFuture<Result<u32>>;
 
     /// `insert` inserts an item in the `Store`.
     fn insert(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>>;

@@ -39,39 +39,135 @@ impl MemoryStore {
     }
 
     /// `_query` returns a list of values from the `PersistentStore`.
-    fn _query(&self, from: &[u8], to: &[u8], count: u32, skip: u32) -> Result<Vec<Vec<u8>>> {
-        if from < to {
-            let err = Error::InvalidRange;
-            return Err(err);
-        }
+    fn _query(
+        &self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        count: Option<u32>,
+        skip: Option<u32>,
+    ) -> Result<Vec<Vec<u8>>> {
+        let res: Vec<Vec<u8>> = if let Some(from) = from {
+            if let Some(to) = to {
+                if from < to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
+                }
 
-        let res: Vec<Vec<u8>> = self
-            .db
-            .iter()
-            .filter(|(k, _)| (from <= k) && (to > k))
-            .skip(skip as usize)
-            .take(count as usize)
-            .map(|(_, v)| v.to_owned())
-            .collect();
+                if let Some(skip) = skip {
+                    if let Some(count) = count {
+                        self.db
+                            .iter()
+                            .filter(|(k, _)| (from <= k) && (to > k))
+                            .skip(skip as usize)
+                            .take(count as usize)
+                            .map(|(_, v)| v.to_owned())
+                            .collect()
+                    } else {
+                        self.db
+                            .iter()
+                            .filter(|(k, _)| (from <= k) && (to > k))
+                            .skip(skip as usize)
+                            .map(|(_, v)| v.to_owned())
+                            .collect()
+                    }
+                } else {
+                    self.db
+                        .iter()
+                        .filter(|(k, _)| (from <= k) && (to > k))
+                        .map(|(_, v)| v.to_owned())
+                        .collect()
+                }
+            } else {
+                if let Some(skip) = skip {
+                    if let Some(count) = count {
+                        self.db
+                            .iter()
+                            .filter(|(k, _)| (from <= k))
+                            .skip(skip as usize)
+                            .take(count as usize)
+                            .map(|(_, v)| v.to_owned())
+                            .collect()
+                    } else {
+                        self.db
+                            .iter()
+                            .filter(|(k, _)| (from <= k))
+                            .skip(skip as usize)
+                            .map(|(_, v)| v.to_owned())
+                            .collect()
+                    }
+                } else {
+                    self.db
+                        .iter()
+                        .filter(|(k, _)| (from <= k))
+                        .map(|(_, v)| v.to_owned())
+                        .collect()
+                }
+            }
+        } else {
+            if let Some(skip) = skip {
+                if let Some(count) = count {
+                    self.db
+                        .iter()
+                        .skip(skip as usize)
+                        .take(count as usize)
+                        .map(|(_, v)| v.to_owned())
+                        .collect()
+                } else {
+                    self.db
+                        .iter()
+                        .skip(skip as usize)
+                        .map(|(_, v)| v.to_owned())
+                        .collect()
+                }
+            } else {
+                self.db.iter().map(|(_, v)| v.to_owned()).collect()
+            }
+        };
 
         Ok(res)
     }
 
     /// `_count` returns the count of a list of values from the `PersistentStore`.
-    fn _count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
-        if from < to {
-            let err = Error::InvalidRange;
-            return Err(err);
-        }
+    fn _count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
+        let res: u32 = if let Some(from) = from {
+            if let Some(to) = to {
+                if from < to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
+                }
 
-        let count = self
-            .db
-            .iter()
-            .filter(|(k, _)| (from <= k) && (to > k))
-            .skip(skip as usize)
-            .count();
+                if let Some(skip) = skip {
+                    self.db
+                        .iter()
+                        .filter(|(k, _)| (from <= k) && (to > k))
+                        .skip(skip as usize)
+                        .count() as u32
+                } else {
+                    self.db
+                        .iter()
+                        .filter(|(k, _)| (from <= k) && (to > k))
+                        .count() as u32
+                }
+            } else {
+                if let Some(skip) = skip {
+                    self.db
+                        .iter()
+                        .filter(|(k, _)| (from <= k))
+                        .skip(skip as usize)
+                        .count() as u32
+                } else {
+                    self.db.iter().filter(|(k, _)| (from <= k)).count() as u32
+                }
+            }
+        } else {
+            if let Some(skip) = skip {
+                self.db.iter().skip(skip as usize).count() as u32
+            } else {
+                self.db.iter().count() as u32
+            }
+        };
 
-        Ok(count as u32)
+        Ok(res)
     }
 
     /// `_insert` inserts a binary key-value pair in the `PersistentStore`.
@@ -151,16 +247,25 @@ impl Store for MemoryStore {
 
     fn query(
         &self,
-        from: &Self::Key,
-        to: &Self::Key,
-        count: u32,
-        skip: u32,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        count: Option<u32>,
+        skip: Option<u32>,
     ) -> BoxFuture<Result<Vec<Self::Value>>> {
+        let from = from.map(|from| from.as_slice());
+        let to = to.map(|to| to.as_slice());
         let res = self._query(from, to, count, skip);
         Box::pin(future::ready(res))
     }
 
-    fn count(&self, from: &Self::Key, to: &Self::Key, skip: u32) -> BoxFuture<Result<u32>> {
+    fn count(
+        &self,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        skip: Option<u32>,
+    ) -> BoxFuture<Result<u32>> {
+        let from = from.map(|from| from.as_slice());
+        let to = to.map(|to| to.as_slice());
         let res = self._count(from, to, skip);
         Box::pin(future::ready(res))
     }
@@ -208,7 +313,7 @@ fn test_memory_store_sync_ops() {
         let size = store.size();
         assert_eq!(size, expected_size);
 
-        let res = store._count(&key, &key, 0);
+        let res = store._count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
@@ -223,15 +328,13 @@ fn test_memory_store_sync_ops() {
 
         expected_size += (key.len() + value.len()) as u32;
 
-        /*
-        let res = store.count(&key, &key, 0);
+        let res = store._count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
 
-        let res = store.query(&key, &key, 0, 0);
+        let res = store._query(Some(&key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap().len(), 0);
-        */
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
         let found = store._lookup(&key);
         assert!(found);
@@ -245,15 +348,13 @@ fn test_memory_store_sync_ops() {
 
         expected_size -= (key.len() + value.len()) as u32;
 
-        /*
-        let res = store._count(&key, &key, 0);
+        let res = store._count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = store._query(&key, &key, 0, 0);
+        let res = store._query(Some(&key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), vec![value.to_owned()]);
-        */
+        assert_eq!(res.unwrap(), vec![] as Vec<Vec<u8>>);
 
         let found = store._lookup(&key);
         assert!(!found);
@@ -293,7 +394,7 @@ fn test_memory_store_async_ops() {
             let size = store.size();
             assert_eq!(size, *expected_size);
 
-            let res = store.count(&key, &key, 0).await;
+            let res = store.count(Some(&key), None, None).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 0);
 
@@ -312,15 +413,13 @@ fn test_memory_store_async_ops() {
 
             *expected_size += (key.len() + value.len()) as u32;
 
-            /*
-            let res = store.count(&key, &key, 0).await;
+            let res = store.count(Some(&key), None, None).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 1);
 
-            let res = store.query(&key, &key, 0, 0).await;
+            let res = store.query(Some(&key), None, None, None).await;
             assert!(res.is_ok());
-            assert_eq!(res.unwrap().len(), 0);
-            */
+            assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());
@@ -335,15 +434,13 @@ fn test_memory_store_async_ops() {
 
             *expected_size -= (key.len() + value.len()) as u32;
 
-            /*
-            let res = store.count(&key, &key, 0).await;
+            let res = store.count(Some(&key), None, None).await;
             assert!(res.is_ok());
             assert_eq!(res.unwrap(), 0);
 
-            let res = store.query(&key, &key, 0, 0).await;
+            let res = store.query(Some(&key), None, None, None).await;
             assert!(res.is_ok());
-            assert_eq!(res.unwrap(), vec![value.to_owned()]);
-            */
+            assert_eq!(res.unwrap(), vec![] as Vec<Vec<u8>>);
 
             let res = store.lookup(&key).await;
             assert!(res.is_ok());
