@@ -3,7 +3,6 @@
 //! `traits` contains traits used throughout the crate.
 
 use crate::result::Result;
-//use crate::error::Error;
 use futures::future::BoxFuture;
 use store::traits::Store;
 
@@ -21,14 +20,20 @@ pub trait Storable<S: Store>: Sized {
     /// `store_value` returns the `Store` `Value` of the `Storable` instance.
     fn store_value(&self) -> Result<S::Value>;
 
+    /// `key_to_store_key` returns a  `Store` `Key` from a `Key`.
+    fn key_to_store_key(key: &Self::Key) -> Result<S::Key>;
+
     /// `key_from_store_key` returns a `Key` from a `Store` `Key`.
-    fn key_from_store_key(key: S::Key) -> Result<Self::Key>;
+    fn key_from_store_key(key: &S::Key) -> Result<Self::Key>;
+
+    /// `to_store_value` converts the model instance into a `Store` `Value`.
+    fn to_store_value(&self) -> Result<S::Value>;
 
     /// `from_store_value` returns a model instance from a `Store` `Value`.
     fn from_store_value(value: S::Value) -> Result<Self>;
 
     /// `lookup` looks up a model instance in the `Store` by key.
-    fn lookup(&self, key: &Self::Key) -> BoxFuture<Result<bool>>;
+    fn lookup(&self, store: &S, key: &Self::Key) -> BoxFuture<Result<bool>>;
 
     /// `get` returns a model instance from the `Store`.
     fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self>>;

@@ -4,10 +4,12 @@
 
 use chrono;
 use crypto;
+use mining;
 use regex;
 use serde_cbor;
 use serde_json;
 use std::num;
+use store;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -21,6 +23,8 @@ pub enum Error {
     Crypto { msg: String },
     #[fail(display = "Mining: {}", msg)]
     Mining { msg: String },
+    #[fail(display = "Store: {}", msg)]
+    Store { msg: String },
     #[fail(display = "Out of bound")]
     OutOfBound,
     #[fail(display = "No regex match")]
@@ -105,5 +109,12 @@ impl From<mining::error::Error> for Error {
     fn from(err: mining::error::Error) -> Error {
         let msg = format!("{}", err);
         Error::Mining { msg }
+    }
+}
+
+impl From<store::error::Error> for Error {
+    fn from(err: store::error::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Store { msg }
     }
 }
