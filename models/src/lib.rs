@@ -10,6 +10,9 @@ pub mod result;
 /// `utils` contains various utilities used in the crate.
 pub mod utils;
 
+/// `traits` contains traits used in the crate.
+pub mod traits;
+
 /// `timestamp` contains the timestamping types and functions.
 pub mod timestamp;
 

@@ -1,3 +1,5 @@
+//! # Traits
+//!
 //! `traits` contains Alsacoin's storage traits.
 
 use crate::result::Result;
