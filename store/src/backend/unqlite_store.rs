@@ -895,9 +895,6 @@ impl UnQLiteStore {
 }
 
 impl Store for UnQLiteStore {
-    type Key = Vec<u8>;
-    type Value = Vec<u8>;
-
     fn keys_size(&self) -> u32 {
         self.keys_size
     }
@@ -910,67 +907,63 @@ impl Store for UnQLiteStore {
         self.keys_size + self.values_size
     }
 
-    fn lookup(&self, key: &Self::Key) -> BoxFuture<Result<bool>> {
+    fn lookup(&self, key: &[u8]) -> BoxFuture<Result<bool>> {
         let res = self._lookup(key);
         Box::pin(future::ok(res))
     }
 
-    fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self::Value>> {
+    fn get(&self, key: &[u8]) -> BoxFuture<Result<Vec<u8>>> {
         let res = self._get(key);
         Box::pin(future::ready(res))
     }
 
     fn query(
         &self,
-        from: Option<&Self::Key>,
-        to: Option<&Self::Key>,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
         count: Option<u32>,
         skip: Option<u32>,
-    ) -> BoxFuture<Result<Vec<Self::Value>>> {
-        let from = from.map(|from| from.as_slice());
-        let to = to.map(|to| to.as_slice());
+    ) -> BoxFuture<Result<Vec<Vec<u8>>>> {
         let res = self._query(from, to, count, skip);
         Box::pin(future::ready(res))
     }
 
     fn count(
         &self,
-        from: Option<&Self::Key>,
-        to: Option<&Self::Key>,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
         skip: Option<u32>,
     ) -> BoxFuture<Result<u32>> {
-        let from = from.map(|from| from.as_slice());
-        let to = to.map(|to| to.as_slice());
         let res = self._count(from, to, skip);
         Box::pin(future::ready(res))
     }
 
-    fn insert(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>> {
+    fn insert(&mut self, key: &[u8], value: &[u8]) -> BoxFuture<Result<()>> {
         let res = self._insert(key, value);
         Box::pin(future::ready(res))
     }
 
-    fn create(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>> {
+    fn create(&mut self, key: &[u8], value: &[u8]) -> BoxFuture<Result<()>> {
         let res = self._create(key, value);
         Box::pin(future::ready(res))
     }
 
-    fn update(&mut self, key: &Self::Key, value: &Self::Value) -> BoxFuture<Result<()>> {
+    fn update(&mut self, key: &[u8], value: &[u8]) -> BoxFuture<Result<()>> {
         let res = self._update(key, value);
         Box::pin(future::ready(res))
     }
 
-    fn insert_batch(&mut self, _items: &[(Self::Key, Self::Value)]) -> BoxFuture<Result<()>> {
+    fn insert_batch(&mut self, _items: &[(&[u8], &[u8])]) -> BoxFuture<Result<()>> {
         let err = Error::NotImplemented;
         Box::pin(future::err(err))
     }
 
-    fn remove(&mut self, key: &Self::Key) -> BoxFuture<Result<()>> {
+    fn remove(&mut self, key: &[u8]) -> BoxFuture<Result<()>> {
         let res = self._remove(key);
         Box::pin(future::ready(res))
     }
 
-    fn remove_batch(&mut self, _keys: &[Self::Key]) -> BoxFuture<Result<()>> {
+    fn remove_batch(&mut self, _keys: &[&[u8]]) -> BoxFuture<Result<()>> {
         let err = Error::NotImplemented;
         Box::pin(future::err(err))
     }

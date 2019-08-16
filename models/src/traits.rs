@@ -14,24 +14,6 @@ pub trait Storable<S: Store>: Sized {
     /// `Key` is the type used to identify the model's instances in the `Store`.
     type Key;
 
-    /// `store_key` returns the `Store` `Key` of the `Storable` instance.
-    fn store_key(&self) -> Result<S::Key>;
-
-    /// `store_value` returns the `Store` `Value` of the `Storable` instance.
-    fn store_value(&self) -> Result<S::Value>;
-
-    /// `key_to_store_key` returns a  `Store` `Key` from a `Key`.
-    fn key_to_store_key(key: &Self::Key) -> Result<S::Key>;
-
-    /// `key_from_store_key` returns a `Key` from a `Store` `Key`.
-    fn key_from_store_key(key: &S::Key) -> Result<Self::Key>;
-
-    /// `to_store_value` converts the model instance into a `Store` `Value`.
-    fn to_store_value(&self) -> Result<S::Value>;
-
-    /// `from_store_value` returns a model instance from a `Store` `Value`.
-    fn from_store_value(value: S::Value) -> Result<Self>;
-
     /// `lookup` looks up a model instance in the `Store` by key.
     fn lookup(&self, store: &S, key: &Self::Key) -> BoxFuture<Result<bool>>;
 
