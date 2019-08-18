@@ -4,7 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
-use crate::traits::Store;
+use crate::traits::{MemoryStore, Store};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -430,6 +430,8 @@ impl Store for BTreeMapStore {
         Ok(())
     }
 }
+
+impl MemoryStore for BTreeMapStore {}
 
 #[test]
 fn test_memory_store_ops() {

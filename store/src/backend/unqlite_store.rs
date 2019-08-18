@@ -4,7 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
-use crate::traits::Store;
+use crate::traits::{MemoryStore, PersistentStore, Store, TemporaryStore};
 use unqlite::Cursor as StoreCursor;
 use unqlite::{Config, Direction, UnQLite, KV};
 
@@ -1196,6 +1196,12 @@ impl Store for UnQLiteStore {
         self._clear()
     }
 }
+
+impl MemoryStore for UnQLiteStore {}
+
+impl TemporaryStore for UnQLiteStore {}
+
+impl PersistentStore for UnQLiteStore {}
 
 #[test]
 fn test_persistent_store_ops() {

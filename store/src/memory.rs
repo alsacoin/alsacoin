@@ -5,10 +5,10 @@
 use crate::backend::{BTreeMapStore, UnQLiteStore};
 use crate::result::Result;
 
-/// `MemoryStore` is a factory for in-memory stores.
-pub struct MemoryStore;
+/// `MemoryStoreFactory` is a factory for in-memory stores.
+pub struct MemoryStoreFactory;
 
-impl MemoryStore {
+impl MemoryStoreFactory {
     /// `new_btree_map` creates a new `BTreeMapStore`.
     pub fn new_btree_map() -> BTreeMapStore {
         BTreeMapStore::new()

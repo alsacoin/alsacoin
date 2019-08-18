@@ -5,10 +5,10 @@
 use crate::backend::UnQLiteStore;
 use crate::result::Result;
 
-/// `PersistentStore` is a factory for temporary stores.
-pub struct PersistentStore;
+/// `PersistentStoreFactory` is a factory for temporary stores.
+pub struct PersistentStoreFactory;
 
-impl PersistentStore {
+impl PersistentStoreFactory {
     /// `new_unqlite` creates a new persistent `UnQLiteStore`.
     pub fn new_unqlite(path: &str) -> Result<UnQLiteStore> {
         UnQLiteStore::new_persistent(path)

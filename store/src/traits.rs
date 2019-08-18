@@ -63,3 +63,12 @@ pub trait Store {
     /// `clear` clears the `Store`.
     fn clear(&mut self) -> Result<()>;
 }
+
+/// `MemoryStore` is the trait implemented by in-memory `Store`s.
+pub trait MemoryStore: Store {}
+
+/// `TemporaryStore` is the trait implemented by temporary `Store`s.
+pub trait TemporaryStore: Store {}
+
+/// `PersistentStore` is the trait implemented by persistent `Store`s.
+pub trait PersistentStore: Store {}
