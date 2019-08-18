@@ -102,13 +102,23 @@ impl Transaction {
             .fold(0, |acc, (_, output)| acc + output.amount)
     }
 
+    /// `coinbase_amount` returns the `Transaction` coinbase amount.
+    pub fn coinbase_amount(&self) -> u64 {
+        if let Some(ref coinbase) = self.coinbase {
+            coinbase.amount
+        } else {
+            0
+        }
+    }
+
     /// `balance` returns the `Transaction` balance.
     pub fn balance(&self) -> i64 {
         let ibalance = self.input_balance() as i64;
         let obalance = self.output_balance() as i64;
+        let coinbase = self.coinbase_amount() as i64;
         let fee = self.fee as i64;
 
-        ibalance - obalance - fee
+        ibalance - obalance + coinbase - fee
     }
 
     /// `max_fee` returns the maximum fee available for the `Transaction`.
@@ -509,8 +519,7 @@ impl Transaction {
 
     /// `validate_balance` validates the `Transaction` balance.
     pub fn validate_balance(&self) -> Result<()> {
-        // TODO: check that balance == coinbase_amount (if any)
-        if self.balance() != 0 {
+        if self.balance() != self.coinbase_amount() as i64 {
             let err = Error::InvalidBalance;
             return Err(err);
         }
