@@ -10,12 +10,14 @@ use crate::output::Output;
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
+use crate::traits::Storable;
 use crate::version::Version;
 use crypto::ecc::ed25519::{PublicKey, SecretKey};
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use store::traits::Store;
 
 /// `Transaction` is the Alsacoin transaction type. It is built
 /// around the HybridTx model defined in `Chimeric Ledgers` papers.
@@ -559,6 +561,85 @@ impl Transaction {
 impl Default for Transaction {
     fn default() -> Transaction {
         Transaction::new().unwrap()
+    }
+}
+
+impl<S: Store> Storable<S> for Transaction {
+    const KEY_PREFIX: u32 = 3;
+
+    type Key = Digest;
+
+    fn lookup(&self, _store: &S, _key: &Self::Key) -> Result<bool> {
+        // TODO
+        unreachable!()
+    }
+
+    fn get(&self, _store: &S, _key: &Self::Key) -> Result<Self> {
+        // TODO
+        unreachable!()
+    }
+
+    fn query(
+        &self,
+        _store: &S,
+        _from: Option<&Self::Key>,
+        _to: Option<&Self::Key>,
+        _count: Option<u32>,
+        _skip: Option<u32>,
+    ) -> Result<Vec<Self>> {
+        // TODO
+        unreachable!()
+    }
+
+    fn count(
+        &self,
+        _store: &S,
+        _from: Option<&Self::Key>,
+        _to: Option<&Self::Key>,
+        _skip: Option<u32>,
+    ) -> Result<u32> {
+        // TODO
+        unreachable!()
+    }
+
+    fn insert(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn create(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn update(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn insert_batch(&mut self, _store: &mut S, _items: &[(Self::Key, Self)]) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn remove(&mut self, _store: &mut S, _key: &Self::Key) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn remove_batch(&mut self, _store: &mut S, _keys: &[Self::Key]) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn cleanup(&mut self, _store: &mut S) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn clear(&mut self, _store: &mut S) -> Result<()> {
+        // TODO
+        unreachable!()
     }
 }
 

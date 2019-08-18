@@ -6,9 +6,11 @@ use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crate::signers::Signers;
+use crate::traits::Storable;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
+use store::traits::Store;
 
 /// `Account` is the type used to represent an Alsacoin account
 /// of a user, account which is identified by an `Address`.
@@ -71,6 +73,85 @@ impl Account {
     /// `from_json` converts a JSON string into an `Account`.
     pub fn from_json(s: &str) -> Result<Account> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl<S: Store> Storable<S> for Account {
+    const KEY_PREFIX: u32 = 2;
+
+    type Key = Address;
+
+    fn lookup(&self, _store: &S, _key: &Self::Key) -> Result<bool> {
+        // TODO
+        unreachable!()
+    }
+
+    fn get(&self, _store: &S, _key: &Self::Key) -> Result<Self> {
+        // TODO
+        unreachable!()
+    }
+
+    fn query(
+        &self,
+        _store: &S,
+        _from: Option<&Self::Key>,
+        _to: Option<&Self::Key>,
+        _count: Option<u32>,
+        _skip: Option<u32>,
+    ) -> Result<Vec<Self>> {
+        // TODO
+        unreachable!()
+    }
+
+    fn count(
+        &self,
+        _store: &S,
+        _from: Option<&Self::Key>,
+        _to: Option<&Self::Key>,
+        _skip: Option<u32>,
+    ) -> Result<u32> {
+        // TODO
+        unreachable!()
+    }
+
+    fn insert(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn create(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn update(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn insert_batch(&mut self, _store: &mut S, _items: &[(Self::Key, Self)]) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn remove(&mut self, _store: &mut S, _key: &Self::Key) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn remove_batch(&mut self, _store: &mut S, _keys: &[Self::Key]) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn cleanup(&mut self, _store: &mut S) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    fn clear(&mut self, _store: &mut S) -> Result<()> {
+        // TODO
+        unreachable!()
     }
 }
 
