@@ -43,6 +43,8 @@ pub enum Error {
     InvalidSignature,
     #[fail(display = "Invalid checksum")]
     InvalidChecksum,
+    #[fail(display = "Not implemented")]
+    NotImplemented,
     #[fail(display = "Already found")]
     AlreadyFound,
     #[fail(display = "Not found")]

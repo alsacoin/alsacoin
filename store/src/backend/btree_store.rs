@@ -21,12 +21,12 @@ impl BTreeMapStore {
         BTreeMapStore::default()
     }
 
-    /// `_lookup` looks up a key-value pair from the `PersistentStore`.
+    /// `_lookup` looks up a key-value pair from the `BTreeMapStore`.
     fn _lookup(&self, key: &[u8]) -> bool {
         self.db.contains_key(key)
     }
 
-    /// `_get` gets a key-value pair from the `PersistentStore`.
+    /// `_get` gets a key-value pair from the `BTreeMapStore`.
     fn _get(&self, key: &[u8]) -> Result<Vec<u8>> {
         match self.db.get(key) {
             Some(value) => Ok(value.to_owned()),
@@ -37,7 +37,7 @@ impl BTreeMapStore {
         }
     }
 
-    /// `_query` returns a list of values from the `PersistentStore`.
+    /// `_query` returns a list of values from the `BTreeMapStore`.
     fn _query(
         &self,
         from: Option<&[u8]>,
@@ -122,7 +122,7 @@ impl BTreeMapStore {
         Ok(res)
     }
 
-    /// `_count` returns the count of a list of values from the `PersistentStore`.
+    /// `_count` returns the count of a list of values from the `BTreeMapStore`.
     fn _count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
         let res: u32 = if let Some(from) = from {
             if let Some(to) = to {
@@ -161,7 +161,7 @@ impl BTreeMapStore {
         Ok(res)
     }
 
-    /// `_insert` inserts a binary key-value pair in the `PersistentStore`.
+    /// `_insert` inserts a binary key-value pair in the `BTreeMapStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         self.db.insert(key.to_owned(), value.to_owned());
         self.keys_size += key.len() as u32;
@@ -169,7 +169,7 @@ impl BTreeMapStore {
         Ok(())
     }
 
-    /// `_create` inserts a non-existing binary key-value pair in the `PersistentStore`.
+    /// `_create` inserts a non-existing binary key-value pair in the `BTreeMapStore`.
     fn _create(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         if self._lookup(key) {
             let err = Error::AlreadyFound;
@@ -179,7 +179,7 @@ impl BTreeMapStore {
         self._insert(key, value)
     }
 
-    /// `_update` updates an existing key-value pair in the `PersistentStore`.
+    /// `_update` updates an existing key-value pair in the `BTreeMapStore`.
     pub fn _update(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         if !self._lookup(key) {
             let err = Error::NotFound;
@@ -189,7 +189,7 @@ impl BTreeMapStore {
         self._insert(key, value)
     }
 
-    /// `_remove` removes a key-value pair from the `PersistentStore`.
+    /// `_remove` removes a key-value pair from the `BTreeMapStore`.
     fn _remove(&mut self, key: &[u8]) -> Result<()> {
         match self.db.remove(key) {
             Some(value) => {
@@ -201,6 +201,151 @@ impl BTreeMapStore {
                 let err = Error::NotFound;
                 Err(err)
             }
+        }
+    }
+
+    fn _remove_range_complete(&mut self, from: &[u8], to: &[u8], skip: u32) -> Result<()> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut skipped = 0;
+
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter().filter(|(k, _)| from <= k && to > k) {
+            if skipped >= skip {
+                self._remove(&key)?;
+            } else {
+                skipped += 1;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_skip(&mut self, from: &[u8], to: &[u8]) -> Result<()> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter().filter(|(k, _)| from <= k && to > k) {
+            self._remove(&key)?;
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_from(&mut self, to: &[u8], skip: u32) -> Result<()> {
+        let mut skipped = 0;
+
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter().filter(|(k, _)| to > k) {
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    self._remove(&key)?;
+                } else {
+                    skipped += 1;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_from_no_skip(&mut self, to: &[u8]) -> Result<()> {
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter().filter(|(k, _)| to > k) {
+            self._remove(&key)?;
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_to(&mut self, from: &[u8], skip: u32) -> Result<()> {
+        let mut skipped = 0;
+
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter().filter(|(k, _)| from <= k) {
+            if skipped >= skip {
+                self._remove(&key)?;
+            } else {
+                skipped += 1;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_to_no_skip(&mut self, from: &[u8]) -> Result<()> {
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter().filter(|(k, _)| from <= k) {
+            self._remove(&key)?;
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_from_no_to(&mut self, skip: u32) -> Result<()> {
+        let mut skipped = 0;
+
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter() {
+            if skipped >= skip {
+                self._remove(&key)?;
+            } else {
+                skipped += 1;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_none(&mut self) -> Result<()> {
+        // TODO: that clone
+        for (key, _) in self.db.clone().iter() {
+            self._remove(&key)?;
+        }
+
+        Ok(())
+    }
+
+    /// `_remove_range` removes a range of items from the `BTreeMapStore`.
+    fn _remove_range(
+        &mut self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        skip: Option<u32>,
+    ) -> Result<()> {
+        if let Some(from) = from {
+            if let Some(to) = to {
+                if from < to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
+                }
+
+                if let Some(skip) = skip {
+                    self._remove_range_complete(from, to, skip)
+                } else {
+                    self._remove_range_no_skip(from, to)
+                }
+            } else if let Some(skip) = skip {
+                self._remove_range_no_to(from, skip)
+            } else {
+                self._remove_range_no_to_no_skip(from)
+            }
+        } else if let Some(to) = to {
+            if let Some(skip) = skip {
+                self._remove_range_no_from(to, skip)
+            } else {
+                self._remove_range_no_from_no_skip(to)
+            }
+        } else if let Some(skip) = skip {
+            self._remove_range_no_from_no_to(skip)
+        } else {
+            self._remove_range_none()
         }
     }
 
@@ -269,6 +414,15 @@ impl Store for BTreeMapStore {
 
     fn remove_batch(&mut self, _keys: &[&[u8]]) -> Result<()> {
         Err(Error::NotImplemented)
+    }
+
+    fn remove_range(
+        &mut self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        skip: Option<u32>,
+    ) -> Result<()> {
+        self._remove_range(from, to, skip)
     }
 
     fn clear(&mut self) -> Result<()> {

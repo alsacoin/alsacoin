@@ -861,6 +861,237 @@ impl UnQLiteStore {
         Ok(())
     }
 
+    fn _remove_range_complete(&mut self, from: &[u8], to: &[u8], skip: u32) -> Result<()> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut skipped = 0;
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    self._remove(&key)?;
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_skip(&mut self, from: &[u8], to: &[u8]) -> Result<()> {
+        if from < to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                self._remove(&key)?;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_from(&mut self, to: &[u8], skip: u32) -> Result<()> {
+        let mut skipped = 0;
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                if skipped >= skip {
+                    self._remove(&key)?;
+                } else {
+                    skipped += 1;
+                }
+            }
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_from_no_skip(&mut self, to: &[u8]) -> Result<()> {
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+            let key = item.key();
+
+            if to > key.as_slice() {
+                self._remove(&key)?;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_to(&mut self, from: &[u8], skip: u32) -> Result<()> {
+        let mut skipped = 0;
+
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if skipped >= skip {
+                let key = item.key();
+                self._remove(&key)?;
+            } else {
+                skipped += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_to_no_skip(&mut self, from: &[u8]) -> Result<()> {
+        let mut entry = self.db.seek(from, Direction::Ge);
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            let key = item.key();
+            self._remove(&key)?;
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_no_from_no_to(&mut self, skip: u32) -> Result<()> {
+        let mut skipped = 0;
+
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            if skipped >= skip {
+                let key = item.key();
+                self._remove(&key)?;
+            } else {
+                skipped += 1;
+            }
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    fn _remove_range_none(&mut self) -> Result<()> {
+        let mut entry = self.db.first();
+
+        loop {
+            if entry.is_none() {
+                break;
+            }
+
+            let item = entry.unwrap();
+
+            let key = item.key();
+            self._remove(&key)?;
+
+            entry = item.next();
+        }
+
+        Ok(())
+    }
+
+    /// `_remove_range` removes a range of items from the `UnQLiteStore`.
+    fn _remove_range(
+        &mut self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        skip: Option<u32>,
+    ) -> Result<()> {
+        if let Some(from) = from {
+            if let Some(to) = to {
+                if from < to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
+                }
+
+                if let Some(skip) = skip {
+                    self._remove_range_complete(from, to, skip)
+                } else {
+                    self._remove_range_no_skip(from, to)
+                }
+            } else if let Some(skip) = skip {
+                self._remove_range_no_to(from, skip)
+            } else {
+                self._remove_range_no_to_no_skip(from)
+            }
+        } else if let Some(to) = to {
+            if let Some(skip) = skip {
+                self._remove_range_no_from(to, skip)
+            } else {
+                self._remove_range_no_from_no_skip(to)
+            }
+        } else if let Some(skip) = skip {
+            self._remove_range_no_from_no_to(skip)
+        } else {
+            self._remove_range_none()
+        }
+    }
+
     /// `_clear` clears the `UnQLiteStore`.
     fn _clear(&mut self) -> Result<()> {
         let mut entry = self.db.first();
@@ -950,6 +1181,15 @@ impl Store for UnQLiteStore {
 
     fn remove_batch(&mut self, _keys: &[&[u8]]) -> Result<()> {
         Err(Error::NotImplemented)
+    }
+
+    fn remove_range(
+        &mut self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        skip: Option<u32>,
+    ) -> Result<()> {
+        self._remove_range(from, to, skip)
     }
 
     fn clear(&mut self) -> Result<()> {

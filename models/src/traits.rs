@@ -3,6 +3,7 @@
 //! `traits` contains traits used throughout the crate.
 
 use crate::result::Result;
+use crate::timestamp::Timestamp;
 use store::traits::Store;
 
 /// `Storable` is the trait implemented by storable models.
@@ -59,7 +60,7 @@ pub trait Storable<S: Store>: Sized {
     fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()>;
 
     /// `cleanup` clean ups the `Store` model instances.
-    fn cleanup(store: &mut S) -> Result<()>;
+    fn cleanup(store: &mut S, min_time: Timestamp) -> Result<()>;
 
     /// `clear` clears the `Store` from the model instances.
     fn clear(store: &mut S) -> Result<()>;

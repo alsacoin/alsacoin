@@ -699,14 +699,30 @@ impl<S: Store> Storable<S> for Transaction {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn cleanup(store: &mut S, min_time: Timestamp) -> Result<()> {
+        let mut _from = Digest::default();
+        _from[0] = <Self as Storable<S>>::KEY_PREFIX;
+        let from = Some(_from);
+
+        let mut _to = Digest::default();
+        _to[0] = <Self as Storable<S>>::KEY_PREFIX + 1;
+        let to = Some(_to);
+
+        for item in <Self as Storable<S>>::query(store, from, to, None, None)? {
+            if item.time < min_time {
+                <Self as Storable<S>>::remove(store, &item.id)?;
+            }
+        }
+
+        Ok(())
     }
 
-    fn clear(_store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn clear(store: &mut S) -> Result<()> {
+        let from = Some(vec![<Self as Storable<S>>::KEY_PREFIX]);
+        let from = from.as_ref().map(|from| from.as_slice());
+        let to = Some(vec![<Self as Storable<S>>::KEY_PREFIX + 1]);
+        let to = to.as_ref().map(|to| to.as_slice());
+        store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
 

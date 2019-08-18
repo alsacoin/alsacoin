@@ -6,6 +6,7 @@ use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crate::signers::Signers;
+use crate::timestamp::Timestamp;
 use crate::traits::Storable;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
@@ -211,14 +212,16 @@ impl<S: Store> Storable<S> for Account {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn cleanup(_store: &mut S, _min_time: Timestamp) -> Result<()> {
+        Err(Error::NotImplemented)
     }
 
-    fn clear(_store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn clear(store: &mut S) -> Result<()> {
+        let from = Some(vec![<Self as Storable<S>>::KEY_PREFIX]);
+        let from = from.as_ref().map(|from| from.as_slice());
+        let to = Some(vec![<Self as Storable<S>>::KEY_PREFIX + 1]);
+        let to = to.as_ref().map(|to| to.as_slice());
+        store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
 

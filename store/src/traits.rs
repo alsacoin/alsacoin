@@ -49,6 +49,14 @@ pub trait Store {
     /// `remove` removes an item from the `Store`.
     fn remove(&mut self, key: &[u8]) -> Result<()>;
 
+    /// `remove_range` removes a range of items from the `Store`.
+    fn remove_range(
+        &mut self,
+        from: Option<&[u8]>,
+        to: Option<&[u8]>,
+        skip: Option<u32>,
+    ) -> Result<()>;
+
     /// `remove_batch` removes one or more items from the `Store`.
     fn remove_batch(&mut self, keys: &[&[u8]]) -> Result<()>;
 

@@ -2,10 +2,12 @@
 //!
 //! `node` contains the Node model.
 
+use crate::error::Error;
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
@@ -13,8 +15,9 @@ use serde_json;
 use store::traits::Store;
 
 /// Type representing a node in the distributed ledger network.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub struct Node {
+    pub id: Digest,
     pub address: Vec<u8>,
     pub stage: Stage,
     pub last_seen: Timestamp,
@@ -23,7 +26,10 @@ pub struct Node {
 impl Node {
     /// Creates a new `Node`.
     pub fn new(address: &[u8], stage: Stage) -> Node {
+        let hash = Blake512Hasher::hash(address);
+
         Node {
+            id: hash,
             address: address.into(),
             stage,
             last_seen: Timestamp::now(),
@@ -32,8 +38,12 @@ impl Node {
 
     /// `random` creates a new random `Node`.
     pub fn random(address_len: usize) -> Result<Node> {
+        let address = Random::bytes(address_len)?;
+        let id = Blake512Hasher::hash(&address);
+
         let node = Node {
-            address: Random::bytes(address_len)?,
+            id,
+            address,
             stage: Stage::random()?,
             last_seen: Timestamp::now(),
         };
@@ -41,8 +51,18 @@ impl Node {
         Ok(node)
     }
 
+    /// `calc_id` calculates the `Node` id.
+    pub fn calc_id(&self) -> Digest {
+        Blake512Hasher::hash(&self.address)
+    }
+
     /// `validate` validates the `Node`.
     pub fn validate(&self) -> Result<()> {
+        if self.id != self.calc_id() {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
         self.last_seen.validate()
     }
 
@@ -70,11 +90,12 @@ impl Node {
 impl<S: Store> Storable<S> for Node {
     const KEY_PREFIX: u8 = 1;
 
-    type Key = Vec<u8>;
+    type Key = Digest;
 
     fn key_to_bytes(key: &Self::Key) -> Result<Vec<u8>> {
-        let mut buf = key.clone();
-        buf.insert(0, <Self as Storable<S>>::KEY_PREFIX);
+        let mut buf = Vec::new();
+        buf.push(<Self as Storable<S>>::KEY_PREFIX);
+        buf.extend_from_slice(&key.to_bytes());
         Ok(buf)
     }
 
@@ -201,14 +222,30 @@ impl<S: Store> Storable<S> for Node {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn cleanup(store: &mut S, min_time: Timestamp) -> Result<()> {
+        let mut _from = Digest::default();
+        _from[0] = <Self as Storable<S>>::KEY_PREFIX;
+        let from = Some(_from);
+
+        let mut _to = Digest::default();
+        _to[0] = <Self as Storable<S>>::KEY_PREFIX + 1;
+        let to = Some(_to);
+
+        for item in <Self as Storable<S>>::query(store, from, to, None, None)? {
+            if item.last_seen < min_time {
+                <Self as Storable<S>>::remove(store, &item.id)?;
+            }
+        }
+
+        Ok(())
     }
 
-    fn clear(_store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn clear(store: &mut S) -> Result<()> {
+        let from = Some(vec![<Self as Storable<S>>::KEY_PREFIX]);
+        let from = from.as_ref().map(|from| from.as_slice());
+        let to = Some(vec![<Self as Storable<S>>::KEY_PREFIX + 1]);
+        let to = to.as_ref().map(|to| to.as_slice());
+        store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
 
@@ -238,6 +275,11 @@ fn test_node_validate() {
     assert!(res.is_ok());
 
     node.last_seen = invalid_timestamp;
+    let res = node.validate();
+    assert!(res.is_err());
+
+    node.last_seen = Timestamp::default();
+    node.id = Digest::default();
     let res = node.validate();
     assert!(res.is_err());
 }
