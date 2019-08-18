@@ -8,10 +8,13 @@ use store::traits::Store;
 /// `Storable` is the trait implemented by storable models.
 pub trait Storable<S: Store>: Sized {
     /// `KEY_PREFIX` is the prefix added to keys of this model.
-    const KEY_PREFIX: u32;
+    const KEY_PREFIX: u8;
 
     /// `Key` is the type used to identify the model's instances in the `Store`.
     type Key;
+
+    /// `key_to_bytes` converts a key to a binary vector.
+    fn key_to_bytes(key: &Self::Key) -> Result<Vec<u8>>;
 
     /// `lookup` looks up a model instance in the `Store` by key.
     fn lookup(store: &S, key: &Self::Key) -> Result<bool>;
@@ -23,8 +26,8 @@ pub trait Storable<S: Store>: Sized {
     /// `query` queries the `Store` for model instances.
     fn query(
         store: &S,
-        from: Option<&Self::Key>,
-        to: Option<&Self::Key>,
+        from: Option<Self::Key>,
+        to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
     ) -> Result<Vec<Self>>;
@@ -32,8 +35,8 @@ pub trait Storable<S: Store>: Sized {
     /// `count` counts `Store` model instances matching a specific query.
     fn count(
         store: &S,
-        from: Option<&Self::Key>,
-        to: Option<&Self::Key>,
+        from: Option<Self::Key>,
+        to: Option<Self::Key>,
         skip: Option<u32>,
     ) -> Result<u32>;
 

@@ -68,28 +68,50 @@ impl Node {
 }
 
 impl<S: Store> Storable<S> for Node {
-    const KEY_PREFIX: u32 = 1;
+    const KEY_PREFIX: u8 = 1;
 
     type Key = Vec<u8>;
 
+    fn key_to_bytes(key: &Self::Key) -> Result<Vec<u8>> {
+        let mut buf = key.clone();
+        buf.insert(0, <Self as Storable<S>>::KEY_PREFIX);
+        Ok(buf)
+    }
+
     fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
-        store.lookup(key).map_err(|e| e.into())
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+        store.lookup(&key).map_err(|e| e.into())
     }
 
     fn get(store: &S, key: &Self::Key) -> Result<Self> {
-        let buf = store.get(key)?;
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+        let buf = store.get(&key)?;
         Self::from_bytes(&buf)
     }
 
     fn query(
         store: &S,
-        from: Option<&Self::Key>,
-        to: Option<&Self::Key>,
+        from: Option<Self::Key>,
+        to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
     ) -> Result<Vec<Self>> {
-        let from = from.map(|from| from.as_slice());
-        let to = to.map(|to| to.as_slice());
+        let from = if let Some(ref key) = from {
+            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            Some(key)
+        } else {
+            None
+        };
+
+        let to = if let Some(ref key) = to {
+            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            Some(key)
+        } else {
+            None
+        };
+
+        let from = from.as_ref().map(|from| from.as_slice());
+        let to = to.as_ref().map(|to| to.as_slice());
         let values = store.query(from, to, count, skip)?;
         let mut items = Vec::new();
 
@@ -103,12 +125,26 @@ impl<S: Store> Storable<S> for Node {
 
     fn count(
         store: &S,
-        from: Option<&Self::Key>,
-        to: Option<&Self::Key>,
+        from: Option<Self::Key>,
+        to: Option<Self::Key>,
         skip: Option<u32>,
     ) -> Result<u32> {
-        let from = from.map(|from| from.as_slice());
-        let to = to.map(|to| to.as_slice());
+        let from = if let Some(ref key) = from {
+            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            Some(key)
+        } else {
+            None
+        };
+
+        let to = if let Some(ref key) = to {
+            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            Some(key)
+        } else {
+            None
+        };
+
+        let from = from.as_ref().map(|from| from.as_slice());
+        let to = to.as_ref().map(|to| to.as_slice());
         store.count(from, to, skip).map_err(|e| e.into())
     }
 
