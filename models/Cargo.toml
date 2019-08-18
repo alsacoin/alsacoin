@@ -16,6 +16,13 @@ num = { version = "~0.2", features = ["std", "rand", "serde"] }
 regex = "~1.1"
 ed25519-dalek = { version = "=1.0.0-pre.1" }
 futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
+may = "~0.3"
+generator = "~0.6"
+conetty = { git = "https://github.com/Xudong-Huang/conetty" }
+may_signal = { git = "https://github.com/Xudong-Huang/may_signal" }
+may_process = { git = "https://github.com/Xudong-Huang/may_process" }
+may_thread = { git = "https://github.com/Xudong-Huang/may_thread" }
+may_rpc = { git = "https://github.com/Xudong-Huang/may_rpc" }
 
 crypto = { path = "../crypto" }
 mining = { path = "../mining" }

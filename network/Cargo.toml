@@ -13,6 +13,13 @@ chrono = "~0.4"
 num = { version = "~0.2", features = ["std", "rand", "serde"] }
 reqwest = { version = "~0.9", features = ["trust-dns"] }
 rocket = { version = "~0.4", features = ["tls"]}
+may = "~0.3"
+generator = "~0.6"
+conetty = { git = "https://github.com/Xudong-Huang/conetty" }
+may_signal = { git = "https://github.com/Xudong-Huang/may_signal" }
+may_process = { git = "https://github.com/Xudong-Huang/may_process" }
+may_thread = { git = "https://github.com/Xudong-Huang/may_thread" }
+may_rpc = { git = "https://github.com/Xudong-Huang/may_rpc" }
 
 crypto = { path = "../crypto" }
 mining = { path = "../mining" }

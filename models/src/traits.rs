@@ -3,7 +3,6 @@
 //! `traits` contains traits used throughout the crate.
 
 use crate::result::Result;
-use futures::future::BoxFuture;
 use store::traits::Store;
 
 /// `Storable` is the trait implemented by storable models.
@@ -15,10 +14,10 @@ pub trait Storable<S: Store>: Sized {
     type Key;
 
     /// `lookup` looks up a model instance in the `Store` by key.
-    fn lookup(&self, store: &S, key: &Self::Key) -> BoxFuture<Result<bool>>;
+    fn lookup(&self, store: &S, key: &Self::Key) -> Result<bool>;
 
     /// `get` returns a model instance from the `Store`.
-    fn get(&self, key: &Self::Key) -> BoxFuture<Result<Self>>;
+    fn get(&self, key: &Self::Key) -> Result<Self>;
 
     // TODO: de-lame query: use streams
     /// `query` queries the `Store` for model instances.
@@ -28,7 +27,7 @@ pub trait Storable<S: Store>: Sized {
         to: Option<&Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
-    ) -> BoxFuture<Result<Vec<Self>>>;
+    ) -> Result<Vec<Self>>;
 
     /// `count` counts `Store` model instances matching a specific query.
     fn count(
@@ -36,29 +35,29 @@ pub trait Storable<S: Store>: Sized {
         from: Option<&Self::Key>,
         to: Option<&Self::Key>,
         skip: Option<u32>,
-    ) -> BoxFuture<Result<u32>>;
+    ) -> Result<u32>;
 
     /// `insert` inserts a model instance in the `Store`.
-    fn insert(&mut self, key: &Self::Key, value: &Self) -> BoxFuture<Result<()>>;
+    fn insert(&mut self, key: &Self::Key, value: &Self) -> Result<()>;
 
     /// `create` creates a previously not existing model instance in the `Store`.
-    fn create(&mut self, key: &Self::Key, value: &Self) -> BoxFuture<Result<()>>;
+    fn create(&mut self, key: &Self::Key, value: &Self) -> Result<()>;
 
     /// `update` updates a previously existing model instance in the `Store`.
-    fn update(&mut self, key: &Self::Key, value: &Self) -> BoxFuture<Result<()>>;
+    fn update(&mut self, key: &Self::Key, value: &Self) -> Result<()>;
 
     /// `insert_batch` inserts one or more model instances in the `Store`.
-    fn insert_batch(&mut self, items: &[(Self::Key, Self)]) -> BoxFuture<Result<()>>;
+    fn insert_batch(&mut self, items: &[(Self::Key, Self)]) -> Result<()>;
 
     /// `remove` removes a mode instance from the `Store`.
-    fn remove(&mut self, key: &Self::Key) -> BoxFuture<Result<()>>;
+    fn remove(&mut self, key: &Self::Key) -> Result<()>;
 
     /// `remove_batch` removes one or more model instances from the `Store`.
-    fn remove_batch(&mut self, keys: &[Self::Key]) -> BoxFuture<Result<()>>;
+    fn remove_batch(&mut self, keys: &[Self::Key]) -> Result<()>;
 
     /// `cleanup` clean ups the `Store` model instances.
-    fn cleanup(&mut self) -> BoxFuture<Result<()>>;
+    fn cleanup(&mut self) -> Result<()>;
 
     /// `clear` clears the `Store` from the model instances.
-    fn clear(&mut self) -> BoxFuture<Result<()>>;
+    fn clear(&mut self) -> Result<()>;
 }

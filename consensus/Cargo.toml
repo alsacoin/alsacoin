@@ -13,6 +13,13 @@ serde = { version = "~1.0", features = ["derive"] }
 serde_cbor = "~0.10"
 serde_json = "~1.0"
 futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
+may = "~0.3"
+generator = "~0.6"
+conetty = { git = "https://github.com/Xudong-Huang/conetty" }
+may_rpc = { git = "https://github.com/Xudong-Huang/may_rpc" }
+may_signal = { git = "https://github.com/Xudong-Huang/may_signal" }
+may_process = { git = "https://github.com/Xudong-Huang/may_process" }
+may_thread = { git = "https://github.com/Xudong-Huang/may_thread" }
 
 crypto = { path = "../crypto" }
 mining = { path = "../mining" }

@@ -5,7 +5,6 @@
 use crate::error::Error;
 use crate::result::Result;
 use crate::traits::Store;
-use futures::future::{self, BoxFuture};
 use unqlite::Cursor as StoreCursor;
 use unqlite::{Config, Direction, UnQLite, KV};
 
@@ -907,14 +906,12 @@ impl Store for UnQLiteStore {
         self.keys_size + self.values_size
     }
 
-    fn lookup(&self, key: &[u8]) -> BoxFuture<Result<bool>> {
-        let res = self._lookup(key);
-        Box::pin(future::ok(res))
+    fn lookup(&self, key: &[u8]) -> Result<bool> {
+        Ok(self._lookup(key))
     }
 
-    fn get(&self, key: &[u8]) -> BoxFuture<Result<Vec<u8>>> {
-        let res = self._get(key);
-        Box::pin(future::ready(res))
+    fn get(&self, key: &[u8]) -> Result<Vec<u8>> {
+        self._get(key)
     }
 
     fn query(
@@ -923,59 +920,45 @@ impl Store for UnQLiteStore {
         to: Option<&[u8]>,
         count: Option<u32>,
         skip: Option<u32>,
-    ) -> BoxFuture<Result<Vec<Vec<u8>>>> {
-        let res = self._query(from, to, count, skip);
-        Box::pin(future::ready(res))
+    ) -> Result<Vec<Vec<u8>>> {
+        self._query(from, to, count, skip)
     }
 
-    fn count(
-        &self,
-        from: Option<&[u8]>,
-        to: Option<&[u8]>,
-        skip: Option<u32>,
-    ) -> BoxFuture<Result<u32>> {
-        let res = self._count(from, to, skip);
-        Box::pin(future::ready(res))
+    fn count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
+        self._count(from, to, skip)
     }
 
-    fn insert(&mut self, key: &[u8], value: &[u8]) -> BoxFuture<Result<()>> {
-        let res = self._insert(key, value);
-        Box::pin(future::ready(res))
+    fn insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        self._insert(key, value)
     }
 
-    fn create(&mut self, key: &[u8], value: &[u8]) -> BoxFuture<Result<()>> {
-        let res = self._create(key, value);
-        Box::pin(future::ready(res))
+    fn create(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        self._create(key, value)
     }
 
-    fn update(&mut self, key: &[u8], value: &[u8]) -> BoxFuture<Result<()>> {
-        let res = self._update(key, value);
-        Box::pin(future::ready(res))
+    fn update(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        self._update(key, value)
     }
 
-    fn insert_batch(&mut self, _items: &[(&[u8], &[u8])]) -> BoxFuture<Result<()>> {
-        let err = Error::NotImplemented;
-        Box::pin(future::err(err))
+    fn insert_batch(&mut self, _items: &[(&[u8], &[u8])]) -> Result<()> {
+        Err(Error::NotImplemented)
     }
 
-    fn remove(&mut self, key: &[u8]) -> BoxFuture<Result<()>> {
-        let res = self._remove(key);
-        Box::pin(future::ready(res))
+    fn remove(&mut self, key: &[u8]) -> Result<()> {
+        self._remove(key)
     }
 
-    fn remove_batch(&mut self, _keys: &[&[u8]]) -> BoxFuture<Result<()>> {
-        let err = Error::NotImplemented;
-        Box::pin(future::err(err))
+    fn remove_batch(&mut self, _keys: &[&[u8]]) -> Result<()> {
+        Err(Error::NotImplemented)
     }
 
-    fn clear(&mut self) -> BoxFuture<Result<()>> {
-        let res = self._clear();
-        Box::pin(future::ready(res))
+    fn clear(&mut self) -> Result<()> {
+        self._clear()
     }
 }
 
 #[test]
-fn test_persistent_store_sync_ops() {
+fn test_persistent_store_ops() {
     use crypto::random::Random;
 
     let res = UnQLiteStore::new_temporary();
@@ -999,152 +982,68 @@ fn test_persistent_store_sync_ops() {
         let size = store.size();
         assert_eq!(size, expected_size);
 
-        let res = store._count(Some(&key), None, None);
+        let res = store.count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let found = store._lookup(&key);
+        let res = store.lookup(&key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
         assert!(!found);
 
-        let res = store._get(&key);
+        let res = store.get(&key);
         assert!(res.is_err());
 
-        let res = store._insert(&key, &value);
+        let res = store.insert(&key, &value);
         assert!(res.is_ok());
 
         expected_size += (key.len() + value.len()) as u32;
 
-        let res = store._count(Some(&key), None, None);
+        let res = store.count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
 
-        let res = store._query(Some(&key), None, None, None);
+        let res = store.query(Some(&key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
-        let found = store._lookup(&key);
+        let res = store.lookup(&key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
         assert!(found);
 
-        let res = store._get(&key);
+        let res = store.get(&key);
         assert!(res.is_ok());
         assert_eq!(&res.unwrap(), value);
 
-        let res = store._remove(&key);
+        let res = store.remove(&key);
         assert!(res.is_ok());
 
         expected_size -= (key.len() + value.len()) as u32;
 
-        let res = store._count(Some(&key), None, None);
+        let res = store.count(Some(&key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = store._query(Some(&key), None, None, None);
+        let res = store.query(Some(&key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![] as Vec<Vec<u8>>);
 
-        let found = store._lookup(&key);
+        let res = store.lookup(&key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
         assert!(!found);
 
-        let res = store._get(&key);
+        let res = store.get(&key);
         assert!(res.is_err());
 
-        let res = store._insert(&key, &value);
+        let res = store.insert(&key, &value);
         assert!(res.is_ok());
 
-        let res = store._clear();
+        let res = store.clear();
         assert!(res.is_ok());
+
         assert_eq!(store.keys_size(), 0);
         assert_eq!(store.values_size(), 0);
-    }
-}
-
-#[test]
-fn test_persistent_store_async_ops() {
-    use crypto::random::Random;
-    use std::sync::{Arc, Mutex};
-
-    let res = UnQLiteStore::new_temporary();
-    let inner_store = res.unwrap();
-    let store = Arc::new(Mutex::new(inner_store));
-
-    let key_len = 100;
-    let value_len = 1000;
-    let expected_size = Arc::new(Mutex::new(0));;
-
-    let items: Vec<(Vec<u8>, Vec<u8>)> = (0..10)
-        .map(|_| {
-            (
-                Random::bytes(key_len).unwrap(),
-                Random::bytes(value_len).unwrap(),
-            )
-        })
-        .collect();
-
-    for (key, value) in &items {
-        let store = Arc::clone(&store);
-        let expected_size = Arc::clone(&expected_size);
-
-        let _ = async move {
-            let mut store = store.lock().unwrap();
-            let mut expected_size = expected_size.lock().unwrap();
-
-            let size = store.size();
-            assert_eq!(size, *expected_size);
-
-            let res = store.count(Some(&key), None, None).await;
-            assert!(res.is_ok());
-            assert_eq!(res.unwrap(), 0);
-
-            let res = store.lookup(&key).await;
-            assert!(res.is_ok());
-            assert!(!res.unwrap());
-
-            let res = store.get(&key).await;
-            assert!(res.is_err());
-
-            let res = store.insert_batch(&[]).await;
-            assert!(res.is_err());
-
-            let res = store.insert(&key, &value).await;
-            assert!(res.is_ok());
-
-            *expected_size += (key.len() + value.len()) as u32;
-
-            let res = store.count(Some(&key), None, None).await;
-            assert!(res.is_ok());
-            assert_eq!(res.unwrap(), 1);
-
-            let res = store.query(Some(&key), None, None, None).await;
-            assert!(res.is_ok());
-            assert_eq!(res.unwrap(), vec![value.to_owned()]);
-
-            let res = store.lookup(&key).await;
-            assert!(res.is_ok());
-            assert!(res.unwrap());
-
-            let res = store.get(&key).await;
-            assert!(res.is_ok());
-            assert_eq!(&res.unwrap(), value);
-
-            let res = store.remove(&key).await;
-            assert!(res.is_ok());
-
-            *expected_size -= (key.len() + value.len()) as u32;
-
-            let res = store.count(Some(&key), None, None).await;
-            assert!(res.is_ok());
-            assert_eq!(res.unwrap(), 0);
-
-            let res = store.query(Some(&key), None, None, None).await;
-            assert!(res.is_ok());
-            assert_eq!(res.unwrap(), vec![] as Vec<Vec<u8>>);
-
-            let res = store.lookup(&key).await;
-            assert!(res.is_ok());
-            assert!(!res.unwrap());
-
-            let res = store.get(&key).await;
-            assert!(res.is_err());
-        };
     }
 }
