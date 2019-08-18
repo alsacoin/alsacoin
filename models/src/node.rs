@@ -72,75 +72,93 @@ impl<S: Store> Storable<S> for Node {
 
     type Key = Vec<u8>;
 
-    fn lookup(&self, _store: &S, _key: &Self::Key) -> Result<bool> {
-        // TODO
-        unreachable!()
+    fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
+        store.lookup(key).map_err(|e| e.into())
     }
 
-    fn get(&self, _store: &S, _key: &Self::Key) -> Result<Self> {
-        // TODO
-        unreachable!()
+    fn get(store: &S, key: &Self::Key) -> Result<Self> {
+        let buf = store.get(key)?;
+        Self::from_bytes(&buf)
     }
 
     fn query(
-        &self,
-        _store: &S,
-        _from: Option<&Self::Key>,
-        _to: Option<&Self::Key>,
-        _count: Option<u32>,
-        _skip: Option<u32>,
+        store: &S,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        count: Option<u32>,
+        skip: Option<u32>,
     ) -> Result<Vec<Self>> {
-        // TODO
-        unreachable!()
+        let from = from.map(|from| from.as_slice());
+        let to = to.map(|to| to.as_slice());
+        let values = store.query(from, to, count, skip)?;
+        let mut items = Vec::new();
+
+        for value in values {
+            let item = Self::from_bytes(&value)?;
+            items.push(item);
+        }
+
+        Ok(items)
     }
 
     fn count(
-        &self,
-        _store: &S,
-        _from: Option<&Self::Key>,
-        _to: Option<&Self::Key>,
-        _skip: Option<u32>,
+        store: &S,
+        from: Option<&Self::Key>,
+        to: Option<&Self::Key>,
+        skip: Option<u32>,
     ) -> Result<u32> {
+        let from = from.map(|from| from.as_slice());
+        let to = to.map(|to| to.as_slice());
+        store.count(from, to, skip).map_err(|e| e.into())
+    }
+
+    fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let value = value.to_bytes()?;
+        store.insert(key, &value).map_err(|e| e.into())
+    }
+
+    fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let value = value.to_bytes()?;
+        store.create(key, &value).map_err(|e| e.into())
+    }
+
+    fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let value = value.to_bytes()?;
+        store.update(key, &value).map_err(|e| e.into())
+    }
+
+    fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
+        let mut _items = Vec::new();
+
+        for (k, v) in items {
+            let v = v.to_bytes()?;
+            let item = (k, v);
+            _items.push(item);
+        }
+
+        let items: Vec<(&[u8], &[u8])> = _items
+            .iter()
+            .map(|(k, v)| (k.as_slice(), v.as_slice()))
+            .collect();
+
+        store.insert_batch(&items).map_err(|e| e.into())
+    }
+
+    fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
+        store.remove(key).map_err(|e| e.into())
+    }
+
+    fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
+        let keys: Vec<&[u8]> = keys.iter().map(|k| k.as_slice()).collect();
+        store.remove_batch(&keys).map_err(|e| e.into())
+    }
+
+    fn cleanup(_store: &mut S) -> Result<()> {
         // TODO
         unreachable!()
     }
 
-    fn insert(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn create(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn update(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn insert_batch(&mut self, _store: &mut S, _items: &[(Self::Key, Self)]) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn remove(&mut self, _store: &mut S, _key: &Self::Key) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn remove_batch(&mut self, _store: &mut S, _keys: &[Self::Key]) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn cleanup(&mut self, _store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn clear(&mut self, _store: &mut S) -> Result<()> {
+    fn clear(_store: &mut S) -> Result<()> {
         // TODO
         unreachable!()
     }

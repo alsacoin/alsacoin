@@ -14,15 +14,14 @@ pub trait Storable<S: Store>: Sized {
     type Key;
 
     /// `lookup` looks up a model instance in the `Store` by key.
-    fn lookup(&self, store: &S, key: &Self::Key) -> Result<bool>;
+    fn lookup(store: &S, key: &Self::Key) -> Result<bool>;
 
     /// `get` returns a model instance from the `Store`.
-    fn get(&self, store: &S, key: &Self::Key) -> Result<Self>;
+    fn get(store: &S, key: &Self::Key) -> Result<Self>;
 
     // TODO: de-lame query: use streams
     /// `query` queries the `Store` for model instances.
     fn query(
-        &self,
         store: &S,
         from: Option<&Self::Key>,
         to: Option<&Self::Key>,
@@ -32,7 +31,6 @@ pub trait Storable<S: Store>: Sized {
 
     /// `count` counts `Store` model instances matching a specific query.
     fn count(
-        &self,
         store: &S,
         from: Option<&Self::Key>,
         to: Option<&Self::Key>,
@@ -40,26 +38,26 @@ pub trait Storable<S: Store>: Sized {
     ) -> Result<u32>;
 
     /// `insert` inserts a model instance in the `Store`.
-    fn insert(&mut self, store: &mut S, key: &Self::Key, value: &Self) -> Result<()>;
+    fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()>;
 
     /// `create` creates a previously not existing model instance in the `Store`.
-    fn create(&mut self, store: &mut S, key: &Self::Key, value: &Self) -> Result<()>;
+    fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()>;
 
     /// `update` updates a previously existing model instance in the `Store`.
-    fn update(&mut self, store: &mut S, key: &Self::Key, value: &Self) -> Result<()>;
+    fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()>;
 
     /// `insert_batch` inserts one or more model instances in the `Store`.
-    fn insert_batch(&mut self, store: &mut S, items: &[(Self::Key, Self)]) -> Result<()>;
+    fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()>;
 
     /// `remove` removes a mode instance from the `Store`.
-    fn remove(&mut self, store: &mut S, key: &Self::Key) -> Result<()>;
+    fn remove(store: &mut S, key: &Self::Key) -> Result<()>;
 
     /// `remove_batch` removes one or more model instances from the `Store`.
-    fn remove_batch(&mut self, store: &mut S, keys: &[Self::Key]) -> Result<()>;
+    fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()>;
 
     /// `cleanup` clean ups the `Store` model instances.
-    fn cleanup(&mut self, store: &mut S) -> Result<()>;
+    fn cleanup(store: &mut S) -> Result<()>;
 
     /// `clear` clears the `Store` from the model instances.
-    fn clear(&mut self, store: &mut S) -> Result<()>;
+    fn clear(store: &mut S) -> Result<()>;
 }

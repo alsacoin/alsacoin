@@ -569,18 +569,16 @@ impl<S: Store> Storable<S> for Transaction {
 
     type Key = Digest;
 
-    fn lookup(&self, _store: &S, _key: &Self::Key) -> Result<bool> {
-        // TODO
-        unreachable!()
+    fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
+        store.lookup(&key.to_bytes()).map_err(|e| e.into())
     }
 
-    fn get(&self, _store: &S, _key: &Self::Key) -> Result<Self> {
-        // TODO
-        unreachable!()
+    fn get(store: &S, key: &Self::Key) -> Result<Self> {
+        let buf = store.get(&key.to_bytes())?;
+        Self::from_bytes(&buf)
     }
 
     fn query(
-        &self,
         _store: &S,
         _from: Option<&Self::Key>,
         _to: Option<&Self::Key>,
@@ -592,7 +590,6 @@ impl<S: Store> Storable<S> for Transaction {
     }
 
     fn count(
-        &self,
         _store: &S,
         _from: Option<&Self::Key>,
         _to: Option<&Self::Key>,
@@ -602,42 +599,65 @@ impl<S: Store> Storable<S> for Transaction {
         unreachable!()
     }
 
-    fn insert(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
+    fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let value = value.to_bytes()?;
+        store.insert(&key.to_bytes(), &value).map_err(|e| e.into())
+    }
+
+    fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let value = value.to_bytes()?;
+        store.create(&key.to_bytes(), &value).map_err(|e| e.into())
+    }
+
+    fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let value = value.to_bytes()?;
+        store.update(&key.to_bytes(), &value).map_err(|e| e.into())
+    }
+
+    fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
+        let mut _items = Vec::new();
+
+        for (k, v) in items {
+            let mut key = Vec::new();
+            key.extend_from_slice(&k.to_bytes());
+
+            let value = v.to_bytes()?;
+            let item = (key, value);
+            _items.push(item);
+        }
+
+        let items: Vec<(&[u8], &[u8])> = _items
+            .iter()
+            .map(|(k, v)| (k.as_slice(), v.as_slice()))
+            .collect();
+
+        store.insert_batch(&items).map_err(|e| e.into())
+    }
+
+    fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
+        store.remove(&key.to_bytes()).map_err(|e| e.into())
+    }
+
+    fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
+        let mut _keys: Vec<Vec<u8>> = Vec::new();
+
+        for key in keys {
+            let mut k = Vec::new();
+            k.extend_from_slice(&key.to_bytes()[..]);
+            _keys.push(k);
+        }
+
+        let keys: Vec<&[u8]> = _keys.iter().map(|k| k.as_slice()).collect();
+
+        store.remove_batch(&keys).map_err(|e| e.into())
+    }
+
+    fn cleanup(_store: &mut S) -> Result<()> {
         // TODO
         unreachable!()
     }
 
-    fn create(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn update(&mut self, _store: &mut S, _key: &Self::Key, _value: &Self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn insert_batch(&mut self, _store: &mut S, _items: &[(Self::Key, Self)]) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn remove(&mut self, _store: &mut S, _key: &Self::Key) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn remove_batch(&mut self, _store: &mut S, _keys: &[Self::Key]) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn cleanup(&mut self, _store: &mut S) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    fn clear(&mut self, _store: &mut S) -> Result<()> {
+    fn clear(_store: &mut S) -> Result<()> {
         // TODO
         unreachable!()
     }
