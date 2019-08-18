@@ -149,24 +149,28 @@ impl<S: Store> Storable<S> for Node {
     }
 
     fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
         let value = value.to_bytes()?;
-        store.insert(key, &value).map_err(|e| e.into())
+        store.insert(&key, &value).map_err(|e| e.into())
     }
 
     fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
         let value = value.to_bytes()?;
-        store.create(key, &value).map_err(|e| e.into())
+        store.create(&key, &value).map_err(|e| e.into())
     }
 
     fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
         let value = value.to_bytes()?;
-        store.update(key, &value).map_err(|e| e.into())
+        store.update(&key, &value).map_err(|e| e.into())
     }
 
     fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
         let mut _items = Vec::new();
 
         for (k, v) in items {
+            let k = <Self as Storable<S>>::key_to_bytes(k)?;
             let v = v.to_bytes()?;
             let item = (k, v);
             _items.push(item);
@@ -181,11 +185,19 @@ impl<S: Store> Storable<S> for Node {
     }
 
     fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
-        store.remove(key).map_err(|e| e.into())
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+        store.remove(&key).map_err(|e| e.into())
     }
 
     fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
-        let keys: Vec<&[u8]> = keys.iter().map(|k| k.as_slice()).collect();
+        let mut _keys = Vec::new();
+        for key in keys {
+            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            _keys.push(key);
+        }
+
+        let keys: Vec<&[u8]> = _keys.iter().map(|k| k.as_slice()).collect();
+
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 

@@ -89,11 +89,13 @@ impl<S: Store> Storable<S> for Account {
     }
 
     fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
-        store.lookup(&key.to_bytes()).map_err(|e| e.into())
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+        store.lookup(&key).map_err(|e| e.into())
     }
 
     fn get(store: &S, key: &Self::Key) -> Result<Self> {
-        let buf = store.get(&key.to_bytes())?;
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+        let buf = store.get(&key)?;
         Self::from_bytes(&buf)
     }
 
@@ -157,27 +159,28 @@ impl<S: Store> Storable<S> for Account {
     }
 
     fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
         let value = value.to_bytes()?;
-        store.insert(&key.to_bytes(), &value).map_err(|e| e.into())
+        store.insert(&key, &value).map_err(|e| e.into())
     }
 
     fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
         let value = value.to_bytes()?;
-        store.create(&key.to_bytes(), &value).map_err(|e| e.into())
+        store.create(&key, &value).map_err(|e| e.into())
     }
 
     fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
         let value = value.to_bytes()?;
-        store.update(&key.to_bytes(), &value).map_err(|e| e.into())
+        store.update(&key, &value).map_err(|e| e.into())
     }
 
     fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
         let mut _items = Vec::new();
 
         for (k, v) in items {
-            let mut key = Vec::new();
-            key.extend_from_slice(&k.to_bytes());
-
+            let key = <Self as Storable<S>>::key_to_bytes(k)?;
             let value = v.to_bytes()?;
             let item = (key, value);
             _items.push(item);
@@ -192,16 +195,15 @@ impl<S: Store> Storable<S> for Account {
     }
 
     fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
-        store.remove(&key.to_bytes()).map_err(|e| e.into())
+        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+        store.remove(&key).map_err(|e| e.into())
     }
 
     fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
-        let mut _keys: Vec<Vec<u8>> = Vec::new();
-
+        let mut _keys = Vec::new();
         for key in keys {
-            let mut k = Vec::new();
-            k.extend_from_slice(&key.to_bytes()[..]);
-            _keys.push(k);
+            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            _keys.push(key);
         }
 
         let keys: Vec<&[u8]> = _keys.iter().map(|k| k.as_slice()).collect();
