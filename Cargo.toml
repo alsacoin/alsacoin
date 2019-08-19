@@ -14,7 +14,7 @@ categories = ["cryptography", "cryptocurrency", "blockchain"]
 travis-ci = { repository = "alsacoin/alsacoin", branch = "master" }
 
 [workspace]
-members = ["crypto", "store",  "mining", "models", "consensus",  "network", "config"]
+members = ["crypto", "store",  "mining", "models", "consensus",  "network", "config", "cli"]
 
 [dependencies]
 failure = "~0.1"
@@ -31,4 +31,4 @@ store = { path = "store" }
 models = { path = "models" }
 consensus = { path = "consensus" }
 config = { path = "config" }
-
+cli = { path = "cli" }
