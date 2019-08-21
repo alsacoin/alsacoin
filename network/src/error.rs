@@ -29,6 +29,8 @@ pub enum Error {
     Parse { msg: String },
     #[fail(display = "Invalid id")]
     InvalidId,
+    #[fail(display = "Invalid length")]
+    InvalidLength,
     #[fail(display = "Not implemented")]
     NotImplemented,
     #[fail(display = "Not allowed")]

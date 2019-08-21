@@ -54,6 +54,58 @@ impl Channel {
         Blake512Hasher::hash(&self.address)
     }
 
+    fn _send(&self, address: &[u8], data: &[u8]) -> Result<()> {
+        if address.len() != Self::CHANNEL_ADDRESS_LEN as usize {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        let id = Blake512Hasher::hash(address);
+
+        if let Some(ref sender) = self.channels.get(&id) {
+            let msg = Message {
+                address: address.to_owned(),
+                data: data.to_owned(),
+            };
+
+            sender.send(msg).map_err(|e| e.into())
+        } else {
+            let err = Error::NotFound;
+            Err(err)
+        }
+    }
+
+    fn _recv(&mut self) -> Result<Message> {
+        self.receiver.recv().map_err(|e| e.into())
+    }
+
+    /// `lookup_channel` look ups a recorded `Channel`.
+    pub fn lookup_channel(&self, id: &Digest) -> bool {
+        self.channels.contains_key(id)
+    }
+
+    /// `add_channel` records a new `Channel`.
+    pub fn add_channel(&mut self, id: Digest, channel: &Sender<Message>) -> Result<()> {
+        if self.lookup_channel(&id) {
+            let err = Error::AlreadyFound;
+            return Err(err);
+        }
+
+        self.channels.insert(id, channel.to_owned());
+
+        Ok(())
+    }
+
+    /// `remove_channel` removes a recorded `Channel`.
+    pub fn remove_channel(&mut self, id: &Digest) -> Result<()> {
+        if self.channels.remove(id).is_none() {
+            let err = Error::NotFound;
+            Err(err)
+        } else {
+            Ok(())
+        }
+    }
+
     /// `validate` validates the `Channel`.
     pub fn validate(&self) -> Result<()> {
         if self.id != self.calc_id() {
@@ -71,22 +123,10 @@ impl Transport for Channel {
     }
 
     fn send(&mut self, address: &[u8], data: &[u8]) -> Result<()> {
-        let id = Blake512Hasher::hash(address);
-
-        if let Some(ref sender) = self.channels.get(&id) {
-            let msg = Message {
-                address: address.to_owned(),
-                data: data.to_owned(),
-            };
-
-            sender.send(msg).map_err(|e| e.into())
-        } else {
-            let err = Error::NotFound;
-            Err(err)
-        }
+        self._send(address, data)
     }
 
     fn recv(&mut self) -> Result<Message> {
-        self.receiver.recv().map_err(|e| e.into())
+        self._recv()
     }
 }
