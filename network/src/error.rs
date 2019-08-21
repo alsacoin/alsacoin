@@ -2,10 +2,12 @@
 //!
 //! `error` contains the `store` crate `Error` type.
 
+use crate::message::Message;
 use crypto::error::Error as CryptoError;
 use mining::error::Error as MiningError;
 use models::error::Error as ModelError;
-use models::node::Node;
+use serde_cbor;
+use serde_json;
 use std::convert::From;
 use std::io;
 use std::sync::mpsc::{RecvError, SendError};
@@ -23,6 +25,8 @@ pub enum Error {
     Store { msg: String },
     #[fail(display = "Model: {}", msg)]
     Model { msg: String },
+    #[fail(display = "Parse: {}", msg)]
+    Parse { msg: String },
     #[fail(display = "Invalid id")]
     InvalidId,
     #[fail(display = "Not implemented")]
@@ -42,8 +46,22 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<SendError<(Node, Vec<u8>)>> for Error {
-    fn from(error: SendError<(Node, Vec<u8>)>) -> Error {
+impl From<serde_cbor::error::Error> for Error {
+    fn from(err: serde_cbor::error::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Parse { msg }
+    }
+}
+
+impl From<serde_json::error::Error> for Error {
+    fn from(err: serde_json::error::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Parse { msg }
+    }
+}
+
+impl From<SendError<Message>> for Error {
+    fn from(error: SendError<Message>) -> Error {
         let msg = format!("{}", error);
         Error::IO { msg }
     }

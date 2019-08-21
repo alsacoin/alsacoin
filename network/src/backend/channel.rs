@@ -4,19 +4,20 @@
 //! the network of nodes is local and every node occupies a different thread in the same process.
 
 use crate::error::Error;
+use crate::message::Message;
 use crate::result::Result;
 use crate::traits::Transport;
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
-use models::node::Node;
 use std::collections::BTreeMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
+/// `Channel` is the type implementing the mpsc Channel backend.
 pub struct Channel {
     id: Digest,
     address: Vec<u8>,
-    receiver: Receiver<(Node, Vec<u8>)>,
-    channels: BTreeMap<Digest, Sender<(Node, Vec<u8>)>>,
+    receiver: Receiver<Message>,
+    channels: BTreeMap<Digest, Sender<Message>>,
 }
 
 impl Channel {
@@ -69,11 +70,15 @@ impl Transport for Channel {
         Ok(self.address.clone())
     }
 
-    fn send(&mut self, node: &Node, data: &[u8]) -> Result<()> {
-        node.validate()?;
+    fn send(&mut self, address: &[u8], data: &[u8]) -> Result<()> {
+        let id = Blake512Hasher::hash(address);
 
-        if let Some(ref sender) = self.channels.get(&node.id) {
-            let msg = (node.to_owned(), data.to_owned());
+        if let Some(ref sender) = self.channels.get(&id) {
+            let msg = Message {
+                address: address.to_owned(),
+                data: data.to_owned(),
+            };
+
             sender.send(msg).map_err(|e| e.into())
         } else {
             let err = Error::NotFound;
@@ -81,7 +86,7 @@ impl Transport for Channel {
         }
     }
 
-    fn recv(&mut self) -> Result<(Node, Vec<u8>)> {
+    fn recv(&mut self) -> Result<Message> {
         self.receiver.recv().map_err(|e| e.into())
     }
 }

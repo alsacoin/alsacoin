@@ -9,6 +9,9 @@ pub mod error;
 /// `result` contains the result type used in the crate.
 pub mod result;
 
+/// `message` contains the networking message type and functions.
+pub mod message;
+
 /// `traits` contains the networking traits used in the crate.
 pub mod traits;
 
