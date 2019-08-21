@@ -1,6 +1,6 @@
-//! # Channel
+//! # Channel Transport
 //!
-//! `channel` contains the channel backend for the networking types and functions. In this case
+//! `channel_transport` contains the channel transport backend types and functions. In this case
 //! the network of nodes is local and every node occupies a different thread in the same process.
 
 use crate::error::Error;
@@ -12,20 +12,20 @@ use crypto::random::Random;
 use std::collections::BTreeMap;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
-/// `Channel` is the type implementing the mpsc Channel backend.
-pub struct Channel {
+/// `ChannelTransport` is the type implementing the mpsc Channel transport backend.
+pub struct ChannelTransport {
     id: Digest,
     address: Vec<u8>,
     receiver: Receiver<Message>,
     channels: BTreeMap<Digest, Sender<Message>>,
 }
 
-impl Channel {
+impl ChannelTransport {
     /// `CHANNEL_ADDRESS_LEN` is the length of a `Channel` address.
     pub const CHANNEL_ADDRESS_LEN: u32 = 16;
 
     /// `new` creates a new `Channel` backend.
-    pub fn new() -> Result<Channel> {
+    pub fn new() -> Result<ChannelTransport> {
         let address = Self::gen_address()?;
         let id = Blake512Hasher::hash(&address);
 
@@ -34,14 +34,14 @@ impl Channel {
         let mut channels = BTreeMap::new();
         channels.insert(id, sender.clone());
 
-        let channel = Channel {
+        let transport = ChannelTransport {
             id,
             address,
             receiver,
             channels,
         };
 
-        Ok(channel)
+        Ok(transport)
     }
 
     /// `gen_address` generates a new `Channel` address.
@@ -117,7 +117,7 @@ impl Channel {
     }
 }
 
-impl Transport for Channel {
+impl Transport for ChannelTransport {
     fn local_address(&self) -> Result<Vec<u8>> {
         Ok(self.address.clone())
     }
