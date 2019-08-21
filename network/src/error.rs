@@ -10,6 +10,7 @@ use serde_cbor;
 use serde_json;
 use std::convert::From;
 use std::io;
+use std::net;
 use std::sync::mpsc::{RecvError, SendError};
 use store::error::Error as StoreError;
 
@@ -45,6 +46,13 @@ impl From<io::Error> for Error {
     fn from(error: io::Error) -> Error {
         let msg = format!("{}", error);
         Error::IO { msg }
+    }
+}
+
+impl From<net::AddrParseError> for Error {
+    fn from(error: net::AddrParseError) -> Error {
+        let msg = format!("{}", error);
+        Error::Parse { msg }
     }
 }
 

@@ -15,5 +15,5 @@ pub mod message;
 /// `traits` contains the networking traits used in the crate.
 pub mod traits;
 
-/// `backend` contains the networking backends.
-pub mod backend;
+/// `node` contains the networking nodes.
+pub mod node;
