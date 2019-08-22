@@ -8,14 +8,45 @@ use crate::result::Result;
 use crate::traits::Transport;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use crypto::hash::{Blake512Hasher, Digest};
-use std::net::{TcpListener, TcpStream};
-use std::time::Duration;
-//use std::net::{Incoming, Shutdown};
 use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, SocketAddrV4};
+use std::net::{TcpListener, TcpStream};
 use std::ops::FnMut;
+use std::time::Duration;
+
+/// `address_to_bytes` converts a SocketAddrV4 to a vector of bytes.
+pub fn address_to_bytes(address: &SocketAddrV4) -> Result<Vec<u8>> {
+    let mut buf = Vec::new();
+
+    for n in &address.ip().octets() {
+        buf.write_u8(*n)?;
+    }
+
+    buf.write_u16::<BigEndian>(address.port())?;
+
+    Ok(buf)
+}
+
+/// `address_from_bytes` returns an address from a slice of bytes.
+pub fn address_from_bytes(buf: &[u8]) -> Result<SocketAddrV4> {
+    let mut reader = Cursor::new(buf);
+
+    let mut ip = [0u8; 4];
+
+    #[allow(clippy::needless_range_loop)]
+    for i in 0..4 {
+        ip[i] = reader.read_u8()?;
+    }
+
+    let port = reader.read_u16::<BigEndian>()?;
+
+    let ip_addr = Ipv4Addr::from(ip);
+    let address = SocketAddrV4::new(ip_addr, port);
+    Ok(address)
+}
 
 /// `TcpNode` is a network node using a Tcp transport.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct TcpNode {
     id: Digest,
     address: SocketAddrV4,
@@ -30,7 +61,7 @@ impl TcpNode {
         let ip_addr: Ipv4Addr = addr.parse()?;
         let address = SocketAddrV4::new(ip_addr, Self::DEFAULT_PORT);
 
-        let addr_buf = Self::address_to_bytes(&address)?;
+        let addr_buf = address_to_bytes(&address)?;
 
         let id = Blake512Hasher::hash(&addr_buf);
 
@@ -41,12 +72,17 @@ impl TcpNode {
         Ok(node)
     }
 
+    /// `local` buids a local `TcpNode`.
+    pub fn local() -> Result<TcpNode> {
+        TcpNode::new("127.0.0.1")
+    }
+
     /// `from_parts` creates a new `TcpNode` with an ip octet and a port.
     pub fn from_parts(ip: [u8; 4], port: u16) -> Result<TcpNode> {
         let ip_addr = Ipv4Addr::from(ip);
         let address = SocketAddrV4::new(ip_addr, port);
 
-        let addr_buf = Self::address_to_bytes(&address)?;
+        let addr_buf = address_to_bytes(&address)?;
 
         let id = Blake512Hasher::hash(&addr_buf);
 
@@ -55,40 +91,9 @@ impl TcpNode {
         Ok(node)
     }
 
-    /// `address_to_bytes` converts a SocketAddrV4 to a vector of bytes.
-    pub fn address_to_bytes(address: &SocketAddrV4) -> Result<Vec<u8>> {
-        let mut buf = Vec::new();
-
-        for n in &address.ip().octets() {
-            buf.write_u8(*n)?;
-        }
-
-        buf.write_u16::<BigEndian>(address.port())?;
-
-        Ok(buf)
-    }
-
-    /// `address_from_bytes` returns an address from a slice of bytes.
-    pub fn address_from_bytes(buf: &[u8]) -> Result<SocketAddrV4> {
-        let mut reader = Cursor::new(buf);
-
-        let mut ip = [0u8; 4];
-
-        #[allow(clippy::needless_range_loop)]
-        for i in 0..4 {
-            ip[i] = reader.read_u8()?;
-        }
-
-        let port = reader.read_u16::<BigEndian>()?;
-
-        let ip_addr = Ipv4Addr::from(ip);
-        let address = SocketAddrV4::new(ip_addr, port);
-        Ok(address)
-    }
-
     /// `address_bytes` converts the `TcpNode` address to a vector of bytes.
     pub fn address_bytes(&self) -> Result<Vec<u8>> {
-        Self::address_to_bytes(&self.address)
+        address_to_bytes(&self.address)
     }
 
     /// `calc_id` calculates the `TcpNode` id.
@@ -110,10 +115,10 @@ impl TcpNode {
 
     /// `_send` sends binary data to a `TcpNode`.
     fn _send(&self, address: &[u8], data: &[u8], timeout: Option<u64>) -> Result<()> {
-        let socketaddr = TcpNode::address_from_bytes(address)?;
+        let socketaddr = address_from_bytes(address)?;
         let mut stream = TcpStream::connect(&socketaddr)?;
 
-        let timeout = timeout.map(|t| Duration::new(t, 0));
+        let timeout = timeout.map(Duration::from_secs);
 
         stream.set_write_timeout(timeout)?;
 
@@ -122,14 +127,14 @@ impl TcpNode {
         Ok(())
     }
 
-    /// `_recv` receives a `Message` from a known `ChannelNode`.
+    /// `_recv` receives a `Message` from a known `TcpNode`.
     fn _recv(&mut self, timeout: Option<u64>) -> Result<Message> {
         let listener = TcpListener::bind(&self.address)?;
         let (mut stream, _) = listener.accept()?;
 
         let mut buf = Vec::new();
 
-        let timeout = timeout.map(|t| Duration::new(t, 0));
+        let timeout = timeout.map(Duration::from_secs);
 
         stream.set_read_timeout(timeout)?;
 
@@ -150,7 +155,7 @@ impl TcpNode {
 
             let mut buf = Vec::new();
 
-            let timeout = timeout.map(|t| Duration::new(t, 0));
+            let timeout = timeout.map(Duration::from_secs);
 
             stream.set_read_timeout(timeout)?;
 
@@ -185,4 +190,42 @@ impl Transport for TcpNode {
     ) -> Result<()> {
         self._serve(timeout, handler)
     }
+}
+
+#[test]
+fn test_tcp_node_ops() {
+    use crypto::random::Random;
+    use std::sync::Arc;
+    use std::thread;
+    use std::time::Duration;
+
+    let res = TcpNode::local();
+    assert!(res.is_ok());
+
+    let mut trsp_a = res.unwrap();
+
+    let res = trsp_a.validate();
+    assert!(res.is_ok());
+
+    let trsp_a_id = trsp_a.id;
+    let trsp_a_addr = trsp_a.address.clone();
+
+    let data_len = 1000;
+    let data = Random::bytes(data_len).unwrap();
+    let data_arc = Arc::new(data.clone());
+
+    thread::spawn(move || {
+        trsp_a.serve(None, |msg| {
+            let trsp_a_addr_buf = address_to_bytes(&trsp_a_addr).unwrap();
+            assert_eq!(msg.address, trsp_a_addr_buf);
+            assert_eq!(msg.data, *data_arc);
+
+            Ok(())
+        });
+    });
+
+    thread::sleep(Duration::from_secs(3));
+    let trsp_a_addr_buf = address_to_bytes(&trsp_a_addr).unwrap();
+    let res = trsp_a.send(&trsp_a_addr_buf, &data, None);
+    assert!(res.is_ok());
 }
