@@ -109,7 +109,7 @@ impl ChannelNode {
     }
 
     /// `_send` sends binary data to a known `ChannelNode`.
-    fn _send(&self, address: &[u8], data: &[u8], _timeout: u64) -> Result<()> {
+    fn _send(&self, address: &[u8], data: &[u8], _timeout: Option<u64>) -> Result<()> {
         if address.len() != Self::ADDRESS_LEN as usize {
             let err = Error::InvalidLength;
             return Err(err);
@@ -132,12 +132,12 @@ impl ChannelNode {
 
     /// `_recv` receives a `Message` from a known `ChannelNode`.
     /// No timeouts: https://github.com/rust-lang/rust/issues/39364.
-    fn _recv(&mut self, _timeout: u64) -> Result<Message> {
+    fn _recv(&mut self, _timeout: Option<u64>) -> Result<Message> {
         self.receiver.recv().map_err(|e| e.into())
     }
 
     /// `_serve` handles incoming `Message`s.
-    fn _serve<F>(&mut self, _timeout: u64, mut handler: F) -> Result<()>
+    fn _serve<F>(&mut self, _timeout: Option<u64>, mut handler: F) -> Result<()>
     where
         F: FnMut(Message) -> Result<()>,
     {
@@ -154,15 +154,19 @@ impl Transport for ChannelNode {
         Ok(self.address.clone())
     }
 
-    fn send(&mut self, address: &[u8], data: &[u8], timeout: u64) -> Result<()> {
+    fn send(&mut self, address: &[u8], data: &[u8], timeout: Option<u64>) -> Result<()> {
         self._send(address, data, timeout)
     }
 
-    fn recv(&mut self, timeout: u64) -> Result<Message> {
+    fn recv(&mut self, timeout: Option<u64>) -> Result<Message> {
         self._recv(timeout)
     }
 
-    fn serve<F: FnMut(Message) -> Result<()>>(&mut self, timeout: u64, handler: F) -> Result<()> {
+    fn serve<F: FnMut(Message) -> Result<()>>(
+        &mut self,
+        timeout: Option<u64>,
+        handler: F,
+    ) -> Result<()> {
         self._serve(timeout, handler)
     }
 }
@@ -195,10 +199,10 @@ fn test_channel_node_ops() {
     let data_len = 1000;
     let data = Random::bytes(data_len).unwrap();
 
-    let res = trsp_a.send(&trsp_a_addr, &data);
+    let res = trsp_a.send(&trsp_a_addr, &data, None);
     assert!(res.is_ok());
 
-    let res = trsp_a.recv();
+    let res = trsp_a.recv(None);
     assert!(res.is_ok());
 
     let msg = res.unwrap();
@@ -234,20 +238,20 @@ fn test_channel_node_ops() {
     let res = trsp_a.add_channel(trsp_b_id, &trsp_b_channel);
     assert!(res.is_err());
 
-    let res = trsp_a.send(&trsp_b_addr, &data);
+    let res = trsp_a.send(&trsp_b_addr, &data, None);
     assert!(res.is_ok());
 
-    let res = trsp_b.recv();
+    let res = trsp_b.recv(None);
     assert!(res.is_ok());
 
     let msg = res.unwrap();
     assert_eq!(msg.address, trsp_a_addr);
     assert_eq!(msg.data, data);
 
-    let res = trsp_b.send(&trsp_a_addr, &data);
+    let res = trsp_b.send(&trsp_a_addr, &data, None);
     assert!(res.is_ok());
 
-    let res = trsp_a.recv();
+    let res = trsp_a.recv(None);
     assert!(res.is_ok());
 
     let msg = res.unwrap();
@@ -266,9 +270,9 @@ fn test_channel_node_ops() {
     let found = trsp_a.lookup_channel(&trsp_b_id);
     assert!(!found);
 
-    let res = trsp_b.send(&trsp_a_addr, &data);
+    let res = trsp_b.send(&trsp_a_addr, &data, None);
     assert!(res.is_err());
 
-    let res = trsp_b.send(&trsp_a_addr, &data);
+    let res = trsp_b.send(&trsp_a_addr, &data, None);
     assert!(res.is_err());
 }

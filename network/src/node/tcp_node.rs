@@ -109,15 +109,11 @@ impl TcpNode {
     }
 
     /// `_send` sends binary data to a `TcpNode`.
-    fn _send(&self, address: &[u8], data: &[u8], timeout: u64) -> Result<()> {
+    fn _send(&self, address: &[u8], data: &[u8], timeout: Option<u64>) -> Result<()> {
         let socketaddr = TcpNode::address_from_bytes(address)?;
         let mut stream = TcpStream::connect(&socketaddr)?;
 
-        let timeout = if timeout == 0 {
-            None
-        } else {
-            Some(Duration::new(timeout, 0))
-        };
+        let timeout = timeout.map(|t| Duration::new(t, 0));
 
         stream.set_write_timeout(timeout)?;
 
@@ -127,17 +123,13 @@ impl TcpNode {
     }
 
     /// `_recv` receives a `Message` from a known `ChannelNode`.
-    fn _recv(&mut self, timeout: u64) -> Result<Message> {
+    fn _recv(&mut self, timeout: Option<u64>) -> Result<Message> {
         let listener = TcpListener::bind(&self.address)?;
         let (mut stream, _) = listener.accept()?;
 
         let mut buf = Vec::new();
 
-        let timeout = if timeout == 0 {
-            None
-        } else {
-            Some(Duration::new(timeout, 0))
-        };
+        let timeout = timeout.map(|t| Duration::new(t, 0));
 
         stream.set_read_timeout(timeout)?;
 
@@ -147,7 +139,7 @@ impl TcpNode {
     }
 
     /// `_serve` handles incoming `Message`s.
-    fn _serve<F>(&mut self, timeout: u64, mut handler: F) -> Result<()>
+    fn _serve<F>(&mut self, timeout: Option<u64>, mut handler: F) -> Result<()>
     where
         F: FnMut(Message) -> Result<()>,
     {
@@ -158,11 +150,7 @@ impl TcpNode {
 
             let mut buf = Vec::new();
 
-            let timeout = if timeout == 0 {
-                None
-            } else {
-                Some(Duration::new(timeout, 0))
-            };
+            let timeout = timeout.map(|t| Duration::new(t, 0));
 
             stream.set_read_timeout(timeout)?;
 
@@ -182,15 +170,19 @@ impl Transport for TcpNode {
         self.address_bytes()
     }
 
-    fn send(&mut self, address: &[u8], data: &[u8], timeout: u64) -> Result<()> {
+    fn send(&mut self, address: &[u8], data: &[u8], timeout: Option<u64>) -> Result<()> {
         self._send(address, data, timeout)
     }
 
-    fn recv(&mut self, timeout: u64) -> Result<Message> {
+    fn recv(&mut self, timeout: Option<u64>) -> Result<Message> {
         self._recv(timeout)
     }
 
-    fn serve<F: FnMut(Message) -> Result<()>>(&mut self, timeout: u64, handler: F) -> Result<()> {
+    fn serve<F: FnMut(Message) -> Result<()>>(
+        &mut self,
+        timeout: Option<u64>,
+        handler: F,
+    ) -> Result<()> {
         self._serve(timeout, handler)
     }
 }
