@@ -12,6 +12,7 @@ use std::net::{TcpListener, TcpStream};
 //use std::net::{Incoming, Shutdown};
 use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, SocketAddrV4};
+use std::ops::FnMut;
 
 /// `TcpNode` is a network node using a Tcp transport.
 pub struct TcpNode {
@@ -129,6 +130,15 @@ impl TcpNode {
 
         Message::from_bytes(&buf)
     }
+
+    /// `_serve` handles incoming `Message`s.
+    fn _serve<F>(&mut self, _handler: F) -> Result<()>
+    where
+        F: FnMut(Message) -> Result<()>,
+    {
+        // TODO
+        unreachable!()
+    }
 }
 
 impl Transport for TcpNode {
@@ -142,5 +152,9 @@ impl Transport for TcpNode {
 
     fn recv(&mut self) -> Result<Message> {
         self._recv()
+    }
+
+    fn serve<F: FnMut(Message) -> Result<()>>(&mut self, handler: F) -> Result<()> {
+        self._serve(handler)
     }
 }

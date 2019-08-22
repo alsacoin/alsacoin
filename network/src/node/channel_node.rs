@@ -10,6 +10,7 @@ use crate::traits::Transport;
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use std::collections::BTreeMap;
+use std::ops::FnMut;
 use std::sync::mpsc::{channel, Receiver, Sender};
 
 /// `ChannelNode` is a node using a mpsc Channel as transport. It only communicates to local nodes
@@ -133,6 +134,15 @@ impl ChannelNode {
     fn _recv(&mut self) -> Result<Message> {
         self.receiver.recv().map_err(|e| e.into())
     }
+
+    /// `_serve` handles incoming `Message`s.
+    fn _serve<F>(&mut self, _handler: F) -> Result<()>
+    where
+        F: FnMut(Message) -> Result<()>,
+    {
+        // TODO
+        unreachable!()
+    }
 }
 
 impl Transport for ChannelNode {
@@ -146,6 +156,10 @@ impl Transport for ChannelNode {
 
     fn recv(&mut self) -> Result<Message> {
         self._recv()
+    }
+
+    fn serve<F: FnMut(Message) -> Result<()>>(&mut self, handler: F) -> Result<()> {
+        self._serve(handler)
     }
 }
 

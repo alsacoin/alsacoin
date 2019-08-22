@@ -4,6 +4,7 @@
 
 use crate::message::Message;
 use crate::result::Result;
+use std::ops::FnMut;
 
 /// `Transport` is the trait implemented by `Alsacoin` network transports.
 pub trait Transport {
@@ -15,4 +16,7 @@ pub trait Transport {
 
     /// `recv` receives data from a `Node`.
     fn recv(&mut self) -> Result<Message>;
+
+    /// `serve` execs a given function on incoming `Message`s.
+    fn serve<F: FnMut(Message) -> Result<()>>(&mut self, handler: F) -> Result<()>;
 }
