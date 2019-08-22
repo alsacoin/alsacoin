@@ -147,12 +147,33 @@ impl TcpNode {
     }
 
     /// `_serve` handles incoming `Message`s.
-    fn _serve<F>(&mut self, _timeout: u64, _handler: F) -> Result<()>
+    fn _serve<F>(&mut self, timeout: u64, mut handler: F) -> Result<()>
     where
         F: FnMut(Message) -> Result<()>,
     {
-        // TODO
-        unreachable!()
+        let listener = TcpListener::bind(&self.address)?;
+
+        for stream in listener.incoming() {
+            let mut stream = stream?;
+
+            let mut buf = Vec::new();
+
+            let timeout = if timeout == 0 {
+                None
+            } else {
+                Some(Duration::new(timeout, 0))
+            };
+
+            stream.set_read_timeout(timeout)?;
+
+            stream.read_to_end(&mut buf)?;
+
+            let msg = Message::from_bytes(&buf)?;
+
+            handler(msg)?;
+        }
+
+        Ok(())
     }
 }
 

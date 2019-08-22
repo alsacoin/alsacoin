@@ -137,12 +137,15 @@ impl ChannelNode {
     }
 
     /// `_serve` handles incoming `Message`s.
-    fn _serve<F>(&mut self, _timeout: u64, _handler: F) -> Result<()>
+    fn _serve<F>(&mut self, _timeout: u64, mut handler: F) -> Result<()>
     where
         F: FnMut(Message) -> Result<()>,
     {
-        // TODO
-        unreachable!()
+        for message in self.receiver.try_iter() {
+            handler(message)?;
+        }
+
+        Ok(())
     }
 }
 
