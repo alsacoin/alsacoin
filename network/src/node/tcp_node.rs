@@ -8,8 +8,9 @@ use crate::result::Result;
 use crate::traits::Transport;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use crypto::hash::{Blake512Hasher, Digest};
-//use std::net::{TcpListener, TcpStream, Incoming, Shutdown};
-use std::io::Cursor;
+use std::net::{TcpListener, TcpStream};
+//use std::net::{Incoming, Shutdown};
+use std::io::{Cursor, Read, Write};
 use std::net::{Ipv4Addr, SocketAddrV4};
 
 /// `TcpNode` is a network node using a Tcp transport.
@@ -106,15 +107,27 @@ impl TcpNode {
     }
 
     /// `_send` sends binary data to a `TcpNode`.
-    fn _send(&self, _address: &[u8], _data: &[u8]) -> Result<()> {
-        // TODO
-        unreachable!()
+    fn _send(&self, address: &[u8], data: &[u8]) -> Result<()> {
+        let socketaddr = TcpNode::address_from_bytes(address)?;
+        let mut stream = TcpStream::connect(&socketaddr)?;
+
+        // TODO: set a write timeout
+        stream.write_all(data)?;
+
+        Ok(())
     }
 
     /// `_recv` receives a `Message` from a known `ChannelNode`.
     fn _recv(&mut self) -> Result<Message> {
-        // TODO
-        unreachable!()
+        let listener = TcpListener::bind(&self.address)?;
+        let (mut stream, _) = listener.accept()?;
+
+        let mut buf = Vec::new();
+
+        // TODO: set a read timeout
+        stream.read_to_end(&mut buf)?;
+
+        Message::from_bytes(&buf)
     }
 }
 
