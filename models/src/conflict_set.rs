@@ -7,6 +7,7 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crate::transaction::Transaction;
 use byteorder::{BigEndian, WriteBytesExt};
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
@@ -20,12 +21,104 @@ use store::traits::Store;
 pub struct ConflictSet {
     pub id: u64,
     pub transactions: BTreeSet<Digest>,
-    pub last: Digest,
-    pub preferred: Digest,
+    pub last: Option<Digest>,
+    pub preferred: Option<Digest>,
     pub counter: u64,
 }
 
 impl ConflictSet {
+    /// `new` creates a new `ConflictSet`.
+    pub fn new(id: u64) -> ConflictSet {
+        let mut set = ConflictSet::default();
+        set.id = id;
+        set
+    }
+
+    /// `lookup` looks up a `Transaction` in the transactions set.
+    pub fn lookup(&self, transaction: &Transaction) -> bool {
+        self.transactions.contains(&transaction.id)
+    }
+
+    /// `add` adds a new `Transaction` in the transactions set.
+    pub fn add(&mut self, transaction: &Transaction) {
+        if !self.lookup(transaction) {
+            self.transactions.insert(transaction.id);
+            self.last = Some(transaction.id);
+        }
+    }
+
+    /// `remove` removes a `Transaction` from the transaction set.
+    pub fn remove(&mut self, transaction: &Transaction) -> Result<()> {
+        if !self.lookup(transaction) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transactions.remove(&transaction.id);
+
+        if let Some(last) = self.last {
+            if last == transaction.id {
+                self.last = None;
+            }
+        }
+
+        if let Some(preferred) = self.preferred {
+            if preferred == transaction.id {
+                self.preferred = None;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// `set_last` sets the last transaction in the `ConflictSet`.
+    pub fn set_last(&mut self, transaction: &Transaction) -> Result<()> {
+        if !self.lookup(transaction) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.last = Some(transaction.id);
+
+        Ok(())
+    }
+
+    /// `set_preferred` sets the preferred transaction in the `ConflictSet`.
+    pub fn set_preferred(&mut self, transaction: &Transaction) -> Result<()> {
+        if !self.lookup(transaction) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.preferred = Some(transaction.id);
+
+        Ok(())
+    }
+
+    /// `validate` validates the `ConflictSet`.
+    pub fn validate(&self) -> Result<()> {
+        if let Some(last) = self.last {
+            if !self.transactions.contains(&last) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        if let Some(preferred) = self.preferred {
+            if !self.transactions.contains(&preferred) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        if self.last.is_some() ^ self.preferred.is_some() {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
     /// `to_bytes` converts the `ConflictSet` into a CBOR binary.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         serde_cbor::to_vec(self).map_err(|e| e.into())
