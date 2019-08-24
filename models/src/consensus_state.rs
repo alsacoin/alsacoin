@@ -2,13 +2,10 @@
 //!
 //! `consensus_state` is the type used to manage the state of the Avalanche Consensus algorithm.
 
-use crate::conflict_set::ConflictSet;
 use crate::error::Error;
-use crate::node::Node;
 use crate::result::Result;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
-use crate::transaction::Transaction;
 use byteorder::{BigEndian, WriteBytesExt};
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
@@ -38,104 +35,100 @@ impl ConsensusState {
         set
     }
 
-    /// `lookup_known_transaction` looks up a `Transaction` in the known transactions set of the `ConsensusState`.
-    pub fn lookup_known_transaction(&self, transaction: &Transaction) -> bool {
-        self.known_transactions.contains(&transaction.id)
+    /// `lookup_known_transaction` looks up a `Transaction` id in the known transactions set of the `ConsensusState`.
+    pub fn lookup_known_transaction(&self, tx_id: &Digest) -> bool {
+        self.known_transactions.contains(tx_id)
     }
 
-    /// `add_known_transaction` adds a new `Transaction` in the known transactions set of the `ConsensusState`.
-    pub fn add_known_transaction(&mut self, transaction: &Transaction) -> Result<()> {
-        transaction.validate()?;
-
-        if !self.lookup_known_transaction(transaction) {
-            self.known_transactions.insert(transaction.id);
+    /// `add_known_transaction` adds a new `Transaction` id in the known transactions set of the `ConsensusState`.
+    pub fn add_known_transaction(&mut self, tx_id: &Digest) {
+        if !self.lookup_known_transaction(tx_id) {
+            self.known_transactions.insert(*tx_id);
         }
-
-        Ok(())
     }
 
-    /// `remove_known_transaction` removes a `Transaction` from the known transaction set of the `ConsensusState`.
-    pub fn remove_known_transaction(&mut self, transaction: &Transaction) -> Result<()> {
-        if !self.lookup_known_transaction(transaction) {
+    /// `remove_known_transaction` removes a `Transaction` id from the known transaction set of the `ConsensusState`.
+    pub fn remove_known_transaction(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup_known_transaction(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.known_transactions.remove(&transaction.id);
+        self.known_transactions.remove(tx_id);
 
         Ok(())
     }
 
-    /// `lookup_queried_transaction` looks up a `Transaction` in the queried transactions set of the `ConsensusState`.
-    pub fn lookup_queried_transaction(&self, transaction: &Transaction) -> bool {
-        self.queried_transactions.contains(&transaction.id)
+    /// `lookup_queried_transaction` looks up a `Transaction` id in the queried transactions set of the `ConsensusState`.
+    pub fn lookup_queried_transaction(&self, tx_id: &Digest) -> bool {
+        self.queried_transactions.contains(tx_id)
     }
 
-    /// `add_queried_transaction` adds a new `Transaction` in the queried transactions set of the `ConsensusState`.
-    pub fn add_queried_transaction(&mut self, transaction: &Transaction) -> Result<()> {
-        transaction.validate()?;
-
-        if !self.lookup_known_transaction(transaction) {
+    /// `add_queried_transaction` adds a new `Transaction` id in the queried transactions set of the `ConsensusState`.
+    pub fn add_queried_transaction(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup_known_transaction(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if !self.lookup_queried_transaction(transaction) {
-            self.queried_transactions.insert(transaction.id);
+        if !self.lookup_queried_transaction(tx_id) {
+            self.queried_transactions.insert(*tx_id);
         }
 
         Ok(())
     }
 
-    /// `remove_queried_transaction` removes a `Transaction` from the queried transaction set of the `ConsensusState`.
-    pub fn remove_queried_transaction(&mut self, transaction: &Transaction) -> Result<()> {
-        if !self.lookup_queried_transaction(transaction) {
+    /// `remove_queried_transaction` removes a `Transaction` id from the queried transaction set of the `ConsensusState`.
+    pub fn remove_queried_transaction(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup_queried_transaction(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.queried_transactions.remove(&transaction.id);
+        self.queried_transactions.remove(tx_id);
 
         Ok(())
     }
 
-    /// `lookup_conflict_set` looks up a `ConflictSet` in the queried conflict_sets set of the `ConsensusState`.
-    pub fn lookup_conflict_set(&self, conflict_set: &ConflictSet) -> bool {
-        self.conflict_sets.contains(&conflict_set.id)
+    /// `lookup_conflict_set` looks up a `ConflictSet` id in the queried conflict_sets set of the `ConsensusState`.
+    pub fn lookup_conflict_set(&self, cs_id: u64) -> bool {
+        self.conflict_sets.contains(&cs_id)
     }
 
-    /// `add_conflict_set` adds a new `ConflictSet` in the queried conflict_sets set of the `ConsensusState`.
-    pub fn add_conflict_set(&mut self, conflict_set: &ConflictSet) -> Result<()> {
-        conflict_set.validate()?;
-
-        if !self.lookup_conflict_set(conflict_set) {
-            self.conflict_sets.insert(conflict_set.id);
+    /// `add_conflict_set` adds a new `ConflictSet` id in the queried conflict_sets set of the `ConsensusState`.
+    pub fn add_conflict_set(&mut self, cs_id: u64) {
+        if !self.lookup_conflict_set(cs_id) {
+            self.conflict_sets.insert(cs_id);
         }
-
-        Ok(())
     }
 
-    /// `remove_conflict_set` removes a `ConflictSet` from the queried conflict_set set of the `ConsensusState`.
-    pub fn remove_conflict_set(&mut self, conflict_set: &ConflictSet) -> Result<()> {
-        if !self.lookup_conflict_set(conflict_set) {
+    /// `remove_conflict_set` removes a `ConflictSet` id from the queried conflict_set set of the `ConsensusState`.
+    pub fn remove_conflict_set(&mut self, cs_id: u64) -> Result<()> {
+        if !self.lookup_conflict_set(cs_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.conflict_sets.remove(&conflict_set.id);
+        self.conflict_sets.remove(&cs_id);
 
         Ok(())
+    }
+
+    /// `lookup_transaction_conflict_set` looks up a `Transaction` id in the transaction
+    /// conflict set of the `ConsensusState`.
+    pub fn lookup_transaction_conflict_set(&self, tx_id: &Digest) -> bool {
+        self.transaction_conflict_set.contains_key(&tx_id)
     }
 
     /// `set_transaction_conflict_set` sets a known `Transaction` conflict set id in
     /// the `ConsensusState`.
     pub fn set_transaction_conflict_set(&mut self, tx_id: &Digest, cs_id: u64) -> Result<()> {
-        if !self.known_transactions.contains(&tx_id) {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if !self.conflict_sets.contains(&cs_id) {
+        if !self.lookup_conflict_set(cs_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -148,12 +141,12 @@ impl ConsensusState {
     /// `remove_transaction_conflict_set` removes a known `Transaction` conflict set id in
     /// the `ConsensusState`.
     pub fn remove_transaction_conflict_set(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.known_transactions.contains(&tx_id) {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if !self.transaction_conflict_set.contains_key(&tx_id) {
+        if !self.lookup_transaction_conflict_set(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -163,10 +156,16 @@ impl ConsensusState {
         Ok(())
     }
 
+    /// `lookup_transaction_chit` looks up a `Transaction` id in the transaction
+    /// conflict set of the `ConsensusState`.
+    pub fn lookup_transaction_chit(&self, tx_id: &Digest) -> bool {
+        self.transaction_chit.contains_key(&tx_id)
+    }
+
     /// `set_transaction_chit` sets a known `Transaction` chit in
     /// the `ConsensusState`.
     pub fn set_transaction_chit(&mut self, tx_id: &Digest, chit: u64) -> Result<()> {
-        if !self.known_transactions.contains(&tx_id) {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -179,12 +178,12 @@ impl ConsensusState {
     /// `remove_transaction_chit` removes a known `Transaction` chit in
     /// the `ConsensusState`.
     pub fn remove_transaction_chit(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.known_transactions.contains(&tx_id) {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if !self.transaction_chit.contains_key(&tx_id) {
+        if !self.lookup_transaction_chit(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -194,10 +193,16 @@ impl ConsensusState {
         Ok(())
     }
 
+    /// `lookup_transaction_confidence` looks up a `Transaction` id in the transaction
+    /// conflict set of the `ConsensusState`.
+    pub fn lookup_transaction_confidence(&self, tx_id: &Digest) -> bool {
+        self.transaction_confidence.contains_key(&tx_id)
+    }
+
     /// `set_transaction_confidence` sets a known `Transaction` confidence in
     /// the `ConsensusState`.
     pub fn set_transaction_confidence(&mut self, tx_id: &Digest, confidence: u64) -> Result<()> {
-        if !self.known_transactions.contains(&tx_id) {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -210,12 +215,12 @@ impl ConsensusState {
     /// `remove_transaction_confidence` removes a known `Transaction` confidence in
     /// the `ConsensusState`.
     pub fn remove_transaction_confidence(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.known_transactions.contains(&tx_id) {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if !self.transaction_confidence.contains_key(&tx_id) {
+        if !self.lookup_transaction_confidence(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -225,26 +230,26 @@ impl ConsensusState {
         Ok(())
     }
 
-    /// `lookup_known_node` looks up a `Node` in the known nodes set of the `ConsensusState`.
-    pub fn lookup_known_node(&self, node: &Node) -> bool {
-        self.known_nodes.contains(&node.id)
+    /// `lookup_known_node` looks up a `Node` id in the known nodes set of the `ConsensusState`.
+    pub fn lookup_known_node(&self, node_id: &Digest) -> bool {
+        self.known_nodes.contains(node_id)
     }
 
-    /// `add_known_node` adds a new `Node` in the known nodes set of the `ConsensusState`.
-    pub fn add_known_node(&mut self, node: &Node) {
-        if !self.lookup_known_node(node) {
-            self.known_nodes.insert(node.id);
+    /// `add_known_node` adds a new `Node` id address in the known nodes set of the `ConsensusState`.
+    pub fn add_known_node(&mut self, node_id: &Digest) {
+        if !self.lookup_known_node(node_id) {
+            self.known_nodes.insert(*node_id);
         }
     }
 
     /// `remove_known_node` removes a `Node` from the known node set of the `ConsensusState`.
-    pub fn remove_known_node(&mut self, node: &Node) -> Result<()> {
-        if !self.lookup_known_node(node) {
+    pub fn remove_known_node(&mut self, node_id: &Digest) -> Result<()> {
+        if !self.lookup_known_node(node_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.known_nodes.remove(&node.id);
+        self.known_nodes.remove(node_id);
 
         Ok(())
     }
@@ -252,33 +257,33 @@ impl ConsensusState {
     /// `validate` validates the `ConsensusState`.
     pub fn validate(&self) -> Result<()> {
         for id in &self.queried_transactions {
-            if !self.known_transactions.contains(&id) {
+            if !self.lookup_known_transaction(&id) {
                 let err = Error::NotFound;
                 return Err(err);
             }
         }
 
         for (tx_id, cs_id) in &self.transaction_conflict_set {
-            if !self.known_transactions.contains(&tx_id) {
+            if !self.lookup_known_transaction(&tx_id) {
                 let err = Error::NotFound;
                 return Err(err);
             }
 
-            if !self.conflict_sets.contains(&cs_id) {
+            if !self.lookup_conflict_set(*cs_id) {
                 let err = Error::NotFound;
                 return Err(err);
             }
         }
 
         for id in self.transaction_chit.keys() {
-            if !self.known_transactions.contains(&id) {
+            if !self.lookup_known_transaction(&id) {
                 let err = Error::NotFound;
                 return Err(err);
             }
         }
 
         for id in self.transaction_confidence.keys() {
-            if !self.known_transactions.contains(&id) {
+            if !self.lookup_known_transaction(&id) {
                 let err = Error::NotFound;
                 return Err(err);
             }

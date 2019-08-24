@@ -7,7 +7,6 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
-use crate::transaction::Transaction;
 use byteorder::{BigEndian, WriteBytesExt};
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
@@ -34,40 +33,36 @@ impl ConflictSet {
         set
     }
 
-    /// `lookup` looks up a `Transaction` in the transactions set of the `ConflictSet`.
-    pub fn lookup(&self, transaction: &Transaction) -> bool {
-        self.transactions.contains(&transaction.id)
+    /// `lookup` looks up a `Transaction` id in the transactions set of the `ConflictSet`.
+    pub fn lookup(&self, tx_id: &Digest) -> bool {
+        self.transactions.contains(tx_id)
     }
 
-    /// `add` adds a new `Transaction` in the transactions set of the `ConflictSet`.
-    pub fn add(&mut self, transaction: &Transaction) -> Result<()> {
-        transaction.validate()?;
-
-        if !self.lookup(transaction) {
-            self.transactions.insert(transaction.id);
-            self.last = Some(transaction.id);
+    /// `add` adds a new `Transaction` id in the transactions set of the `ConflictSet`.
+    pub fn add(&mut self, tx_id: &Digest) {
+        if !self.lookup(tx_id) {
+            self.transactions.insert(*tx_id);
+            self.last = Some(*tx_id);
         }
-
-        Ok(())
     }
 
     /// `remove` removes a `Transaction` from the transaction set of the `ConflictSet`.
-    pub fn remove(&mut self, transaction: &Transaction) -> Result<()> {
-        if !self.lookup(transaction) {
+    pub fn remove(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.transactions.remove(&transaction.id);
+        self.transactions.remove(tx_id);
 
-        if let Some(last) = self.last {
-            if last == transaction.id {
+        if let Some(ref last) = self.last {
+            if last == tx_id {
                 self.last = None;
             }
         }
 
-        if let Some(preferred) = self.preferred {
-            if preferred == transaction.id {
+        if let Some(ref preferred) = self.preferred {
+            if preferred == tx_id {
                 self.preferred = None;
             }
         }
@@ -76,25 +71,25 @@ impl ConflictSet {
     }
 
     /// `set_last` sets the last transaction in the `ConflictSet`.
-    pub fn set_last(&mut self, transaction: &Transaction) -> Result<()> {
-        if !self.lookup(transaction) {
+    pub fn set_last(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.last = Some(transaction.id);
+        self.last = Some(*tx_id);
 
         Ok(())
     }
 
     /// `set_preferred` sets the preferred transaction in the `ConflictSet`.
-    pub fn set_preferred(&mut self, transaction: &Transaction) -> Result<()> {
-        if !self.lookup(transaction) {
+    pub fn set_preferred(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.preferred = Some(transaction.id);
+        self.preferred = Some(*tx_id);
 
         Ok(())
     }
@@ -102,14 +97,14 @@ impl ConflictSet {
     /// `validate` validates the `ConflictSet`.
     pub fn validate(&self) -> Result<()> {
         if let Some(last) = self.last {
-            if !self.transactions.contains(&last) {
+            if !self.lookup(&last) {
                 let err = Error::NotFound;
                 return Err(err);
             }
         }
 
         if let Some(preferred) = self.preferred {
-            if !self.transactions.contains(&preferred) {
+            if !self.lookup(&preferred) {
                 let err = Error::NotFound;
                 return Err(err);
             }
