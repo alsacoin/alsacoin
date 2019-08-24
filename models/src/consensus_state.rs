@@ -44,10 +44,14 @@ impl ConsensusState {
     }
 
     /// `add_known_transaction` adds a new `Transaction` in the known transactions set of the `ConsensusState`.
-    pub fn add_known_transaction(&mut self, transaction: &Transaction) {
+    pub fn add_known_transaction(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
         if !self.lookup_known_transaction(transaction) {
             self.known_transactions.insert(transaction.id);
         }
+
+        Ok(())
     }
 
     /// `remove_known_transaction` removes a `Transaction` from the known transaction set of the `ConsensusState`.
@@ -68,10 +72,19 @@ impl ConsensusState {
     }
 
     /// `add_queried_transaction` adds a new `Transaction` in the queried transactions set of the `ConsensusState`.
-    pub fn add_queried_transaction(&mut self, transaction: &Transaction) {
+    pub fn add_queried_transaction(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
+        if !self.lookup_known_transaction(transaction) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
         if !self.lookup_queried_transaction(transaction) {
             self.queried_transactions.insert(transaction.id);
         }
+
+        Ok(())
     }
 
     /// `remove_queried_transaction` removes a `Transaction` from the queried transaction set of the `ConsensusState`.
@@ -92,10 +105,14 @@ impl ConsensusState {
     }
 
     /// `add_conflict_set` adds a new `ConflictSet` in the queried conflict_sets set of the `ConsensusState`.
-    pub fn add_conflict_set(&mut self, conflict_set: &ConflictSet) {
+    pub fn add_conflict_set(&mut self, conflict_set: &ConflictSet) -> Result<()> {
+        conflict_set.validate()?;
+
         if !self.lookup_conflict_set(conflict_set) {
             self.conflict_sets.insert(conflict_set.id);
         }
+
+        Ok(())
     }
 
     /// `remove_conflict_set` removes a `ConflictSet` from the queried conflict_set set of the `ConsensusState`.

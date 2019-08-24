@@ -40,11 +40,15 @@ impl ConflictSet {
     }
 
     /// `add` adds a new `Transaction` in the transactions set of the `ConflictSet`.
-    pub fn add(&mut self, transaction: &Transaction) {
+    pub fn add(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
         if !self.lookup(transaction) {
             self.transactions.insert(transaction.id);
             self.last = Some(transaction.id);
         }
+
+        Ok(())
     }
 
     /// `remove` removes a `Transaction` from the transaction set of the `ConflictSet`.
