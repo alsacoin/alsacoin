@@ -8,11 +8,14 @@ use mining;
 use regex;
 use serde_cbor;
 use serde_json;
+use std::io;
 use std::num;
 use store;
 
 #[derive(Debug, Fail)]
 pub enum Error {
+    #[fail(display = "IO: {}", msg)]
+    IO { msg: String },
     #[fail(display = "Chrono: {}", msg)]
     Chrono { msg: String },
     #[fail(display = "Regex: {}", msg)]
@@ -63,6 +66,13 @@ pub enum Error {
     InvalidCoinbase,
     #[fail(display = "Invalid threshold")]
     InvalidThreshold,
+}
+
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Error {
+        let msg = format!("{}", error);
+        Error::IO { msg }
+    }
 }
 
 impl From<chrono::ParseError> for Error {

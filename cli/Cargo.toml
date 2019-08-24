@@ -26,5 +26,6 @@ crypto = { path = "../crypto" }
 mining = { path = "../mining" }
 store = { path = "../store" }
 models = { path = "../models" }
+network = { path = "../network" }
 consensus = { path = "../consensus" }
 config = { path = "../config" }

@@ -26,4 +26,3 @@ crypto = { path = "../crypto" }
 mining = { path = "../mining" }
 store = { path = "../store" }
 models = { path = "../models" }
-consensus = { path = "../consensus" }
