@@ -127,6 +127,104 @@ impl ConsensusState {
         Ok(())
     }
 
+    /// `set_transaction_conflict_set` sets a known `Transaction` conflict set id in
+    /// the `ConsensusState`.
+    pub fn set_transaction_conflict_set(&mut self, tx_id: &Digest, cs_id: u64) -> Result<()> {
+        if !self.known_transactions.contains(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if !self.conflict_sets.contains(&cs_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transaction_conflict_set.insert(*tx_id, cs_id);
+
+        Ok(())
+    }
+
+    /// `remove_transaction_conflict_set` removes a known `Transaction` conflict set id in
+    /// the `ConsensusState`.
+    pub fn remove_transaction_conflict_set(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.known_transactions.contains(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if !self.transaction_conflict_set.contains_key(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transaction_conflict_set.remove(tx_id);
+
+        Ok(())
+    }
+
+    /// `set_transaction_chit` sets a known `Transaction` chit in
+    /// the `ConsensusState`.
+    pub fn set_transaction_chit(&mut self, tx_id: &Digest, chit: u64) -> Result<()> {
+        if !self.known_transactions.contains(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transaction_chit.insert(*tx_id, chit);
+
+        Ok(())
+    }
+
+    /// `remove_transaction_chit` removes a known `Transaction` chit in
+    /// the `ConsensusState`.
+    pub fn remove_transaction_chit(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.known_transactions.contains(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if !self.transaction_chit.contains_key(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transaction_chit.remove(tx_id);
+
+        Ok(())
+    }
+
+    /// `set_transaction_confidence` sets a known `Transaction` confidence in
+    /// the `ConsensusState`.
+    pub fn set_transaction_confidence(&mut self, tx_id: &Digest, confidence: u64) -> Result<()> {
+        if !self.known_transactions.contains(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transaction_confidence.insert(*tx_id, confidence);
+
+        Ok(())
+    }
+
+    /// `remove_transaction_confidence` removes a known `Transaction` confidence in
+    /// the `ConsensusState`.
+    pub fn remove_transaction_confidence(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.known_transactions.contains(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if !self.transaction_confidence.contains_key(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.transaction_confidence.remove(tx_id);
+
+        Ok(())
+    }
+
     /// `lookup_known_node` looks up a `Node` in the known nodes set of the `ConsensusState`.
     pub fn lookup_known_node(&self, node: &Node) -> bool {
         self.known_nodes.contains(&node.id)
@@ -147,6 +245,44 @@ impl ConsensusState {
         }
 
         self.known_nodes.remove(&node.id);
+
+        Ok(())
+    }
+
+    /// `validate` validates the `ConsensusState`.
+    pub fn validate(&self) -> Result<()> {
+        for id in &self.queried_transactions {
+            if !self.known_transactions.contains(&id) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        for (tx_id, cs_id) in &self.transaction_conflict_set {
+            if !self.known_transactions.contains(&tx_id) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+
+            if !self.conflict_sets.contains(&cs_id) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        for id in self.transaction_chit.keys() {
+            if !self.known_transactions.contains(&id) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        for id in self.transaction_confidence.keys() {
+            if !self.known_transactions.contains(&id) {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
 
         Ok(())
     }
