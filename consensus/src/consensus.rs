@@ -7,9 +7,9 @@ use network::traits::Transport;
 use store::traits::Store;
 
 /// `Consensus` is the type encapsulating the Avalanche Consensus algorithm.
-pub struct Consensus<S: Store, P: Store, N: Transport> {
+pub struct Consensus<S: Store, P: Store, T: Transport> {
     _state: ConsensusState,
     _store: S,
     _pool: P,
-    _network: N,
+    _transport: T,
 }
