@@ -4,9 +4,11 @@
 
 use crate::conflict_set::ConflictSet;
 use crate::error::Error;
+use crate::node::Node;
 use crate::result::Result;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crate::transaction::Transaction;
 use byteorder::{BigEndian, WriteBytesExt};
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
@@ -21,14 +23,117 @@ pub struct ConsensusState {
     pub id: u64,
     pub known_transactions: BTreeSet<Digest>,
     pub queried_transactions: BTreeSet<Digest>,
-    pub conflict_sets: BTreeMap<u64, ConflictSet>,
+    pub conflict_sets: BTreeSet<u64>,
     pub transaction_conflict_set: BTreeMap<Digest, u64>,
     pub transaction_chit: BTreeMap<Digest, u64>,
     pub transaction_confidence: BTreeMap<Digest, u64>,
-    pub known_nodes: BTreeSet<Vec<u8>>,
+    pub known_nodes: BTreeSet<Digest>,
 }
 
 impl ConsensusState {
+    /// `new` creates a new `ConsensusState`.
+    pub fn new(id: u64) -> ConsensusState {
+        let mut set = ConsensusState::default();
+        set.id = id;
+        set
+    }
+
+    /// `lookup_known_transaction` looks up a `Transaction` in the known transactions set of the `ConsensusState`.
+    pub fn lookup_known_transaction(&self, transaction: &Transaction) -> bool {
+        self.known_transactions.contains(&transaction.id)
+    }
+
+    /// `add_known_transaction` adds a new `Transaction` in the known transactions set of the `ConsensusState`.
+    pub fn add_known_transaction(&mut self, transaction: &Transaction) {
+        if !self.lookup_known_transaction(transaction) {
+            self.known_transactions.insert(transaction.id);
+        }
+    }
+
+    /// `remove_known_transaction` removes a `Transaction` from the known transaction set of the `ConsensusState`.
+    pub fn remove_known_transaction(&mut self, transaction: &Transaction) -> Result<()> {
+        if !self.lookup_known_transaction(transaction) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.known_transactions.remove(&transaction.id);
+
+        Ok(())
+    }
+
+    /// `lookup_queried_transaction` looks up a `Transaction` in the queried transactions set of the `ConsensusState`.
+    pub fn lookup_queried_transaction(&self, transaction: &Transaction) -> bool {
+        self.queried_transactions.contains(&transaction.id)
+    }
+
+    /// `add_queried_transaction` adds a new `Transaction` in the queried transactions set of the `ConsensusState`.
+    pub fn add_queried_transaction(&mut self, transaction: &Transaction) {
+        if !self.lookup_queried_transaction(transaction) {
+            self.queried_transactions.insert(transaction.id);
+        }
+    }
+
+    /// `remove_queried_transaction` removes a `Transaction` from the queried transaction set of the `ConsensusState`.
+    pub fn remove_queried_transaction(&mut self, transaction: &Transaction) -> Result<()> {
+        if !self.lookup_queried_transaction(transaction) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.queried_transactions.remove(&transaction.id);
+
+        Ok(())
+    }
+
+    /// `lookup_conflict_set` looks up a `ConflictSet` in the queried conflict_sets set of the `ConsensusState`.
+    pub fn lookup_conflict_set(&self, conflict_set: &ConflictSet) -> bool {
+        self.conflict_sets.contains(&conflict_set.id)
+    }
+
+    /// `add_conflict_set` adds a new `ConflictSet` in the queried conflict_sets set of the `ConsensusState`.
+    pub fn add_conflict_set(&mut self, conflict_set: &ConflictSet) {
+        if !self.lookup_conflict_set(conflict_set) {
+            self.conflict_sets.insert(conflict_set.id);
+        }
+    }
+
+    /// `remove_conflict_set` removes a `ConflictSet` from the queried conflict_set set of the `ConsensusState`.
+    pub fn remove_conflict_set(&mut self, conflict_set: &ConflictSet) -> Result<()> {
+        if !self.lookup_conflict_set(conflict_set) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.conflict_sets.remove(&conflict_set.id);
+
+        Ok(())
+    }
+
+    /// `lookup_known_node` looks up a `Node` in the known nodes set of the `ConsensusState`.
+    pub fn lookup_known_node(&self, node: &Node) -> bool {
+        self.known_nodes.contains(&node.id)
+    }
+
+    /// `add_known_node` adds a new `Node` in the known nodes set of the `ConsensusState`.
+    pub fn add_known_node(&mut self, node: &Node) {
+        if !self.lookup_known_node(node) {
+            self.known_nodes.insert(node.id);
+        }
+    }
+
+    /// `remove_known_node` removes a `Node` from the known node set of the `ConsensusState`.
+    pub fn remove_known_node(&mut self, node: &Node) -> Result<()> {
+        if !self.lookup_known_node(node) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.known_nodes.remove(&node.id);
+
+        Ok(())
+    }
+
     /// `to_bytes` converts the `ConsensusState` into a CBOR binary.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         serde_cbor::to_vec(self).map_err(|e| e.into())

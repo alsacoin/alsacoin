@@ -34,12 +34,12 @@ impl ConflictSet {
         set
     }
 
-    /// `lookup` looks up a `Transaction` in the transactions set.
+    /// `lookup` looks up a `Transaction` in the transactions set of the `ConflictSet`.
     pub fn lookup(&self, transaction: &Transaction) -> bool {
         self.transactions.contains(&transaction.id)
     }
 
-    /// `add` adds a new `Transaction` in the transactions set.
+    /// `add` adds a new `Transaction` in the transactions set of the `ConflictSet`.
     pub fn add(&mut self, transaction: &Transaction) {
         if !self.lookup(transaction) {
             self.transactions.insert(transaction.id);
@@ -47,7 +47,7 @@ impl ConflictSet {
         }
     }
 
-    /// `remove` removes a `Transaction` from the transaction set.
+    /// `remove` removes a `Transaction` from the transaction set of the `ConflictSet`.
     pub fn remove(&mut self, transaction: &Transaction) -> Result<()> {
         if !self.lookup(transaction) {
             let err = Error::NotFound;
