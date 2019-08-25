@@ -41,9 +41,8 @@ impl ConflictSet {
     /// `add` adds a new `Transaction` id in the transactions set of the `ConflictSet`.
     pub fn add(&mut self, tx_id: Digest) {
         if !self.lookup(&tx_id) {
-            
             self.transactions.insert(tx_id);
-            
+
             self.last = Some(tx_id);
 
             if self.preferred.is_none() {
@@ -340,7 +339,7 @@ fn test_conflict_set_ops() {
     assert!(res.is_err());
 
     conflict_set.add(tx_id_1);
-    
+
     let tx_id_2 = Digest::random().unwrap();
 
     conflict_set.add(tx_id_2);
