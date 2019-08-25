@@ -153,7 +153,7 @@ impl ConflictSet {
 }
 
 impl<S: Store> Storable<S> for ConflictSet {
-    const KEY_PREFIX: u8 = 4;
+    const KEY_PREFIX: u8 = 5;
 
     type Key = u64;
 

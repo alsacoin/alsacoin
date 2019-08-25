@@ -325,7 +325,7 @@ impl ConsensusState {
 }
 
 impl<S: Store> Storable<S> for ConsensusState {
-    const KEY_PREFIX: u8 = 5;
+    const KEY_PREFIX: u8 = 6;
 
     type Key = u64;
 
