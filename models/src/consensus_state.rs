@@ -41,9 +41,9 @@ impl ConsensusState {
     }
 
     /// `add_known_transaction` adds a new `Transaction` id in the known transactions set of the `ConsensusState`.
-    pub fn add_known_transaction(&mut self, tx_id: &Digest) {
-        if !self.lookup_known_transaction(tx_id) {
-            self.known_transactions.insert(*tx_id);
+    pub fn add_known_transaction(&mut self, tx_id: Digest) {
+        if !self.lookup_known_transaction(&tx_id) {
+            self.known_transactions.insert(tx_id);
         }
     }
 
@@ -65,14 +65,14 @@ impl ConsensusState {
     }
 
     /// `add_queried_transaction` adds a new `Transaction` id in the queried transactions set of the `ConsensusState`.
-    pub fn add_queried_transaction(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.lookup_known_transaction(tx_id) {
+    pub fn add_queried_transaction(&mut self, tx_id: Digest) -> Result<()> {
+        if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if !self.lookup_queried_transaction(tx_id) {
-            self.queried_transactions.insert(*tx_id);
+        if !self.lookup_queried_transaction(&tx_id) {
+            self.queried_transactions.insert(tx_id);
         }
 
         Ok(())
@@ -120,9 +120,14 @@ impl ConsensusState {
         self.transaction_conflict_set.contains_key(&tx_id)
     }
 
-    /// `set_transaction_conflict_set` sets a known `Transaction` conflict set id in
+    /// `get_transaction_conflict_set` gets the conflict_set of a `Transaction`.
+    pub fn get_transaction_conflict_set(&self, tx_id: &Digest) -> Option<u64> {
+        self.transaction_conflict_set.get(tx_id).copied()
+    }
+
+    /// `add_transaction_conflict_set` adds a known `Transaction` conflict set id in
     /// the `ConsensusState`.
-    pub fn set_transaction_conflict_set(&mut self, tx_id: &Digest, cs_id: u64) -> Result<()> {
+    pub fn add_transaction_conflict_set(&mut self, tx_id: Digest, cs_id: u64) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
@@ -133,7 +138,7 @@ impl ConsensusState {
             return Err(err);
         }
 
-        self.transaction_conflict_set.insert(*tx_id, cs_id);
+        self.transaction_conflict_set.insert(tx_id, cs_id);
 
         Ok(())
     }
@@ -162,15 +167,20 @@ impl ConsensusState {
         self.transaction_chit.contains_key(&tx_id)
     }
 
-    /// `set_transaction_chit` sets a known `Transaction` chit in
+    /// `get_transaction_chit` gets the chit of a `Transaction`.
+    pub fn get_transaction_chit(&self, tx_id: &Digest) -> Option<u64> {
+        self.transaction_chit.get(tx_id).copied()
+    }
+
+    /// `add_transaction_chit` adds a known `Transaction` chit in
     /// the `ConsensusState`.
-    pub fn set_transaction_chit(&mut self, tx_id: &Digest, chit: u64) -> Result<()> {
+    pub fn add_transaction_chit(&mut self, tx_id: Digest, chit: u64) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.transaction_chit.insert(*tx_id, chit);
+        self.transaction_chit.insert(tx_id, chit);
 
         Ok(())
     }
@@ -199,15 +209,20 @@ impl ConsensusState {
         self.transaction_confidence.contains_key(&tx_id)
     }
 
-    /// `set_transaction_confidence` sets a known `Transaction` confidence in
+    /// `get_transaction_confidence` gets the confidence of a `Transaction`.
+    pub fn get_transaction_confidence(&self, tx_id: &Digest) -> Option<u64> {
+        self.transaction_confidence.get(tx_id).copied()
+    }
+
+    /// `add_transaction_confidence` adds a known `Transaction` confidence in
     /// the `ConsensusState`.
-    pub fn set_transaction_confidence(&mut self, tx_id: &Digest, confidence: u64) -> Result<()> {
+    pub fn add_transaction_confidence(&mut self, tx_id: Digest, confidence: u64) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.transaction_confidence.insert(*tx_id, confidence);
+        self.transaction_confidence.insert(tx_id, confidence);
 
         Ok(())
     }
@@ -236,9 +251,9 @@ impl ConsensusState {
     }
 
     /// `add_known_node` adds a new `Node` id address in the known nodes set of the `ConsensusState`.
-    pub fn add_known_node(&mut self, node_id: &Digest) {
-        if !self.lookup_known_node(node_id) {
-            self.known_nodes.insert(*node_id);
+    pub fn add_known_node(&mut self, node_id: Digest) {
+        if !self.lookup_known_node(&node_id) {
+            self.known_nodes.insert(node_id);
         }
     }
 
@@ -470,6 +485,300 @@ impl<S: Store> Storable<S> for ConsensusState {
         let to = to.as_ref().map(|to| to.as_slice());
         store.remove_range(from, to, None).map_err(|e| e.into())
     }
+}
+
+#[test]
+fn test_consensus_state_known_transactions_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let tx_id = Digest::random().unwrap();
+
+    let found = state.lookup_known_transaction(&tx_id);
+    assert!(!found);
+
+    let res = state.remove_known_transaction(&tx_id);
+    assert!(res.is_err());
+
+    state.add_known_transaction(tx_id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_known_transaction(&tx_id);
+    assert!(found);
+
+    let res = state.remove_known_transaction(&tx_id);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.known_transactions.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_consensus_state_queried_transactions_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let tx_id_1 = Digest::random().unwrap();
+    let tx_id_2 = Digest::random().unwrap();
+
+    state.add_known_transaction(tx_id_1);
+
+    let found = state.lookup_queried_transaction(&tx_id_2);
+    assert!(!found);
+
+    let res = state.remove_queried_transaction(&tx_id_2);
+    assert!(res.is_err());
+
+    let res = state.add_queried_transaction(tx_id_2);
+    assert!(res.is_err());
+
+    let found = state.lookup_queried_transaction(&tx_id_1);
+    assert!(!found);
+
+    let res = state.remove_queried_transaction(&tx_id_1);
+    assert!(res.is_err());
+
+    let res = state.add_queried_transaction(tx_id_1);
+    assert!(res.is_ok());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_queried_transaction(&tx_id_1);
+    assert!(found);
+
+    let res = state.remove_queried_transaction(&tx_id_1);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.queried_transactions.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_consensus_state_conflict_sets_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let cs_id = Random::u64().unwrap();
+
+    let found = state.lookup_conflict_set(cs_id);
+    assert!(!found);
+
+    let res = state.remove_conflict_set(cs_id);
+    assert!(res.is_err());
+
+    state.add_conflict_set(cs_id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_conflict_set(cs_id);
+    assert!(found);
+
+    let res = state.remove_conflict_set(cs_id);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.conflict_sets.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_consensus_state_transaction_conflict_add_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let tx_id = Digest::random().unwrap();
+    let tx_cs_id = Random::u64().unwrap();
+
+    state.add_known_transaction(tx_id);
+
+    let found = state.lookup_transaction_conflict_set(&tx_id);
+    assert!(!found);
+
+    let res = state.remove_transaction_conflict_set(&tx_id);
+    assert!(res.is_err());
+
+    let res = state.add_transaction_conflict_set(tx_id, tx_cs_id);
+    assert!(res.is_err());
+
+    state.add_conflict_set(tx_cs_id);
+
+    let res = state.add_transaction_conflict_set(tx_id, tx_cs_id);
+    assert!(res.is_ok());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_transaction_conflict_set(&tx_id);
+    assert!(found);
+
+    let opt = state.get_transaction_conflict_set(&tx_id);
+    assert!(opt.is_some());
+    assert_eq!(opt.unwrap(), tx_cs_id);
+
+    let res = state.remove_transaction_conflict_set(&tx_id);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.transaction_conflict_set.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_consensus_state_transaction_chit_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let tx_id = Digest::random().unwrap();
+    let tx_chit = Random::u64().unwrap();
+
+    state.add_known_transaction(tx_id);
+
+    let found = state.lookup_transaction_chit(&tx_id);
+    assert!(!found);
+
+    let res = state.remove_transaction_chit(&tx_id);
+    assert!(res.is_err());
+
+    let res = state.add_transaction_chit(tx_id, tx_chit);
+    assert!(res.is_ok());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_transaction_chit(&tx_id);
+    assert!(found);
+
+    let opt = state.get_transaction_chit(&tx_id);
+    assert!(opt.is_some());
+    assert_eq!(opt.unwrap(), tx_chit);
+
+    let res = state.remove_transaction_chit(&tx_id);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.transaction_chit.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_consensus_state_transaction_confidence_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let tx_id = Digest::random().unwrap();
+    let tx_confidence = Random::u64().unwrap();
+
+    state.add_known_transaction(tx_id);
+
+    let found = state.lookup_transaction_confidence(&tx_id);
+    assert!(!found);
+
+    let res = state.remove_transaction_confidence(&tx_id);
+    assert!(res.is_err());
+
+    let res = state.add_transaction_confidence(tx_id, tx_confidence);
+    assert!(res.is_ok());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_transaction_confidence(&tx_id);
+    assert!(found);
+
+    let opt = state.get_transaction_confidence(&tx_id);
+    assert!(opt.is_some());
+    assert_eq!(opt.unwrap(), tx_confidence);
+
+    let res = state.remove_transaction_confidence(&tx_id);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.transaction_confidence.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
+}
+
+#[test]
+fn test_consensus_state_known_nodes_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut state = ConsensusState::new(id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let node_id = Digest::random().unwrap();
+
+    let found = state.lookup_known_node(&node_id);
+    assert!(!found);
+
+    let res = state.remove_known_node(&node_id);
+    assert!(res.is_err());
+
+    state.add_known_node(node_id);
+
+    let res = state.validate();
+    assert!(res.is_ok());
+
+    let found = state.lookup_known_node(&node_id);
+    assert!(found);
+
+    let res = state.remove_known_node(&node_id);
+    assert!(res.is_ok());
+
+    state.clear();
+    assert!(state.known_nodes.is_empty());
+
+    let res = state.validate();
+    assert!(res.is_ok());
 }
 
 #[test]
