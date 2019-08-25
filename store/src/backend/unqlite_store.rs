@@ -6,8 +6,9 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::traits::{MemoryStore, PersistentStore, Store, TemporaryStore};
 use unqlite::Cursor as StoreCursor;
-use unqlite::{Config, Direction, UnQLite, KV};
+use unqlite::{Config, UnQLite, KV};
 
+/// `UnQLiteStore` is an implementor of `Store` built on a `UnQLite`.
 pub struct UnQLiteStore {
     db: UnQLite,
     keys_size: u32,
@@ -91,7 +92,7 @@ impl UnQLiteStore {
     }
 
     fn _count_complete(&self, from: &[u8], to: &[u8], skip: u32) -> Result<u32> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
@@ -99,7 +100,7 @@ impl UnQLiteStore {
         let mut skipped = 0;
         let mut count = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -108,8 +109,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 if skipped >= skip {
                     count += 1;
                 } else {
@@ -124,14 +126,14 @@ impl UnQLiteStore {
     }
 
     fn _count_no_skip(&self, from: &[u8], to: &[u8]) -> Result<u32> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
 
         let mut count = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -140,8 +142,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 count += 1;
             }
 
@@ -206,20 +209,24 @@ impl UnQLiteStore {
         let mut skipped = 0;
         let mut count = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
                 break;
             }
 
-            if skipped >= skip {
-                count += 1;
-            } else {
-                skipped += 1;
+            let item = entry.unwrap();
+
+            if item.key().as_slice() >= from {
+                if skipped >= skip {
+                    count += 1;
+                } else {
+                    skipped += 1;
+                }
             }
 
-            entry = entry.unwrap().next();
+            entry = item.next()
         }
 
         Ok(count)
@@ -228,16 +235,20 @@ impl UnQLiteStore {
     fn _count_no_to_no_skip(&self, from: &[u8]) -> Result<u32> {
         let mut count = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
                 break;
             }
 
-            count += 1;
+            let item = entry.unwrap();
 
-            entry = entry.unwrap().next();
+            if item.key().as_slice() >= from {
+                count += 1;
+            }
+
+            entry = item.next();
         }
 
         Ok(count)
@@ -288,7 +299,7 @@ impl UnQLiteStore {
     fn _count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
         if let Some(from) = from {
             if let Some(to) = to {
-                if from < to {
+                if from > to {
                     let err = Error::InvalidRange;
                     return Err(err);
                 }
@@ -323,7 +334,7 @@ impl UnQLiteStore {
         count: u32,
         skip: u32,
     ) -> Result<Vec<Vec<u8>>> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
@@ -332,7 +343,7 @@ impl UnQLiteStore {
         let mut counted = 0;
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -341,8 +352,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 if skipped >= skip {
                     if counted <= count {
                         values.push(item.value());
@@ -360,7 +372,7 @@ impl UnQLiteStore {
     }
 
     fn _query_no_count(&self, from: &[u8], to: &[u8], skip: u32) -> Result<Vec<Vec<u8>>> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
@@ -368,7 +380,7 @@ impl UnQLiteStore {
         let mut skipped = 0;
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -377,8 +389,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 if skipped >= skip {
                     values.push(item.value());
                 } else {
@@ -393,7 +406,7 @@ impl UnQLiteStore {
     }
 
     fn _query_no_skip(&self, from: &[u8], to: &[u8], count: u32) -> Result<Vec<Vec<u8>>> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
@@ -401,7 +414,7 @@ impl UnQLiteStore {
         let mut counted = 0;
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -410,8 +423,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() && counted <= count {
+            if from <= key_slice && to > key_slice && counted <= count {
                 values.push(item.value());
                 counted += 1;
             }
@@ -423,14 +437,14 @@ impl UnQLiteStore {
     }
 
     fn _query_no_skip_no_count(&self, from: &[u8], to: &[u8]) -> Result<Vec<Vec<u8>>> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
 
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -439,8 +453,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 values.push(item.value());
             }
 
@@ -563,7 +578,7 @@ impl UnQLiteStore {
         let mut counted = 0;
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -572,13 +587,15 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
 
-            if skipped >= skip {
-                if counted <= count {
-                    values.push(item.value());
-                    counted += 1;
+            if item.key().as_slice() >= from {
+                if skipped >= skip {
+                    if counted <= count {
+                        values.push(item.value());
+                        counted += 1;
+                    }
+                } else {
+                    skipped += 1;
                 }
-            } else {
-                skipped += 1;
             }
 
             entry = item.next();
@@ -591,7 +608,7 @@ impl UnQLiteStore {
         let mut skipped = 0;
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -600,10 +617,12 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
 
-            if skipped >= skip {
-                values.push(item.value());
-            } else {
-                skipped += 1;
+            if item.key().as_slice() >= from {
+                if skipped >= skip {
+                    values.push(item.value());
+                } else {
+                    skipped += 1;
+                }
             }
 
             entry = item.next();
@@ -616,7 +635,7 @@ impl UnQLiteStore {
         let mut counted = 0;
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -625,7 +644,7 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
 
-            if counted <= count {
+            if item.key().as_slice() >= from && counted <= count {
                 values.push(item.value());
                 counted += 1;
             }
@@ -639,7 +658,7 @@ impl UnQLiteStore {
     fn _query_no_to_no_skip_no_count(&self, from: &[u8]) -> Result<Vec<Vec<u8>>> {
         let mut values = Vec::new();
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -648,7 +667,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
 
-            values.push(item.value());
+            if item.key().as_slice() >= from {
+                values.push(item.value());
+            }
 
             entry = item.next();
         }
@@ -764,7 +785,7 @@ impl UnQLiteStore {
     ) -> Result<Vec<Vec<u8>>> {
         if let Some(from) = from {
             if let Some(to) = to {
-                if from < to {
+                if from > to {
                     let err = Error::InvalidRange;
                     return Err(err);
                 }
@@ -862,14 +883,14 @@ impl UnQLiteStore {
     }
 
     fn _remove_range_complete(&mut self, from: &[u8], to: &[u8], skip: u32) -> Result<()> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
 
         let mut skipped = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -878,8 +899,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 if skipped >= skip {
                     self._remove(&key)?;
                 } else {
@@ -894,12 +916,12 @@ impl UnQLiteStore {
     }
 
     fn _remove_range_no_skip(&mut self, from: &[u8], to: &[u8]) -> Result<()> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -908,8 +930,9 @@ impl UnQLiteStore {
 
             let item = entry.unwrap();
             let key = item.key();
+            let key_slice = key.as_slice();
 
-            if to > key.as_slice() {
+            if from <= key_slice && to > key_slice {
                 self._remove(&key)?;
             }
 
@@ -970,7 +993,7 @@ impl UnQLiteStore {
     fn _remove_range_no_to(&mut self, from: &[u8], skip: u32) -> Result<()> {
         let mut skipped = 0;
 
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -978,12 +1001,14 @@ impl UnQLiteStore {
             }
 
             let item = entry.unwrap();
+            let key = item.key();
 
-            if skipped >= skip {
-                let key = item.key();
-                self._remove(&key)?;
-            } else {
-                skipped += 1;
+            if from <= key.as_slice() {
+                if skipped >= skip {
+                    self._remove(&key)?;
+                } else {
+                    skipped += 1;
+                }
             }
 
             entry = item.next();
@@ -993,7 +1018,7 @@ impl UnQLiteStore {
     }
 
     fn _remove_range_no_to_no_skip(&mut self, from: &[u8]) -> Result<()> {
-        let mut entry = self.db.seek(from, Direction::Ge);
+        let mut entry = self.db.first();
 
         loop {
             if entry.is_none() {
@@ -1003,7 +1028,10 @@ impl UnQLiteStore {
             let item = entry.unwrap();
 
             let key = item.key();
-            self._remove(&key)?;
+
+            if from <= key.as_slice() {
+                self._remove(&key)?;
+            }
 
             entry = item.next();
         }
@@ -1064,7 +1092,7 @@ impl UnQLiteStore {
     ) -> Result<()> {
         if let Some(from) = from {
             if let Some(to) = to {
-                if from < to {
+                if from > to {
                     let err = Error::InvalidRange;
                     return Err(err);
                 }
@@ -1204,7 +1232,7 @@ impl TemporaryStore for UnQLiteStore {}
 impl PersistentStore for UnQLiteStore {}
 
 #[test]
-fn test_persistent_store_ops() {
+fn test_unqlite_store_ops() {
     use crypto::random::Random;
 
     let res = UnQLiteStore::new_temporary();

@@ -1,4 +1,4 @@
-//! # BTreeMapStore
+//! # BTreeStore
 //
 // `btree_map_store` contains the `BTreeMap` store backend type and functions.
 
@@ -8,25 +8,26 @@ use crate::traits::{MemoryStore, Store};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+/// `BTreeStore` is an implementor of `Store` built on a `BTreeMap`.
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
-pub struct BTreeMapStore {
+pub struct BTreeStore {
     db: BTreeMap<Vec<u8>, Vec<u8>>,
     keys_size: u32,
     values_size: u32,
 }
 
-impl BTreeMapStore {
-    /// `new` creates a new `BTreeMapStore`.
-    pub fn new() -> BTreeMapStore {
-        BTreeMapStore::default()
+impl BTreeStore {
+    /// `new` creates a new `BTreeStore`.
+    pub fn new() -> BTreeStore {
+        BTreeStore::default()
     }
 
-    /// `_lookup` looks up a key-value pair from the `BTreeMapStore`.
+    /// `_lookup` looks up a key-value pair from the `BTreeStore`.
     fn _lookup(&self, key: &[u8]) -> bool {
         self.db.contains_key(key)
     }
 
-    /// `_get` gets a key-value pair from the `BTreeMapStore`.
+    /// `_get` gets a key-value pair from the `BTreeStore`.
     fn _get(&self, key: &[u8]) -> Result<Vec<u8>> {
         match self.db.get(key) {
             Some(value) => Ok(value.to_owned()),
@@ -37,7 +38,7 @@ impl BTreeMapStore {
         }
     }
 
-    /// `_query` returns a list of values from the `BTreeMapStore`.
+    /// `_query` returns a list of values from the `BTreeStore`.
     fn _query(
         &self,
         from: Option<&[u8]>,
@@ -47,7 +48,7 @@ impl BTreeMapStore {
     ) -> Result<Vec<Vec<u8>>> {
         let res: Vec<Vec<u8>> = if let Some(from) = from {
             if let Some(to) = to {
-                if from < to {
+                if from > to {
                     let err = Error::InvalidRange;
                     return Err(err);
                 }
@@ -122,11 +123,11 @@ impl BTreeMapStore {
         Ok(res)
     }
 
-    /// `_count` returns the count of a list of values from the `BTreeMapStore`.
+    /// `_count` returns the count of a list of values from the `BTreeStore`.
     fn _count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
         let res: u32 = if let Some(from) = from {
             if let Some(to) = to {
-                if from < to {
+                if from > to {
                     let err = Error::InvalidRange;
                     return Err(err);
                 }
@@ -161,7 +162,7 @@ impl BTreeMapStore {
         Ok(res)
     }
 
-    /// `_insert` inserts a binary key-value pair in the `BTreeMapStore`.
+    /// `_insert` inserts a binary key-value pair in the `BTreeStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         self.db.insert(key.to_owned(), value.to_owned());
         self.keys_size += key.len() as u32;
@@ -169,7 +170,7 @@ impl BTreeMapStore {
         Ok(())
     }
 
-    /// `_create` inserts a non-existing binary key-value pair in the `BTreeMapStore`.
+    /// `_create` inserts a non-existing binary key-value pair in the `BTreeStore`.
     fn _create(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         if self._lookup(key) {
             let err = Error::AlreadyFound;
@@ -179,7 +180,7 @@ impl BTreeMapStore {
         self._insert(key, value)
     }
 
-    /// `_update` updates an existing key-value pair in the `BTreeMapStore`.
+    /// `_update` updates an existing key-value pair in the `BTreeStore`.
     pub fn _update(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         if !self._lookup(key) {
             let err = Error::NotFound;
@@ -189,7 +190,7 @@ impl BTreeMapStore {
         self._insert(key, value)
     }
 
-    /// `_remove` removes a key-value pair from the `BTreeMapStore`.
+    /// `_remove` removes a key-value pair from the `BTreeStore`.
     fn _remove(&mut self, key: &[u8]) -> Result<()> {
         match self.db.remove(key) {
             Some(value) => {
@@ -205,7 +206,7 @@ impl BTreeMapStore {
     }
 
     fn _remove_range_complete(&mut self, from: &[u8], to: &[u8], skip: u32) -> Result<()> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
@@ -225,7 +226,7 @@ impl BTreeMapStore {
     }
 
     fn _remove_range_no_skip(&mut self, from: &[u8], to: &[u8]) -> Result<()> {
-        if from < to {
+        if from > to {
             let err = Error::InvalidRange;
             return Err(err);
         }
@@ -312,7 +313,7 @@ impl BTreeMapStore {
         Ok(())
     }
 
-    /// `_remove_range` removes a range of items from the `BTreeMapStore`.
+    /// `_remove_range` removes a range of items from the `BTreeStore`.
     fn _remove_range(
         &mut self,
         from: Option<&[u8]>,
@@ -321,7 +322,7 @@ impl BTreeMapStore {
     ) -> Result<()> {
         if let Some(from) = from {
             if let Some(to) = to {
-                if from < to {
+                if from > to {
                     let err = Error::InvalidRange;
                     return Err(err);
                 }
@@ -349,7 +350,7 @@ impl BTreeMapStore {
         }
     }
 
-    /// `_clear` clears the `BTreeMapStore`.
+    /// `_clear` clears the `BTreeStore`.
     fn _clear(&mut self) {
         self.db.clear();
         self.keys_size = 0;
@@ -357,7 +358,7 @@ impl BTreeMapStore {
     }
 }
 
-impl Store for BTreeMapStore {
+impl Store for BTreeStore {
     fn keys_size(&self) -> u32 {
         self.keys_size
     }
@@ -431,13 +432,13 @@ impl Store for BTreeMapStore {
     }
 }
 
-impl MemoryStore for BTreeMapStore {}
+impl MemoryStore for BTreeStore {}
 
 #[test]
-fn test_memory_store_ops() {
+fn test_btree_store_ops() {
     use crypto::random::Random;
 
-    let mut store = BTreeMapStore::new();
+    let mut store = BTreeStore::new();
     let key_len = 100;
     let value_len = 1000;
     let mut expected_size = 0;

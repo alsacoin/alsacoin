@@ -334,3 +334,88 @@ fn test_account_serialize_json() {
         assert_eq!(account_a, account_b)
     }
 }
+
+#[test]
+fn test_account_storable() {
+    use crypto::random::Random;
+    use store::memory::MemoryStoreFactory;
+
+    let mut store = MemoryStoreFactory::new_btree();
+
+    let items: Vec<(Address, Account)> = (0..10)
+        .map(|_| {
+            let signers = Signers::new().unwrap();
+            let value = Random::u64().unwrap();
+            let account = Account::new(&signers, value).unwrap();
+            (account.address, account)
+        })
+        .collect();
+
+    for (key, value) in &items {
+        let res = Account::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = Account::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = Account::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = Account::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = Account::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = Account::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = Account::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = Account::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(found);
+
+        let res = Account::get(&store, &key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = Account::remove(&mut store, &key);
+        assert!(res.is_ok());
+
+        let res = Account::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = Account::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = Account::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = Account::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = Account::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = Account::clear(&mut store);
+        assert!(res.is_ok());
+
+        let res = Account::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+    }
+}

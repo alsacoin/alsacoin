@@ -321,3 +321,87 @@ fn test_node_serialize_json() {
         assert_eq!(node_a, node_b)
     }
 }
+
+#[test]
+fn test_node_storable() {
+    use store::memory::MemoryStoreFactory;
+
+    let mut store = MemoryStoreFactory::new_unqlite().unwrap();
+
+    let address_len = 100;
+
+    let items: Vec<(Digest, Node)> = (0..10)
+        .map(|_| {
+            let node = Node::random(address_len).unwrap();
+            (node.id, node)
+        })
+        .collect();
+
+    for (key, value) in &items {
+        let res = Node::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = Node::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = Node::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = Node::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = Node::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = Node::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = Node::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = Node::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(found);
+
+        let res = Node::get(&store, &key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = Node::remove(&mut store, &key);
+        assert!(res.is_ok());
+
+        let res = Node::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = Node::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = Node::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = Node::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = Node::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = Node::clear(&mut store);
+        assert!(res.is_ok());
+
+        let res = Node::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+    }
+}

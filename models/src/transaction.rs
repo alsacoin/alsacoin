@@ -1207,3 +1207,87 @@ fn test_transaction_serialize_json() {
         assert_eq!(transaction_a, transaction_b)
     }
 }
+
+#[test]
+fn test_transaction_storable() {
+    use store::memory::MemoryStoreFactory;
+
+    let mut store = MemoryStoreFactory::new_unqlite().unwrap();
+
+    let items: Vec<(Digest, Transaction)> = (0..10)
+        .map(|_| {
+            let id = Digest::random().unwrap();
+            let mut transaction = Transaction::default();
+            transaction.id = id;
+            (id, transaction)
+        })
+        .collect();
+
+    for (key, value) in &items {
+        let res = Transaction::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = Transaction::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = Transaction::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = Transaction::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = Transaction::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = Transaction::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = Transaction::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = Transaction::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(found);
+
+        let res = Transaction::get(&store, &key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = Transaction::remove(&mut store, &key);
+        assert!(res.is_ok());
+
+        let res = Transaction::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = Transaction::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = Transaction::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = Transaction::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = Transaction::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = Transaction::clear(&mut store);
+        assert!(res.is_ok());
+
+        let res = Transaction::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+    }
+}

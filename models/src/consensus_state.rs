@@ -292,6 +292,17 @@ impl ConsensusState {
         Ok(())
     }
 
+    /// `clear` clears the `ConsensusState`.
+    pub fn clear(&mut self) {
+        self.known_transactions.clear();
+        self.queried_transactions.clear();
+        self.conflict_sets.clear();
+        self.transaction_conflict_set.clear();
+        self.transaction_chit.clear();
+        self.transaction_confidence.clear();
+        self.known_nodes.clear();
+    }
+
     /// `to_bytes` converts the `ConsensusState` into a CBOR binary.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         serde_cbor::to_vec(self).map_err(|e| e.into())
@@ -489,4 +500,83 @@ fn test_consensus_state_serialize_json() {
     let consensus_state_b = res.unwrap();
 
     assert_eq!(consensus_state_a, consensus_state_b)
+}
+
+#[test]
+fn test_consensus_state_storable() {
+    use store::backend::BTreeStore;
+    use store::memory::MemoryStoreFactory;
+
+    let mut store = MemoryStoreFactory::new_btree();
+
+    let items: Vec<(u64, ConsensusState)> =
+        (0..10).map(|id| (id, ConsensusState::new(id))).collect();
+
+    for (key, value) in &items {
+        let res = ConsensusState::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = ConsensusState::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = ConsensusState::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = ConsensusState::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = ConsensusState::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = ConsensusState::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = ConsensusState::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = ConsensusState::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(found);
+
+        let res = ConsensusState::get(&store, &key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = ConsensusState::remove(&mut store, &key);
+        assert!(res.is_ok());
+
+        let res = ConsensusState::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = ConsensusState::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = ConsensusState::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = ConsensusState::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = ConsensusState::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = <ConsensusState as Storable<BTreeStore>>::clear(&mut store);
+        assert!(res.is_ok());
+
+        let res = ConsensusState::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+    }
 }

@@ -399,3 +399,81 @@ fn test_conflict_set_serialize_json() {
 
     assert_eq!(conflict_set_a, conflict_set_b)
 }
+
+#[test]
+fn test_conflict_set_storable() {
+    use store::backend::BTreeStore;
+    use store::memory::MemoryStoreFactory;
+
+    let mut store = MemoryStoreFactory::new_btree();
+
+    let items: Vec<(u64, ConflictSet)> = (0..10).map(|id| (id, ConflictSet::new(id))).collect();
+
+    for (key, value) in &items {
+        let res = ConflictSet::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = ConflictSet::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = ConflictSet::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = ConflictSet::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = ConflictSet::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = ConflictSet::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(found);
+
+        let res = ConflictSet::get(&store, &key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = <ConflictSet as Storable<BTreeStore>>::remove(&mut store, &key);
+        assert!(res.is_ok());
+
+        let res = ConflictSet::count(&store, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = ConflictSet::query(&store, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = ConflictSet::get(&store, &key);
+        assert!(res.is_err());
+
+        let res = ConflictSet::insert(&mut store, &key, &value);
+        assert!(res.is_ok());
+
+        let res = <ConflictSet as Storable<BTreeStore>>::clear(&mut store);
+        assert!(res.is_ok());
+
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+    }
+}
