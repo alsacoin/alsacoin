@@ -207,7 +207,6 @@ fn test_tcp_node_ops() {
     let res = trsp_a.validate();
     assert!(res.is_ok());
 
-    let trsp_a_id = trsp_a.id;
     let trsp_a_addr = trsp_a.address.clone();
 
     let data_len = 1000;
@@ -215,7 +214,7 @@ fn test_tcp_node_ops() {
     let data_arc = Arc::new(data.clone());
 
     thread::spawn(move || {
-        trsp_a.serve(None, |msg| {
+        let _ = trsp_a.serve(None, |msg| {
             let trsp_a_addr_buf = address_to_bytes(&trsp_a_addr).unwrap();
             assert_eq!(msg.address, trsp_a_addr_buf);
             assert_eq!(msg.data, *data_arc);
