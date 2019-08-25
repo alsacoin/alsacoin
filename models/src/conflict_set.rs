@@ -39,10 +39,16 @@ impl ConflictSet {
     }
 
     /// `add` adds a new `Transaction` id in the transactions set of the `ConflictSet`.
-    pub fn add(&mut self, tx_id: &Digest) {
-        if !self.lookup(tx_id) {
-            self.transactions.insert(*tx_id);
-            self.last = Some(*tx_id);
+    pub fn add(&mut self, tx_id: Digest) {
+        if !self.lookup(&tx_id) {
+            
+            self.transactions.insert(tx_id);
+            
+            self.last = Some(tx_id);
+
+            if self.preferred.is_none() {
+                self.preferred = Some(tx_id);
+            }
         }
     }
 
@@ -71,25 +77,25 @@ impl ConflictSet {
     }
 
     /// `set_last` sets the last transaction in the `ConflictSet`.
-    pub fn set_last(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.lookup(tx_id) {
+    pub fn set_last(&mut self, tx_id: Digest) -> Result<()> {
+        if !self.lookup(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.last = Some(*tx_id);
+        self.last = Some(tx_id);
 
         Ok(())
     }
 
     /// `set_preferred` sets the preferred transaction in the `ConflictSet`.
-    pub fn set_preferred(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.lookup(tx_id) {
+    pub fn set_preferred(&mut self, tx_id: Digest) -> Result<()> {
+        if !self.lookup(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.preferred = Some(*tx_id);
+        self.preferred = Some(tx_id);
 
         Ok(())
     }
@@ -116,6 +122,14 @@ impl ConflictSet {
         }
 
         Ok(())
+    }
+
+    /// `clear` clears the `ConflictSet`.
+    pub fn clear(&mut self) {
+        self.transactions.clear();
+        self.last = None;
+        self.preferred = None;
+        self.counter = 0;
     }
 
     /// `to_bytes` converts the `ConflictSet` into a CBOR binary.
@@ -285,6 +299,76 @@ impl<S: Store> Storable<S> for ConflictSet {
         let to = to.as_ref().map(|to| to.as_slice());
         store.remove_range(from, to, None).map_err(|e| e.into())
     }
+}
+
+#[test]
+fn test_conflict_set_ops() {
+    use crypto::random::Random;
+
+    let id = Random::u64().unwrap();
+    let mut conflict_set = ConflictSet::new(id);
+
+    let res = conflict_set.validate();
+    assert!(res.is_ok());
+
+    let tx_id_1 = Digest::random().unwrap();
+
+    let found = conflict_set.lookup(&tx_id_1);
+    assert!(!found);
+
+    let res = conflict_set.remove(&tx_id_1);
+    assert!(res.is_err());
+
+    conflict_set.add(tx_id_1);
+
+    assert_eq!(conflict_set.last, Some(tx_id_1));
+    assert_eq!(conflict_set.preferred, Some(tx_id_1));
+
+    let found = conflict_set.lookup(&tx_id_1);
+    assert!(found);
+
+    let res = conflict_set.remove(&tx_id_1);
+    assert!(res.is_ok());
+
+    assert_eq!(conflict_set.last, None);
+    assert_eq!(conflict_set.preferred, None);
+
+    let res = conflict_set.set_last(tx_id_1);
+    assert!(res.is_err());
+
+    let res = conflict_set.set_preferred(tx_id_1);
+    assert!(res.is_err());
+
+    conflict_set.add(tx_id_1);
+    
+    let tx_id_2 = Digest::random().unwrap();
+
+    conflict_set.add(tx_id_2);
+
+    assert_eq!(conflict_set.last, Some(tx_id_2));
+    assert_eq!(conflict_set.preferred, Some(tx_id_1));
+
+    let tx_id_3 = Digest::random().unwrap();
+
+    let res = conflict_set.set_last(tx_id_3);
+    assert!(res.is_err());
+
+    let res = conflict_set.set_preferred(tx_id_3);
+    assert!(res.is_err());
+
+    let res = conflict_set.set_last(tx_id_1);
+    assert!(res.is_ok());
+    assert_eq!(conflict_set.last, Some(tx_id_1));
+
+    let res = conflict_set.set_preferred(tx_id_2);
+    assert!(res.is_ok());
+    assert_eq!(conflict_set.preferred, Some(tx_id_2));
+
+    conflict_set.clear();
+    assert!(conflict_set.transactions.is_empty());
+    assert_eq!(conflict_set.last, None);
+    assert_eq!(conflict_set.preferred, None);
+    assert_eq!(conflict_set.counter, 0);
 }
 
 #[test]
