@@ -12,14 +12,20 @@ use std::collections::BTreeMap;
 #[derive(Clone, Default, Debug, Serialize, Deserialize)]
 pub struct BTreeStore {
     db: BTreeMap<Vec<u8>, Vec<u8>>,
+    max_value_size: u32,
     keys_size: u32,
     values_size: u32,
 }
 
 impl BTreeStore {
     /// `new` creates a new `BTreeStore`.
-    pub fn new() -> BTreeStore {
-        BTreeStore::default()
+    pub fn new(max_value_size: u32) -> BTreeStore {
+        BTreeStore {
+            db: BTreeMap::default(),
+            max_value_size,
+            keys_size: 0,
+            values_size: 0,
+        }
     }
 
     /// `_lookup` looks up a key-value pair from the `BTreeStore`.
@@ -164,6 +170,11 @@ impl BTreeStore {
 
     /// `_insert` inserts a binary key-value pair in the `BTreeStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        if value.len() > self.get_max_value_size() as usize {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
         self.db.insert(key.to_owned(), value.to_owned());
         self.keys_size += key.len() as u32;
         self.values_size += value.len() as u32;
@@ -371,6 +382,14 @@ impl Store for BTreeStore {
         self.keys_size + self.values_size
     }
 
+    fn set_max_value_size(&mut self, size: u32) {
+        self.max_value_size = size
+    }
+
+    fn get_max_value_size(&self) -> u32 {
+        self.max_value_size
+    }
+
     fn lookup(&self, key: &[u8]) -> Result<bool> {
         Ok(self._lookup(key))
     }
@@ -438,7 +457,8 @@ impl MemoryStore for BTreeStore {}
 fn test_btree_store_ops() {
     use crypto::random::Random;
 
-    let mut store = BTreeStore::new();
+    let max_value_size = 1000;
+    let mut store = BTreeStore::new(max_value_size);
     let key_len = 100;
     let value_len = 1000;
     let mut expected_size = 0;
@@ -520,4 +540,24 @@ fn test_btree_store_ops() {
         assert_eq!(store.keys_size(), 0);
         assert_eq!(store.values_size(), 0);
     }
+
+    let invalid_value_len = 1001;
+
+    let invalid_item = (
+        Random::bytes(key_len).unwrap(),
+        Random::bytes(invalid_value_len).unwrap(),
+    );
+
+    let res = store.insert(&invalid_item.0, &invalid_item.1);
+    assert!(res.is_err());
+
+    store.set_max_value_size(invalid_value_len as u32);
+
+    let res = store.insert(&invalid_item.0, &invalid_item.1);
+    assert!(res.is_ok());
+
+    let res = store.lookup(&invalid_item.0);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(found);
 }

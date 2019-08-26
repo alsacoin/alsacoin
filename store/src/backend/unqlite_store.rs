@@ -11,15 +11,17 @@ use unqlite::{Config, UnQLite, KV};
 /// `UnQLiteStore` is an implementor of `Store` built on a `UnQLite`.
 pub struct UnQLiteStore {
     db: UnQLite,
+    max_value_size: u32,
     keys_size: u32,
     values_size: u32,
 }
 
 impl UnQLiteStore {
     /// `new_from_db` creates a new `UnQLiteStore` from an UnQlite database.
-    pub fn new_from_db(db: UnQLite) -> Result<UnQLiteStore> {
+    pub fn new_from_db(db: UnQLite, max_value_size: u32) -> Result<UnQLiteStore> {
         let mut store = UnQLiteStore {
             db,
+            max_value_size,
             keys_size: 0,
             values_size: 0,
         };
@@ -30,21 +32,21 @@ impl UnQLiteStore {
     }
 
     /// `new_memory` creates a new in-memory `UnQLiteStore`.
-    pub fn new_memory() -> Result<UnQLiteStore> {
+    pub fn new_memory(max_value_size: u32) -> Result<UnQLiteStore> {
         let db = UnQLite::create_in_memory();
-        Self::new_from_db(db)
+        Self::new_from_db(db, max_value_size)
     }
 
     /// `new_temporary` creates a new temporary `UnQLiteStore`.
-    pub fn new_temporary() -> Result<UnQLiteStore> {
+    pub fn new_temporary(max_value_size: u32) -> Result<UnQLiteStore> {
         let db = UnQLite::create_temp();
-        Self::new_from_db(db)
+        Self::new_from_db(db, max_value_size)
     }
 
     /// `new_persistent` creates a new persistent `UnQLiteStore`.
-    pub fn new_persistent(path: &str) -> Result<UnQLiteStore> {
+    pub fn new_persistent(path: &str, max_value_size: u32) -> Result<UnQLiteStore> {
         let db = UnQLite::create(path);
-        Self::new_from_db(db)
+        Self::new_from_db(db, max_value_size)
     }
 
     /// `fetch_sizes` fetches the `UnQLiteStore` cached sizes.
@@ -839,6 +841,11 @@ impl UnQLiteStore {
 
     /// `_insert` inserts a binary key-value pair in the `UnQLiteStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
+        if value.len() > self.get_max_value_size() as usize {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
         self.db.kv_store(key, value)?;
         self.keys_size += key.len() as u32;
         self.values_size += value.len() as u32;
@@ -1165,6 +1172,14 @@ impl Store for UnQLiteStore {
         self.keys_size + self.values_size
     }
 
+    fn set_max_value_size(&mut self, size: u32) {
+        self.max_value_size = size
+    }
+
+    fn get_max_value_size(&self) -> u32 {
+        self.max_value_size
+    }
+
     fn lookup(&self, key: &[u8]) -> Result<bool> {
         Ok(self._lookup(key))
     }
@@ -1235,7 +1250,8 @@ impl PersistentStore for UnQLiteStore {}
 fn test_unqlite_store_ops() {
     use crypto::random::Random;
 
-    let res = UnQLiteStore::new_temporary();
+    let max_value_size = 1000;
+    let res = UnQLiteStore::new_temporary(max_value_size);
     assert!(res.is_ok());
     let mut store = res.unwrap();
 
@@ -1320,4 +1336,24 @@ fn test_unqlite_store_ops() {
         assert_eq!(store.keys_size(), 0);
         assert_eq!(store.values_size(), 0);
     }
+
+    let invalid_value_len = 1001;
+
+    let invalid_item = (
+        Random::bytes(key_len).unwrap(),
+        Random::bytes(invalid_value_len).unwrap(),
+    );
+
+    let res = store.insert(&invalid_item.0, &invalid_item.1);
+    assert!(res.is_err());
+
+    store.set_max_value_size(invalid_value_len as u32);
+
+    let res = store.insert(&invalid_item.0, &invalid_item.1);
+    assert!(res.is_ok());
+
+    let res = store.lookup(&invalid_item.0);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(found);
 }

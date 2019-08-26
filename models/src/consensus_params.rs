@@ -295,7 +295,8 @@ fn test_consensus_params_serialize_json() {
 fn test_consensus_params_storable() {
     use store::memory::MemoryStoreFactory;
 
-    let mut store = MemoryStoreFactory::new_unqlite().unwrap();
+    let max_value_size = 1000;
+    let mut store = MemoryStoreFactory::new_unqlite(max_value_size).unwrap();
 
     let items: Vec<(Digest, ConsensusParams)> = (0..10)
         .map(|_| {

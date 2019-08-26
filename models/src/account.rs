@@ -340,7 +340,8 @@ fn test_account_storable() {
     use crypto::random::Random;
     use store::memory::MemoryStoreFactory;
 
-    let mut store = MemoryStoreFactory::new_btree();
+    let max_value_size = 1000;
+    let mut store = MemoryStoreFactory::new_btree(max_value_size);
 
     let items: Vec<(Address, Account)> = (0..10)
         .map(|_| {

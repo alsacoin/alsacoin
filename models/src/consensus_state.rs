@@ -816,7 +816,8 @@ fn test_consensus_state_storable() {
     use store::backend::BTreeStore;
     use store::memory::MemoryStoreFactory;
 
-    let mut store = MemoryStoreFactory::new_btree();
+    let max_value_size = 1000;
+    let mut store = MemoryStoreFactory::new_btree(max_value_size);
 
     let items: Vec<(u64, ConsensusState)> =
         (0..10).map(|id| (id, ConsensusState::new(id))).collect();

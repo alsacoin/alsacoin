@@ -405,7 +405,8 @@ fn test_conflict_set_storable() {
     use store::backend::BTreeStore;
     use store::memory::MemoryStoreFactory;
 
-    let mut store = MemoryStoreFactory::new_btree();
+    let max_value_size = 1000;
+    let mut store = MemoryStoreFactory::new_btree(max_value_size);
 
     let items: Vec<(u64, ConflictSet)> = (0..10).map(|id| (id, ConflictSet::new(id))).collect();
 

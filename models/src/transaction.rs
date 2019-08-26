@@ -1212,7 +1212,8 @@ fn test_transaction_serialize_json() {
 fn test_transaction_storable() {
     use store::memory::MemoryStoreFactory;
 
-    let mut store = MemoryStoreFactory::new_unqlite().unwrap();
+    let max_value_size = 1000;
+    let mut store = MemoryStoreFactory::new_unqlite(max_value_size).unwrap();
 
     let items: Vec<(Digest, Transaction)> = (0..10)
         .map(|_| {

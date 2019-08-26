@@ -24,6 +24,8 @@ pub enum Error {
     InvalidRange,
     #[fail(display = "Invalid length")]
     InvalidLength,
+    #[fail(display = "Invalid size")]
+    InvalidSize,
     #[fail(display = "Not found")]
     NotFound,
     #[fail(display = "Already found")]
