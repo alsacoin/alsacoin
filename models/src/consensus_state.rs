@@ -4,6 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
+use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
 use byteorder::{BigEndian, WriteBytesExt};
@@ -18,6 +19,7 @@ use store::traits::Store;
 #[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct ConsensusState {
     pub id: u64,
+    pub stage: Stage,
     pub known_transactions: BTreeSet<Digest>,
     pub queried_transactions: BTreeSet<Digest>,
     pub conflict_sets: BTreeSet<u64>,
@@ -29,9 +31,10 @@ pub struct ConsensusState {
 
 impl ConsensusState {
     /// `new` creates a new `ConsensusState`.
-    pub fn new(id: u64) -> ConsensusState {
+    pub fn new(id: u64, stage: Stage) -> ConsensusState {
         let mut set = ConsensusState::default();
         set.id = id;
+        set.stage = stage;
         set
     }
 
@@ -492,7 +495,8 @@ fn test_consensus_state_known_transactions_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -528,7 +532,8 @@ fn test_consensus_state_queried_transactions_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -577,7 +582,8 @@ fn test_consensus_state_conflict_sets_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -613,7 +619,8 @@ fn test_consensus_state_transaction_conflict_add_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -662,7 +669,8 @@ fn test_consensus_state_transaction_chit_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -706,7 +714,8 @@ fn test_consensus_state_transaction_confidence_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -750,7 +759,8 @@ fn test_consensus_state_known_nodes_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut state = ConsensusState::new(id);
+    let stage = Stage::random().unwrap();
+    let mut state = ConsensusState::new(id, stage);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -819,8 +829,11 @@ fn test_consensus_state_storable() {
     let max_value_size = 1000;
     let mut store = MemoryStoreFactory::new_btree(max_value_size);
 
-    let items: Vec<(u64, ConsensusState)> =
-        (0..10).map(|id| (id, ConsensusState::new(id))).collect();
+    let stage = Stage::random().unwrap();
+
+    let items: Vec<(u64, ConsensusState)> = (0..10)
+        .map(|id| (id, ConsensusState::new(id, stage)))
+        .collect();
 
     for (key, value) in &items {
         let res = ConsensusState::count(&store, Some(*key), None, None);

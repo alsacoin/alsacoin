@@ -4,6 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
+use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
 use crypto::hash::{Blake512Hasher, Digest};
@@ -17,6 +18,7 @@ use store::traits::Store;
 #[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct ConsensusParams {
     pub id: Digest,
+    pub stage: Stage,
     pub alfa: u64,
     pub beta1: Option<u64>,
     pub beta2: Option<u64>,
@@ -24,8 +26,14 @@ pub struct ConsensusParams {
 
 impl ConsensusParams {
     /// `new` creates a new `ConsensusParams`.
-    pub fn new(alfa: u64, beta1: Option<u64>, beta2: Option<u64>) -> Result<ConsensusParams> {
+    pub fn new(
+        stage: Stage,
+        alfa: u64,
+        beta1: Option<u64>,
+        beta2: Option<u64>,
+    ) -> Result<ConsensusParams> {
         let mut params = ConsensusParams::default();
+        params.stage = stage;
         params.alfa = alfa;
         params.beta1 = beta1;
         params.beta2 = beta2;
@@ -37,6 +45,8 @@ impl ConsensusParams {
 
     /// `random` creates a random `ConsensusParams`.
     pub fn random() -> Result<ConsensusParams> {
+        let stage = Stage::random()?;
+
         let alfa = Random::u64()?;
 
         let beta1 = if Random::u32_range(0, 2)? == 1 {
@@ -51,7 +61,7 @@ impl ConsensusParams {
             None
         };
 
-        ConsensusParams::new(alfa, beta1, beta2)
+        ConsensusParams::new(stage, alfa, beta1, beta2)
     }
 
     /// `calc_id` calculates the id of the `ConsensusParams`.

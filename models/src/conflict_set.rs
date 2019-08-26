@@ -5,6 +5,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
+use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
 use byteorder::{BigEndian, WriteBytesExt};
@@ -19,6 +20,7 @@ use store::traits::Store;
 #[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
 pub struct ConflictSet {
     pub id: u64,
+    pub stage: Stage,
     pub transactions: BTreeSet<Digest>,
     pub last: Option<Digest>,
     pub preferred: Option<Digest>,
@@ -27,9 +29,10 @@ pub struct ConflictSet {
 
 impl ConflictSet {
     /// `new` creates a new `ConflictSet`.
-    pub fn new(id: u64) -> ConflictSet {
+    pub fn new(id: u64, stage: Stage) -> ConflictSet {
         let mut set = ConflictSet::default();
         set.id = id;
+        set.stage = stage;
         set
     }
 
@@ -305,7 +308,8 @@ fn test_conflict_set_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
-    let mut conflict_set = ConflictSet::new(id);
+    let stage = Stage::random().unwrap();
+    let mut conflict_set = ConflictSet::new(id, stage);
 
     let res = conflict_set.validate();
     assert!(res.is_ok());
@@ -408,7 +412,11 @@ fn test_conflict_set_storable() {
     let max_value_size = 1000;
     let mut store = MemoryStoreFactory::new_btree(max_value_size);
 
-    let items: Vec<(u64, ConflictSet)> = (0..10).map(|id| (id, ConflictSet::new(id))).collect();
+    let stage = Stage::random().unwrap();
+
+    let items: Vec<(u64, ConflictSet)> = (0..10)
+        .map(|id| (id, ConflictSet::new(id, stage)))
+        .collect();
 
     for (key, value) in &items {
         let res = ConflictSet::count(&store, Some(*key), None, None);
