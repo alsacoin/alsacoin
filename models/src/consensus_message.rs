@@ -688,3 +688,187 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
+
+#[test]
+fn test_consensus_message() {
+    let address_len = 100;
+    let node = Node::random(address_len).unwrap();
+    let query_id = Random::u64().unwrap();
+    let tx_id = Digest::random().unwrap();
+    let chit = Random::u32_range(0, 2).unwrap() as u8;
+
+    let mut invalid_node = node.clone();
+    invalid_node.id = Digest::default();
+
+    let res = ConsensusMessage::new_reply(query_id, &invalid_node, tx_id, chit);
+    assert!(res.is_err());
+
+    let res = ConsensusMessage::new_reply(query_id, &node, node.id, chit);
+    assert!(res.is_err());
+
+    let res = ConsensusMessage::new_reply(query_id, &node, tx_id, chit);
+    assert!(res.is_ok());
+
+    let cons_msg = res.unwrap();
+
+    let res = cons_msg.validate_query();
+    assert!(res.is_err());
+
+    let res = cons_msg.validate_reply();
+    assert!(res.is_ok());
+
+    let res = cons_msg.validate();
+    assert!(res.is_ok());
+
+    let cons_msg = ConsensusMessage::Reply {
+        id: query_id,
+        node: invalid_node.clone(),
+        tx_id,
+        chit,
+    };
+
+    let res = cons_msg.validate();
+    assert!(res.is_err());
+
+    let res = cons_msg.validate_reply();
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_consensus_message_serialize_bytes() {
+    let address_len = 100;
+
+    for _ in 0..10 {
+        let node = Node::random(address_len).unwrap();
+        let query_id = Random::u64().unwrap();
+        let tx_id = Digest::random().unwrap();
+        let chit = Random::u32_range(0, 2).unwrap() as u8;
+
+        let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+
+        let res = cons_msg_a.to_bytes();
+        assert!(res.is_ok());
+        let cbor = res.unwrap();
+
+        let res = ConsensusMessage::from_bytes(&cbor);
+        assert!(res.is_ok());
+        let cons_msg_b = res.unwrap();
+
+        assert_eq!(cons_msg_a, cons_msg_b)
+    }
+}
+
+#[test]
+fn test_consensus_message_serialize_json() {
+    let address_len = 100;
+
+    for _ in 0..10 {
+        let node = Node::random(address_len).unwrap();
+        let query_id = Random::u64().unwrap();
+        let tx_id = Digest::random().unwrap();
+        let chit = Random::u32_range(0, 2).unwrap() as u8;
+
+        let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+
+        let res = cons_msg_a.to_json();
+        assert!(res.is_ok());
+        let json = res.unwrap();
+
+        let res = ConsensusMessage::from_json(&json);
+        assert!(res.is_ok());
+        let cons_msg_b = res.unwrap();
+
+        assert_eq!(cons_msg_a, cons_msg_b)
+    }
+}
+
+#[test]
+fn test_consensus_message_storable() {
+    use store::memory::MemoryStoreFactory;
+
+    let max_value_size = 1000;
+    let mut store = MemoryStoreFactory::new_unqlite(max_value_size).unwrap();
+
+    let address_len = 100;
+    let stage = Stage::random().unwrap();
+
+    let items: Vec<(u64, ConsensusMessage)> = (0..10)
+        .map(|query_id| {
+            let address = Random::bytes(address_len).unwrap();
+            let node = Node::new(stage, &address);
+            let tx_id = Digest::random().unwrap();
+            let chit = Random::u32_range(0, 2).unwrap() as u8;
+
+            let cons_msg = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+            (query_id, cons_msg)
+        })
+        .collect();
+
+    for (key, value) in &items {
+        let res = ConsensusMessage::count(&store, stage, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = ConsensusMessage::query(&store, stage, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = ConsensusMessage::lookup(&store, stage, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = ConsensusMessage::get(&store, stage, &key);
+        assert!(res.is_err());
+
+        let res = ConsensusMessage::insert(&mut store, stage, &key, &value);
+        assert!(res.is_ok());
+
+        let res = ConsensusMessage::count(&store, stage, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 1);
+
+        let res = ConsensusMessage::query(&store, stage, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+
+        let res = ConsensusMessage::lookup(&store, stage, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(found);
+
+        let res = ConsensusMessage::get(&store, stage, &key);
+        assert!(res.is_ok());
+        assert_eq!(&res.unwrap(), value);
+
+        let res = ConsensusMessage::remove(&mut store, stage, &key);
+        assert!(res.is_ok());
+
+        let res = ConsensusMessage::count(&store, stage, Some(*key), None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), 0);
+
+        let res = ConsensusMessage::query(&store, stage, Some(*key), None, None, None);
+        assert!(res.is_ok());
+        assert_eq!(res.unwrap(), vec![]);
+
+        let res = ConsensusMessage::lookup(&store, stage, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+
+        let res = ConsensusMessage::get(&store, stage, &key);
+        assert!(res.is_err());
+
+        let res = ConsensusMessage::insert(&mut store, stage, &key, &value);
+        assert!(res.is_ok());
+
+        let res = ConsensusMessage::clear(&mut store, stage);
+        assert!(res.is_ok());
+
+        let res = ConsensusMessage::lookup(&store, stage, &key);
+        assert!(res.is_ok());
+        let found = res.unwrap();
+        assert!(!found);
+    }
+}
