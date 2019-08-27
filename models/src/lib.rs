@@ -61,3 +61,6 @@ pub mod conflict_set;
 
 /// `consensus_state` contains the consensus state type and functions.
 pub mod consensus_state;
+
+/// `consensus_message` contains the consensus message type and functions.
+pub mod consensus_message;
