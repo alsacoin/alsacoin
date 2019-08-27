@@ -15,7 +15,7 @@ use serde_json;
 use store::traits::Store;
 
 /// `ConsensusParams` represents the Avalanche Consensus parameters.
-#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct ConsensusParams {
     pub id: Digest,
     pub stage: Stage,

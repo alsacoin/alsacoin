@@ -14,7 +14,7 @@ use serde_json;
 use std::collections::BTreeMap;
 
 /// `Signers` contains the signers of an `Account`, with their weight and threshold.
-#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Signers {
     pub address: Address,
     pub signers: BTreeMap<PublicKey, Signer>,

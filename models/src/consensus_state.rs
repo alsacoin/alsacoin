@@ -16,7 +16,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use store::traits::Store;
 
 /// `ConsensusState` represents the Avalanche Consensus state.
-#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct ConsensusState {
     pub id: u64,
     pub stage: Stage,

@@ -21,7 +21,7 @@ use store::traits::Store;
 
 /// `Transaction` is the Alsacoin transaction type. It is built
 /// around the HybridTx model defined in `Chimeric Ledgers` papers.
-#[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Transaction {
     pub id: Digest,
     pub version: Version,

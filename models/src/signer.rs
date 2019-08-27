@@ -10,7 +10,7 @@ use serde_cbor;
 use serde_json;
 
 /// `Signer` is a single signer of an `Account`.
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct Signer {
     pub public_key: PublicKey,
     pub weight: u64,

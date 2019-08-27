@@ -9,6 +9,7 @@ use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
+use std::collections::BTreeSet;
 
 /// `ConsensusMessage` is the type representing a consensus message type.
 #[derive(Clone, Eq, PartialEq, Debug, Serialize, Deserialize)]
@@ -18,7 +19,7 @@ pub enum ConsensusMessage {
     FetchNodes {
         node: Node,
         count: u32,
-        ids: Vec<Digest>,
+        ids: BTreeSet<Digest>,
     },
     FetchRandomNodes {
         node: Node,
@@ -27,12 +28,12 @@ pub enum ConsensusMessage {
     PushNodes {
         node: Node,
         count: u32,
-        nodes: Vec<Node>,
+        nodes: BTreeSet<Node>,
     },
     FetchTransactions {
         node: Node,
         count: u32,
-        ids: Vec<Digest>,
+        ids: BTreeSet<Digest>,
     },
     FetchRandomTransactions {
         node: Node,
@@ -41,7 +42,7 @@ pub enum ConsensusMessage {
     PushTransactions {
         node: Node,
         count: u32,
-        transactions: Vec<Transaction>,
+        transactions: BTreeSet<Transaction>,
     },
     Query {
         node: Node,

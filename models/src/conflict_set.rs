@@ -17,7 +17,7 @@ use std::collections::BTreeSet;
 use store::traits::Store;
 
 /// `ConflictSet` is the set used to represent a set of mutually conflicting transactions.
-#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct ConflictSet {
     pub id: u64,
     pub stage: Stage,

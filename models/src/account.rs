@@ -16,7 +16,7 @@ use store::traits::Store;
 
 /// `Account` is the type used to represent an Alsacoin account
 /// of a user, account which is identified by an `Address`.
-#[derive(Clone, Eq, PartialEq, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub struct Account {
     pub address: Address,
     pub stage: Stage,
