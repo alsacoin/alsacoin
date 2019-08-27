@@ -2,10 +2,12 @@
 //!
 //! `consensus_message` is the module containing the consensus message type.
 
+use crate::error::Error;
 use crate::node::Node;
 use crate::result::Result;
 use crate::transaction::Transaction;
 use crypto::hash::Digest;
+use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
@@ -17,45 +19,508 @@ use std::collections::BTreeSet;
 pub enum ConsensusMessage {
     // NB: node is the sending node, not the receiving node
     FetchNodes {
+        id: u64,
         node: Node,
         count: u32,
         ids: BTreeSet<Digest>,
     },
     FetchRandomNodes {
+        id: u64,
         node: Node,
         count: u32,
     },
     PushNodes {
+        id: u64,
         node: Node,
         count: u32,
+        ids: BTreeSet<Digest>,
         nodes: BTreeSet<Node>,
     },
     FetchTransactions {
+        id: u64,
         node: Node,
         count: u32,
         ids: BTreeSet<Digest>,
     },
     FetchRandomTransactions {
+        id: u64,
         node: Node,
         count: u32,
     },
     PushTransactions {
+        id: u64,
         node: Node,
         count: u32,
+        ids: BTreeSet<Digest>,
         transactions: BTreeSet<Transaction>,
     },
     Query {
+        id: u64,
         node: Node,
         transaction: Transaction,
     },
     Reply {
+        id: u64,
         node: Node,
-        id: Digest,
+        tx_id: Digest,
         chit: u8,
     },
 }
 
 impl ConsensusMessage {
+    /// `new_fetch_nodes` creates a new `FetchNodes` `ConsensusMessage`.
+    pub fn new_fetch_nodes(node: &Node, ids: &BTreeSet<Digest>) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        if ids.contains(&node.id) {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        let message = ConsensusMessage::FetchNodes {
+            id: Random::u64()?,
+            node: node.to_owned(),
+            count: ids.len() as u32,
+            ids: ids.to_owned(),
+        };
+
+        Ok(message)
+    }
+
+    /// `new_fetch_random_nodes` creates a new `FetchRandomNodes` `ConsensusMessage`.
+    pub fn new_fetch_random_nodes(node: &Node, count: u32) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        let message = ConsensusMessage::FetchRandomNodes {
+            id: Random::u64()?,
+            node: node.to_owned(),
+            count,
+        };
+
+        Ok(message)
+    }
+
+    /// `new_push_nodes` creates a new `PushNodes` `ConsensusMessage`.
+    pub fn new_push_nodes(
+        fetch_id: u64,
+        node: &Node,
+        ids: &BTreeSet<Digest>,
+        nodes: &BTreeSet<Node>,
+    ) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        for node in nodes.iter() {
+            node.validate()?;
+        }
+
+        if ids.contains(&node.id) {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        let count = ids.len() as u32;
+
+        if nodes.len() != count as usize {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        if nodes.contains(node) {
+            let err = Error::InvalidNode;
+            return Err(err);
+        }
+
+        let found_ids: BTreeSet<Digest> = nodes.iter().map(|node| node.id).collect();
+
+        if ids != &found_ids {
+            let err = Error::InvalidTransactions;
+            return Err(err);
+        }
+
+        let message = ConsensusMessage::PushNodes {
+            id: fetch_id + 1,
+            node: node.to_owned(),
+            count,
+            ids: ids.to_owned(),
+            nodes: nodes.to_owned(),
+        };
+
+        Ok(message)
+    }
+
+    /// `new_fetch_transactions` creates a new `FetchTransactions` `ConsensusMessage`.
+    pub fn new_fetch_transactions(node: &Node, ids: &BTreeSet<Digest>) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        if ids.contains(&node.id) {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        let message = ConsensusMessage::FetchTransactions {
+            id: Random::u64()?,
+            node: node.to_owned(),
+            count: ids.len() as u32,
+            ids: ids.to_owned(),
+        };
+
+        Ok(message)
+    }
+
+    /// `new_fetch_random_transactions` creates a new `FetchRandomTransactions` `ConsensusMessage`.
+    pub fn new_fetch_random_transactions(node: &Node, count: u32) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        let message = ConsensusMessage::FetchRandomTransactions {
+            id: Random::u64()?,
+            node: node.to_owned(),
+            count,
+        };
+
+        Ok(message)
+    }
+
+    /// `new_push_transactions` creates a new `PushTransactions` `ConsensusMessage`.
+    pub fn new_push_transactions(
+        fetch_id: u64,
+        node: &Node,
+        ids: &BTreeSet<Digest>,
+        transactions: &BTreeSet<Transaction>,
+    ) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        for transaction in transactions.iter() {
+            transaction.validate()?;
+        }
+
+        if ids.contains(&node.id) {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        let count = ids.len() as u32;
+
+        if ids.len() != count as usize {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        if transactions.len() != count as usize {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        let found_ids: BTreeSet<Digest> = transactions.iter().map(|tx| tx.id).collect();
+
+        if ids != &found_ids {
+            let err = Error::InvalidTransactions;
+            return Err(err);
+        }
+
+        let message = ConsensusMessage::PushTransactions {
+            id: fetch_id + 1,
+            node: node.to_owned(),
+            count,
+            ids: ids.to_owned(),
+            transactions: transactions.to_owned(),
+        };
+
+        Ok(message)
+    }
+
+    /// `new_query` creates a new `Query` `ConsensusMessage`.
+    pub fn new_query(node: &Node, transaction: &Transaction) -> Result<ConsensusMessage> {
+        node.validate()?;
+        transaction.validate()?;
+
+        let message = ConsensusMessage::Query {
+            id: Random::u64()?,
+            node: node.to_owned(),
+            transaction: transaction.to_owned(),
+        };
+
+        Ok(message)
+    }
+
+    /// `new_reply` creates a new `Reply` `ConsensusMessage`.
+    pub fn new_reply(
+        query_id: u64,
+        node: &Node,
+        tx_id: Digest,
+        chit: u8,
+    ) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        if tx_id == node.id {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        if chit > 1 {
+            let err = Error::InvalidChit;
+            return Err(err);
+        }
+
+        let message = ConsensusMessage::Reply {
+            id: query_id + 1,
+            node: node.to_owned(),
+            tx_id,
+            chit,
+        };
+
+        Ok(message)
+    }
+
+    /// `id` returns the `ConsensusMessage` id.
+    pub fn id(&self) -> u64 {
+        match self {
+            ConsensusMessage::FetchNodes { id, .. } => *id,
+            ConsensusMessage::FetchRandomNodes { id, .. } => *id,
+            ConsensusMessage::PushNodes { id, .. } => *id,
+            ConsensusMessage::FetchTransactions { id, .. } => *id,
+            ConsensusMessage::FetchRandomTransactions { id, .. } => *id,
+            ConsensusMessage::PushTransactions { id, .. } => *id,
+            ConsensusMessage::Query { id, .. } => *id,
+            ConsensusMessage::Reply { id, .. } => *id,
+        }
+    }
+
+    /// `node` returns the `ConsensusMessage` `Node`.
+    pub fn node(&self) -> Node {
+        match self {
+            ConsensusMessage::FetchNodes { node, .. } => node.clone(),
+            ConsensusMessage::FetchRandomNodes { node, .. } => node.clone(),
+            ConsensusMessage::PushNodes { node, .. } => node.clone(),
+            ConsensusMessage::FetchTransactions { node, .. } => node.clone(),
+            ConsensusMessage::FetchRandomTransactions { node, .. } => node.clone(),
+            ConsensusMessage::PushTransactions { node, .. } => node.clone(),
+            ConsensusMessage::Query { node, .. } => node.clone(),
+            ConsensusMessage::Reply { node, .. } => node.clone(),
+        }
+    }
+
+    /// `validate_fetch_nodes` validates a `FetchTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_fetch_nodes(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::FetchNodes {
+                node,
+                count,
+                ids,
+                ..
+            } => {
+                node.validate()?;
+
+                if ids.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                if ids.contains(&node.id) {
+                    let err = Error::InvalidId;
+                    return Err(err);
+                }
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_fetch_random_nodes` validates a `FetchRandomTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_fetch_random_nodes(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::FetchRandomNodes { node, .. } => node.validate(),
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_push_nodes` validates a `PushTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_push_nodes(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::PushNodes {
+                node,
+                count,
+                ids,
+                nodes,
+                ..
+            } => {
+                node.validate()?;
+
+                for node in nodes.iter() {
+                    node.validate()?;
+                }
+
+                if ids.contains(&node.id) {
+                    let err = Error::InvalidId;
+                    return Err(err);
+                }
+
+                if ids.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                if ids.len() != nodes.len() {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                let found_ids: BTreeSet<Digest> = nodes.iter().map(|node| node.id).collect();
+
+                if ids != &found_ids {
+                    let err = Error::InvalidTransactions;
+                    return Err(err);
+                }
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_fetch_transactions` validates a `FetchTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_fetch_transactions(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::FetchTransactions {
+                node,
+                count,
+                ids,
+                ..
+            } => {
+                node.validate()?;
+
+                if ids.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                if ids.contains(&node.id) {
+                    let err = Error::InvalidId;
+                    return Err(err);
+                }
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_fetch_random_transactions` validates a `FetchRandomTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_fetch_random_transactions(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::FetchRandomTransactions { node, .. } => node.validate(),
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_push_transactions` validates a `PushTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_push_transactions(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::PushTransactions {
+                node,
+                count,
+                ids,
+                transactions,
+                ..
+            } => {
+                node.validate()?;
+
+                for transaction in transactions.iter() {
+                    transaction.validate()?;
+                }
+
+                if ids.contains(&node.id) {
+                    let err = Error::InvalidId;
+                    return Err(err);
+                }
+
+                if ids.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                if transactions.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                let found_ids: BTreeSet<Digest> = transactions.iter().map(|tx| tx.id).collect();
+
+                if ids != &found_ids {
+                    let err = Error::InvalidTransactions;
+                    return Err(err);
+                }
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_query` validates a `Query` `ConsensusMessage`.
+    pub fn validate_query(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::Query {
+                node,
+                transaction,
+                ..
+            } => {
+                node.validate()?;
+                transaction.validate()
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate_reply` validates a `Reply` `ConsensusMessage`.
+    pub fn validate_reply(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::Reply {
+                node,
+                tx_id,
+                chit,
+                ..
+            } => {
+                node.validate()?;
+
+                if tx_id == &node.id {
+                    let err = Error::InvalidId;
+                    return Err(err);
+                }
+
+                if *chit > 1 {
+                    let err = Error::InvalidChit;
+                    return Err(err);
+                }
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
+    /// `validate` validates a `ConsensusMessage`.
+    pub fn validate(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::FetchNodes { .. } => self.validate_fetch_nodes(),
+            ConsensusMessage::FetchRandomNodes { .. } => self.validate_fetch_random_nodes(),
+            ConsensusMessage::PushNodes { .. } => self.validate_push_nodes(),
+            ConsensusMessage::FetchTransactions { .. } => self.validate_fetch_transactions(),
+            ConsensusMessage::FetchRandomTransactions { .. } => {
+                self.validate_fetch_random_transactions()
+            }
+            ConsensusMessage::PushTransactions { .. } => self.validate_push_transactions(),
+            ConsensusMessage::Query { .. } => self.validate_query(),
+            ConsensusMessage::Reply { .. } => self.validate_reply(),
+        }
+    }
+
     /// `to_bytes` converts the `ConsensusMessage` into a CBOR binary.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         serde_cbor::to_vec(self).map_err(|e| e.into())

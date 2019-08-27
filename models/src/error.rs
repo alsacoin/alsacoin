@@ -52,6 +52,8 @@ pub enum Error {
     AlreadyFound,
     #[fail(display = "Not found")]
     NotFound,
+    #[fail(display = "Invalid length")]
+    InvalidLength,
     #[fail(display = "Invalid balance")]
     InvalidBalance,
     #[fail(display = "Invalid fee")]
@@ -66,6 +68,14 @@ pub enum Error {
     InvalidCoinbase,
     #[fail(display = "Invalid threshold")]
     InvalidThreshold,
+    #[fail(display = "Invalid node")]
+    InvalidNode,
+    #[fail(display = "Invalid transactions")]
+    InvalidTransactions,
+    #[fail(display = "Invalid message")]
+    InvalidMessage,
+    #[fail(display = "Invalid chit")]
+    InvalidChit,
 }
 
 impl From<io::Error> for Error {

@@ -40,6 +40,8 @@ pub enum Error {
     AlreadyFound,
     #[fail(display = "Not found")]
     NotFound,
+    #[fail(display = "Invalid address")]
+    InvalidAddress,
 }
 
 impl From<io::Error> for Error {
