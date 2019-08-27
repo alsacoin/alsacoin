@@ -7,5 +7,5 @@ pub mod error;
 /// `result` contains the result type used in the crate.
 pub mod result;
 
-/// `consensus` contains the Avalanche Consensus type and functions.
-pub mod consensus;
+/// `protocol` contains the Avalanche Consensus Protocol type and functions.
+pub mod protocol;
