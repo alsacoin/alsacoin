@@ -25,7 +25,7 @@ pub struct Node {
 
 impl Node {
     /// Creates a new `Node`.
-    pub fn new(address: &[u8], stage: Stage) -> Node {
+    pub fn new(stage: Stage, address: &[u8]) -> Node {
         let hash = Blake512Hasher::hash(address);
 
         Node {
@@ -92,40 +92,42 @@ impl<S: Store> Storable<S> for Node {
 
     type Key = Digest;
 
-    fn key_to_bytes(key: &Self::Key) -> Result<Vec<u8>> {
+    fn key_to_bytes(stage: Stage, key: &Self::Key) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
+        buf.push(stage as u8);
         buf.push(<Self as Storable<S>>::KEY_PREFIX);
         buf.extend_from_slice(&key.to_bytes());
         Ok(buf)
     }
 
-    fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn lookup(store: &S, stage: Stage, key: &Self::Key) -> Result<bool> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         store.lookup(&key).map_err(|e| e.into())
     }
 
-    fn get(store: &S, key: &Self::Key) -> Result<Self> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn get(store: &S, stage: Stage, key: &Self::Key) -> Result<Self> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let buf = store.get(&key)?;
         Self::from_bytes(&buf)
     }
 
     fn query(
         store: &S,
+        stage: Stage,
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
     ) -> Result<Vec<Self>> {
         let from = if let Some(ref key) = from {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
         };
 
         let to = if let Some(ref key) = to {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
@@ -146,19 +148,20 @@ impl<S: Store> Storable<S> for Node {
 
     fn count(
         store: &S,
+        stage: Stage,
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         skip: Option<u32>,
     ) -> Result<u32> {
         let from = if let Some(ref key) = from {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
         };
 
         let to = if let Some(ref key) = to {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
@@ -169,29 +172,29 @@ impl<S: Store> Storable<S> for Node {
         store.count(from, to, skip).map_err(|e| e.into())
     }
 
-    fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn insert(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.insert(&key, &value).map_err(|e| e.into())
     }
 
-    fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn create(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.create(&key, &value).map_err(|e| e.into())
     }
 
-    fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn update(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.update(&key, &value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()> {
         let mut _items = Vec::new();
 
         for (k, v) in items {
-            let k = <Self as Storable<S>>::key_to_bytes(k)?;
+            let k = <Self as Storable<S>>::key_to_bytes(stage, k)?;
             let v = v.to_bytes()?;
             let item = (k, v);
             _items.push(item);
@@ -205,15 +208,15 @@ impl<S: Store> Storable<S> for Node {
         store.insert_batch(&items).map_err(|e| e.into())
     }
 
-    fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn remove(store: &mut S, stage: Stage, key: &Self::Key) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
         let mut _keys = Vec::new();
         for key in keys {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             _keys.push(key);
         }
 
@@ -222,29 +225,37 @@ impl<S: Store> Storable<S> for Node {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(store: &mut S, min_time: Timestamp) -> Result<()> {
+    fn cleanup(store: &mut S, stage: Stage, min_time: Timestamp) -> Result<()> {
         let mut _from = Digest::default();
-        _from[0] = <Self as Storable<S>>::KEY_PREFIX;
-        let from = Some(_from);
+        _from[0] = stage as u8;
+        _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+        let from = Some(_from.to_vec());
+        let from = from.as_ref().map(|from| from.as_slice());
 
         let mut _to = Digest::default();
-        _to[0] = <Self as Storable<S>>::KEY_PREFIX + 1;
-        let to = Some(_to);
+        _to[0] = stage as u8;
+        _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+        let to = Some(_to.to_vec());
+        let to = to.as_ref().map(|to| to.as_slice());
 
-        for item in <Self as Storable<S>>::query(store, from, to, None, None)? {
-            if item.last_seen < min_time {
-                <Self as Storable<S>>::remove(store, &item.id)?;
+        for value in store.query(from, to, None, None)? {
+            let node = Node::from_bytes(&value)?;
+            if node.last_seen < min_time {
+                let key = <Self as Storable<S>>::key_to_bytes(stage, &node.id)?;
+                store.remove(&key)?;
             }
         }
 
         Ok(())
     }
 
-    fn clear(store: &mut S) -> Result<()> {
-        let from = Some(vec![<Self as Storable<S>>::KEY_PREFIX]);
+    fn clear(store: &mut S, stage: Stage) -> Result<()> {
+        let from = Some(vec![stage as u8, <Self as Storable<S>>::KEY_PREFIX]);
         let from = from.as_ref().map(|from| from.as_slice());
-        let to = Some(vec![<Self as Storable<S>>::KEY_PREFIX + 1]);
+
+        let to = Some(vec![stage as u8, <Self as Storable<S>>::KEY_PREFIX + 1]);
         let to = to.as_ref().map(|to| to.as_slice());
+
         store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
@@ -270,7 +281,7 @@ fn test_node_validate() {
     let stage = Stage::random().unwrap();
     let invalid_timestamp = Timestamp::new(2012, 12, 31, 12, 12, 12).unwrap();
 
-    let mut node = Node::new(&address, stage);
+    let mut node = Node::new(stage, &address);
     let res = node.validate();
     assert!(res.is_ok());
 
@@ -330,77 +341,79 @@ fn test_node_storable() {
     let mut store = MemoryStoreFactory::new_unqlite(max_value_size).unwrap();
 
     let address_len = 100;
+    let stage = Stage::random().unwrap();
 
     let items: Vec<(Digest, Node)> = (0..10)
         .map(|_| {
-            let node = Node::random(address_len).unwrap();
+            let address = Random::bytes(address_len).unwrap();
+            let node = Node::new(stage, &address);
             (node.id, node)
         })
         .collect();
 
     for (key, value) in &items {
-        let res = Node::count(&store, Some(*key), None, None);
+        let res = Node::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = Node::query(&store, Some(*key), None, None, None);
+        let res = Node::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = Node::lookup(&store, &key);
+        let res = Node::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
 
-        let res = Node::get(&store, &key);
+        let res = Node::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Node::insert(&mut store, &key, &value);
+        let res = Node::insert(&mut store, stage, &key, &value);
         assert!(res.is_ok());
 
-        let res = Node::count(&store, Some(*key), None, None);
+        let res = Node::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
 
-        let res = Node::query(&store, Some(*key), None, None, None);
+        let res = Node::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
-        let res = Node::lookup(&store, &key);
+        let res = Node::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(found);
 
-        let res = Node::get(&store, &key);
+        let res = Node::get(&store, stage, &key);
         assert!(res.is_ok());
         assert_eq!(&res.unwrap(), value);
 
-        let res = Node::remove(&mut store, &key);
+        let res = Node::remove(&mut store, stage, &key);
         assert!(res.is_ok());
 
-        let res = Node::count(&store, Some(*key), None, None);
+        let res = Node::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = Node::query(&store, Some(*key), None, None, None);
+        let res = Node::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = Node::lookup(&store, &key);
+        let res = Node::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
 
-        let res = Node::get(&store, &key);
+        let res = Node::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Node::insert(&mut store, &key, &value);
+        let res = Node::insert(&mut store, stage, &key, &value);
         assert!(res.is_ok());
 
-        let res = Node::clear(&mut store);
+        let res = Node::clear(&mut store, stage);
         assert!(res.is_ok());
 
-        let res = Node::lookup(&store, &key);
+        let res = Node::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);

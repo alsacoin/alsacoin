@@ -160,40 +160,42 @@ impl<S: Store> Storable<S> for ConflictSet {
 
     type Key = u64;
 
-    fn key_to_bytes(key: &Self::Key) -> Result<Vec<u8>> {
+    fn key_to_bytes(stage: Stage, key: &Self::Key) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
+        buf.push(stage as u8);
         buf.push(<Self as Storable<S>>::KEY_PREFIX);
         buf.write_u64::<BigEndian>(*key)?;
         Ok(buf)
     }
 
-    fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn lookup(store: &S, stage: Stage, key: &Self::Key) -> Result<bool> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         store.lookup(&key).map_err(|e| e.into())
     }
 
-    fn get(store: &S, key: &Self::Key) -> Result<Self> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn get(store: &S, stage: Stage, key: &Self::Key) -> Result<Self> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let buf = store.get(&key)?;
         Self::from_bytes(&buf)
     }
 
     fn query(
         store: &S,
+        stage: Stage,
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
     ) -> Result<Vec<Self>> {
         let from = if let Some(ref key) = from {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
         };
 
         let to = if let Some(ref key) = to {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
@@ -214,19 +216,20 @@ impl<S: Store> Storable<S> for ConflictSet {
 
     fn count(
         store: &S,
+        stage: Stage,
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         skip: Option<u32>,
     ) -> Result<u32> {
         let from = if let Some(ref key) = from {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
         };
 
         let to = if let Some(ref key) = to {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
@@ -237,31 +240,31 @@ impl<S: Store> Storable<S> for ConflictSet {
         store.count(from, to, skip).map_err(|e| e.into())
     }
 
-    fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn insert(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.insert(&key, &value).map_err(|e| e.into())
     }
 
-    fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn create(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.create(&key, &value).map_err(|e| e.into())
     }
 
-    fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn update(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.update(&key, &value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()> {
         let mut _items = Vec::new();
 
         for (k, v) in items {
-            let key = <Self as Storable<S>>::key_to_bytes(k)?;
-            let value = v.to_bytes()?;
-            let item = (key, value);
+            let k = <Self as Storable<S>>::key_to_bytes(stage, k)?;
+            let v = v.to_bytes()?;
+            let item = (k, v);
             _items.push(item);
         }
 
@@ -273,15 +276,15 @@ impl<S: Store> Storable<S> for ConflictSet {
         store.insert_batch(&items).map_err(|e| e.into())
     }
 
-    fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn remove(store: &mut S, stage: Stage, key: &Self::Key) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
         let mut _keys = Vec::new();
         for key in keys {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             _keys.push(key);
         }
 
@@ -290,15 +293,17 @@ impl<S: Store> Storable<S> for ConflictSet {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S, _min_time: Timestamp) -> Result<()> {
+    fn cleanup(_store: &mut S, _stage: Stage, _min_time: Timestamp) -> Result<()> {
         Err(Error::NotImplemented)
     }
 
-    fn clear(store: &mut S) -> Result<()> {
-        let from = Some(vec![<Self as Storable<S>>::KEY_PREFIX]);
+    fn clear(store: &mut S, stage: Stage) -> Result<()> {
+        let from = Some(vec![stage as u8, <Self as Storable<S>>::KEY_PREFIX]);
         let from = from.as_ref().map(|from| from.as_slice());
-        let to = Some(vec![<Self as Storable<S>>::KEY_PREFIX + 1]);
+
+        let to = Some(vec![stage as u8, <Self as Storable<S>>::KEY_PREFIX + 1]);
         let to = to.as_ref().map(|to| to.as_slice());
+
         store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
@@ -419,68 +424,68 @@ fn test_conflict_set_storable() {
         .collect();
 
     for (key, value) in &items {
-        let res = ConflictSet::count(&store, Some(*key), None, None);
+        let res = ConflictSet::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = ConflictSet::query(&store, Some(*key), None, None, None);
+        let res = ConflictSet::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
 
-        let res = ConflictSet::get(&store, &key);
+        let res = ConflictSet::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = ConflictSet::insert(&mut store, &key, &value);
+        let res = ConflictSet::insert(&mut store, stage, &key, &value);
         assert!(res.is_ok());
 
-        let res = ConflictSet::count(&store, Some(*key), None, None);
+        let res = ConflictSet::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
 
-        let res = ConflictSet::query(&store, Some(*key), None, None, None);
+        let res = ConflictSet::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(found);
 
-        let res = ConflictSet::get(&store, &key);
+        let res = ConflictSet::get(&store, stage, &key);
         assert!(res.is_ok());
         assert_eq!(&res.unwrap(), value);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::remove(&mut store, &key);
+        let res = <ConflictSet as Storable<BTreeStore>>::remove(&mut store, stage, &key);
         assert!(res.is_ok());
 
-        let res = ConflictSet::count(&store, Some(*key), None, None);
+        let res = ConflictSet::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = ConflictSet::query(&store, Some(*key), None, None, None);
+        let res = ConflictSet::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
 
-        let res = ConflictSet::get(&store, &key);
+        let res = ConflictSet::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = ConflictSet::insert(&mut store, &key, &value);
+        let res = ConflictSet::insert(&mut store, stage, &key, &value);
         assert!(res.is_ok());
 
-        let res = <ConflictSet as Storable<BTreeStore>>::clear(&mut store);
+        let res = <ConflictSet as Storable<BTreeStore>>::clear(&mut store, stage);
         assert!(res.is_ok());
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, &key);
+        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);

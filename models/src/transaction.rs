@@ -578,40 +578,42 @@ impl<S: Store> Storable<S> for Transaction {
 
     type Key = Digest;
 
-    fn key_to_bytes(key: &Self::Key) -> Result<Vec<u8>> {
+    fn key_to_bytes(stage: Stage, key: &Self::Key) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
+        buf.push(stage as u8);
         buf.push(<Self as Storable<S>>::KEY_PREFIX);
         buf.extend_from_slice(&key.to_bytes());
         Ok(buf)
     }
 
-    fn lookup(store: &S, key: &Self::Key) -> Result<bool> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn lookup(store: &S, stage: Stage, key: &Self::Key) -> Result<bool> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         store.lookup(&key).map_err(|e| e.into())
     }
 
-    fn get(store: &S, key: &Self::Key) -> Result<Self> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn get(store: &S, stage: Stage, key: &Self::Key) -> Result<Self> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let buf = store.get(&key)?;
         Self::from_bytes(&buf)
     }
 
     fn query(
         store: &S,
+        stage: Stage,
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
     ) -> Result<Vec<Self>> {
         let from = if let Some(ref key) = from {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
         };
 
         let to = if let Some(ref key) = to {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
@@ -632,19 +634,20 @@ impl<S: Store> Storable<S> for Transaction {
 
     fn count(
         store: &S,
+        stage: Stage,
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         skip: Option<u32>,
     ) -> Result<u32> {
         let from = if let Some(ref key) = from {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
         };
 
         let to = if let Some(ref key) = to {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
             None
@@ -655,31 +658,31 @@ impl<S: Store> Storable<S> for Transaction {
         store.count(from, to, skip).map_err(|e| e.into())
     }
 
-    fn insert(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn insert(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.insert(&key, &value).map_err(|e| e.into())
     }
 
-    fn create(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn create(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.create(&key, &value).map_err(|e| e.into())
     }
 
-    fn update(store: &mut S, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn update(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         let value = value.to_bytes()?;
         store.update(&key, &value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, items: &[(Self::Key, Self)]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()> {
         let mut _items = Vec::new();
 
         for (k, v) in items {
-            let k = <Self as Storable<S>>::key_to_bytes(k)?;
-            let v = v.to_bytes()?;
-            let item = (k, v);
+            let key = <Self as Storable<S>>::key_to_bytes(stage, k)?;
+            let value = v.to_bytes()?;
+            let item = (key, value);
             _items.push(item);
         }
 
@@ -691,15 +694,15 @@ impl<S: Store> Storable<S> for Transaction {
         store.insert_batch(&items).map_err(|e| e.into())
     }
 
-    fn remove(store: &mut S, key: &Self::Key) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(key)?;
+    fn remove(store: &mut S, stage: Stage, key: &Self::Key) -> Result<()> {
+        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
         let mut _keys = Vec::new();
         for key in keys {
-            let key = <Self as Storable<S>>::key_to_bytes(key)?;
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             _keys.push(key);
         }
 
@@ -708,29 +711,37 @@ impl<S: Store> Storable<S> for Transaction {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(store: &mut S, min_time: Timestamp) -> Result<()> {
+    fn cleanup(store: &mut S, stage: Stage, min_time: Timestamp) -> Result<()> {
         let mut _from = Digest::default();
-        _from[0] = <Self as Storable<S>>::KEY_PREFIX;
-        let from = Some(_from);
+        _from[0] = stage as u8;
+        _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+        let from = Some(_from.to_vec());
+        let from = from.as_ref().map(|from| from.as_slice());
 
         let mut _to = Digest::default();
-        _to[0] = <Self as Storable<S>>::KEY_PREFIX + 1;
-        let to = Some(_to);
+        _to[0] = stage as u8;
+        _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+        let to = Some(_to.to_vec());
+        let to = to.as_ref().map(|to| to.as_slice());
 
-        for item in <Self as Storable<S>>::query(store, from, to, None, None)? {
-            if item.time < min_time {
-                <Self as Storable<S>>::remove(store, &item.id)?;
+        for value in store.query(from, to, None, None)? {
+            let tx = Transaction::from_bytes(&value)?;
+            if tx.time < min_time {
+                let key = <Self as Storable<S>>::key_to_bytes(stage, &tx.id)?;
+                store.remove(&key)?;
             }
         }
 
         Ok(())
     }
 
-    fn clear(store: &mut S) -> Result<()> {
-        let from = Some(vec![<Self as Storable<S>>::KEY_PREFIX]);
+    fn clear(store: &mut S, stage: Stage) -> Result<()> {
+        let from = Some(vec![stage as u8, <Self as Storable<S>>::KEY_PREFIX]);
         let from = from.as_ref().map(|from| from.as_slice());
-        let to = Some(vec![<Self as Storable<S>>::KEY_PREFIX + 1]);
+
+        let to = Some(vec![stage as u8, <Self as Storable<S>>::KEY_PREFIX + 1]);
         let to = to.as_ref().map(|to| to.as_slice());
+
         store.remove_range(from, to, None).map_err(|e| e.into())
     }
 }
@@ -800,7 +811,10 @@ fn test_transaction_inputs() {
     use crate::signers::Signers;
     use crypto::random::Random;
 
+    let stage = Stage::random().unwrap();
     let mut transaction = Transaction::new().unwrap();
+    transaction.stage = stage;
+    transaction.update_id().unwrap();
 
     for _ in 0..10 {
         let secret_key = SecretKey::random().unwrap();
@@ -815,7 +829,7 @@ fn test_transaction_inputs() {
         signers.set_threshold(threshold).unwrap();
 
         let value = Random::u64().unwrap();
-        let account = Account::new(&signers, value).unwrap();
+        let account = Account::new(stage, &signers, value).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -951,7 +965,11 @@ fn test_transaction_distance() {
     use crate::signers::Signers;
     use crypto::random::Random;
 
+    let stage = Stage::random().unwrap();
     let mut transaction = Transaction::new().unwrap();
+    transaction.stage = stage;
+    transaction.update_id().unwrap();
+
     let mut max_distance = transaction.distance;
 
     for _ in 0..10 {
@@ -965,7 +983,7 @@ fn test_transaction_distance() {
         signers.set_threshold(threshold).unwrap();
 
         let value = Random::u64().unwrap();
-        let account = Account::new(&signers, value).unwrap();
+        let account = Account::new(stage, &signers, value).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -999,7 +1017,11 @@ fn test_transaction_balance() {
     use crate::signers::Signers;
     use crypto::random::Random;
 
+    let stage = Stage::random().unwrap();
     let mut transaction = Transaction::new().unwrap();
+    transaction.stage = stage;
+    transaction.update_id().unwrap();
+
     let mut input_balance = 0;
     let mut output_balance = 0;
     let mut fee = 0;
@@ -1016,7 +1038,7 @@ fn test_transaction_balance() {
         signers.set_threshold(threshold).unwrap();
 
         let value = Random::u64().unwrap();
-        let account = Account::new(&signers, value).unwrap();
+        let account = Account::new(stage, &signers, value).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -1215,78 +1237,81 @@ fn test_transaction_storable() {
     let max_value_size = 1000;
     let mut store = MemoryStoreFactory::new_unqlite(max_value_size).unwrap();
 
+    let stage = Stage::random().unwrap();
+
     let items: Vec<(Digest, Transaction)> = (0..10)
         .map(|_| {
-            let id = Digest::random().unwrap();
-            let mut transaction = Transaction::default();
-            transaction.id = id;
-            (id, transaction)
+            let mut transaction = Transaction::new().unwrap();
+            transaction.stage = stage;
+            transaction.update_id().unwrap();
+
+            (transaction.id, transaction)
         })
         .collect();
 
     for (key, value) in &items {
-        let res = Transaction::count(&store, Some(*key), None, None);
+        let res = Transaction::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = Transaction::query(&store, Some(*key), None, None, None);
+        let res = Transaction::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = Transaction::lookup(&store, &key);
+        let res = Transaction::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
 
-        let res = Transaction::get(&store, &key);
+        let res = Transaction::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Transaction::insert(&mut store, &key, &value);
+        let res = Transaction::insert(&mut store, stage, &key, &value);
         assert!(res.is_ok());
 
-        let res = Transaction::count(&store, Some(*key), None, None);
+        let res = Transaction::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 1);
 
-        let res = Transaction::query(&store, Some(*key), None, None, None);
+        let res = Transaction::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
-        let res = Transaction::lookup(&store, &key);
+        let res = Transaction::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(found);
 
-        let res = Transaction::get(&store, &key);
+        let res = Transaction::get(&store, stage, &key);
         assert!(res.is_ok());
         assert_eq!(&res.unwrap(), value);
 
-        let res = Transaction::remove(&mut store, &key);
+        let res = Transaction::remove(&mut store, stage, &key);
         assert!(res.is_ok());
 
-        let res = Transaction::count(&store, Some(*key), None, None);
+        let res = Transaction::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
 
-        let res = Transaction::query(&store, Some(*key), None, None, None);
+        let res = Transaction::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = Transaction::lookup(&store, &key);
+        let res = Transaction::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
 
-        let res = Transaction::get(&store, &key);
+        let res = Transaction::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Transaction::insert(&mut store, &key, &value);
+        let res = Transaction::insert(&mut store, stage, &key, &value);
         assert!(res.is_ok());
 
-        let res = Transaction::clear(&mut store);
+        let res = Transaction::clear(&mut store, stage);
         assert!(res.is_ok());
 
-        let res = Transaction::lookup(&store, &key);
+        let res = Transaction::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
