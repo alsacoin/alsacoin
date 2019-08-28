@@ -20,7 +20,7 @@ pub struct ConsensusParams {
     pub id: Digest,
     pub stage: Stage,
     pub k: u64,
-    pub alfa: u64,
+    pub alpha: u64,
     pub beta1: Option<u64>,
     pub beta2: Option<u64>,
 }
@@ -30,7 +30,7 @@ impl ConsensusParams {
     pub fn new(
         stage: Stage,
         k: u64,
-        alfa: u64,
+        alpha: u64,
         beta1: Option<u64>,
         beta2: Option<u64>,
     ) -> Result<ConsensusParams> {
@@ -38,11 +38,11 @@ impl ConsensusParams {
             id: Digest::default(),
             stage,
             k,
-            alfa,
+            alpha,
             beta1,
-            beta2
+            beta2,
         };
-        
+
         params.update_id()?;
 
         Ok(params)
@@ -54,7 +54,7 @@ impl ConsensusParams {
 
         let k = Random::u64()?;
 
-        let alfa = Random::u64()?;
+        let alpha = Random::u64()?;
 
         let beta1 = if Random::u32_range(0, 2)? == 1 {
             Some(Random::u64()?)
@@ -68,7 +68,7 @@ impl ConsensusParams {
             None
         };
 
-        ConsensusParams::new(stage, k, alfa, beta1, beta2)
+        ConsensusParams::new(stage, k, alpha, beta1, beta2)
     }
 
     /// `update_id` updates the id of the `ConsensusParams`.

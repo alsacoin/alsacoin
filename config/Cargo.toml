@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 failure = "~0.1"
-enum-display-derive = "~0.1"
 serde = { version = "~1.0", features = ["derive"] }
 serde_cbor = "~0.10"
 serde_json = "~1.0"
@@ -20,3 +19,4 @@ may_thread = { git = "https://github.com/Xudong-Huang/may_thread" }
 may_rpc = { git = "https://github.com/Xudong-Huang/may_rpc" }
 
 crypto = { path = "../crypto" }
+models = { path = "../models" }
