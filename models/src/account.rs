@@ -352,8 +352,10 @@ fn test_account_storable() {
     use crypto::random::Random;
     use store::memory::MemoryStoreFactory;
 
-    let max_value_size = 1000;
-    let mut store = MemoryStoreFactory::new_btree(max_value_size);
+    let max_value_size = 1 << 10;
+    let max_size = 1 << 30;
+
+    let mut store = MemoryStoreFactory::new_unqlite(max_value_size, max_size).unwrap();
 
     let stage = Stage::random().unwrap();
 

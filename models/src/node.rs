@@ -337,8 +337,10 @@ fn test_node_serialize_json() {
 fn test_node_storable() {
     use store::memory::MemoryStoreFactory;
 
-    let max_value_size = 1000;
-    let mut store = MemoryStoreFactory::new_unqlite(max_value_size).unwrap();
+    let max_value_size = 1 << 10;
+    let max_size = 1 << 30;
+
+    let mut store = MemoryStoreFactory::new_unqlite(max_value_size, max_size).unwrap();
 
     let address_len = 100;
     let stage = Stage::random().unwrap();

@@ -12,16 +12,23 @@ use unqlite::{Config, UnQLite, KV};
 pub struct UnQLiteStore {
     db: UnQLite,
     max_value_size: u32,
+    max_size: u32,
     keys_size: u32,
     values_size: u32,
 }
 
 impl UnQLiteStore {
     /// `new_from_db` creates a new `UnQLiteStore` from an UnQlite database.
-    pub fn new_from_db(db: UnQLite, max_value_size: u32) -> Result<UnQLiteStore> {
+    pub fn new_from_db(db: UnQLite, max_value_size: u32, max_size: u32) -> Result<UnQLiteStore> {
+        if max_size < max_value_size {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
         let mut store = UnQLiteStore {
             db,
             max_value_size,
+            max_size,
             keys_size: 0,
             values_size: 0,
         };
@@ -32,21 +39,21 @@ impl UnQLiteStore {
     }
 
     /// `new_memory` creates a new in-memory `UnQLiteStore`.
-    pub fn new_memory(max_value_size: u32) -> Result<UnQLiteStore> {
+    pub fn new_memory(max_value_size: u32, max_size: u32) -> Result<UnQLiteStore> {
         let db = UnQLite::create_in_memory();
-        Self::new_from_db(db, max_value_size)
+        Self::new_from_db(db, max_value_size, max_size)
     }
 
     /// `new_temporary` creates a new temporary `UnQLiteStore`.
-    pub fn new_temporary(max_value_size: u32) -> Result<UnQLiteStore> {
+    pub fn new_temporary(max_value_size: u32, max_size: u32) -> Result<UnQLiteStore> {
         let db = UnQLite::create_temp();
-        Self::new_from_db(db, max_value_size)
+        Self::new_from_db(db, max_value_size, max_size)
     }
 
     /// `new_persistent` creates a new persistent `UnQLiteStore`.
-    pub fn new_persistent(path: &str, max_value_size: u32) -> Result<UnQLiteStore> {
+    pub fn new_persistent(path: &str, max_value_size: u32, max_size: u32) -> Result<UnQLiteStore> {
         let db = UnQLite::create(path);
-        Self::new_from_db(db, max_value_size)
+        Self::new_from_db(db, max_value_size, max_size)
     }
 
     /// `fetch_sizes` fetches the `UnQLiteStore` cached sizes.
@@ -841,7 +848,15 @@ impl UnQLiteStore {
 
     /// `_insert` inserts a binary key-value pair in the `UnQLiteStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        if value.len() > self.get_max_value_size() as usize {
+        let key_size = key.len() as u32;
+        let value_size = value.len() as u32;
+
+        if value_size > self.get_max_value_size() {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
+        if key_size + value_size + self.size() > self.get_max_size() {
             let err = Error::InvalidSize;
             return Err(err);
         }
@@ -1180,6 +1195,21 @@ impl Store for UnQLiteStore {
         self.max_value_size
     }
 
+    fn set_max_size(&mut self, size: u32) -> Result<()> {
+        if size < self.get_max_value_size() {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
+        self.max_size = size;
+
+        Ok(())
+    }
+
+    fn get_max_size(&self) -> u32 {
+        self.max_size
+    }
+
     fn lookup(&self, key: &[u8]) -> Result<bool> {
         Ok(self._lookup(key))
     }
@@ -1250,9 +1280,15 @@ impl PersistentStore for UnQLiteStore {}
 fn test_unqlite_store_ops() {
     use crypto::random::Random;
 
-    let max_value_size = 1000;
-    let res = UnQLiteStore::new_temporary(max_value_size);
+    let max_value_size = 1 << 10;
+    let max_size = 1 << 30;
+
+    let res = UnQLiteStore::new_temporary(max_size, max_value_size);
+    assert!(res.is_err());
+
+    let res = UnQLiteStore::new_temporary(max_value_size, max_size);
     assert!(res.is_ok());
+
     let mut store = res.unwrap();
 
     let key_len = 100;
@@ -1337,11 +1373,11 @@ fn test_unqlite_store_ops() {
         assert_eq!(store.values_size(), 0);
     }
 
-    let invalid_value_len = 1001;
+    let invalid_value_len = max_value_size + 1;
 
     let invalid_item = (
         Random::bytes(key_len).unwrap(),
-        Random::bytes(invalid_value_len).unwrap(),
+        Random::bytes(invalid_value_len as usize).unwrap(),
     );
 
     let res = store.insert(&invalid_item.0, &invalid_item.1);

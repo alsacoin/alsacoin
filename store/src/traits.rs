@@ -21,6 +21,12 @@ pub trait Store {
     /// `max_value_size` gets the maximum size of a store value.
     fn get_max_value_size(&self) -> u32;
 
+    /// `set_max_size` sets the maximum size of a store size.
+    fn set_max_size(&mut self, size: u32) -> Result<()>;
+
+    /// `max_size` gets the maximum size of a store size.
+    fn get_max_size(&self) -> u32;
+
     /// `lookup` looks up a `Store` value by key.
     fn lookup(&self, key: &[u8]) -> Result<bool>;
 

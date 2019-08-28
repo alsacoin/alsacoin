@@ -13,19 +13,33 @@ use std::collections::BTreeMap;
 pub struct BTreeStore {
     db: BTreeMap<Vec<u8>, Vec<u8>>,
     max_value_size: u32,
+    max_size: u32,
     keys_size: u32,
     values_size: u32,
 }
 
 impl BTreeStore {
     /// `new` creates a new `BTreeStore`.
-    pub fn new(max_value_size: u32) -> BTreeStore {
-        BTreeStore {
+    pub fn new(max_value_size: u32, max_size: u32) -> Result<BTreeStore> {
+        if max_size < max_value_size {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
+        let store = BTreeStore {
             db: BTreeMap::default(),
             max_value_size,
+            max_size,
             keys_size: 0,
             values_size: 0,
-        }
+        };
+
+        Ok(store)
+    }
+
+    /// `size` returns the size of the `BTreeStore`.
+    pub fn size(&self) -> u32 {
+        self.keys_size + self.values_size
     }
 
     /// `_lookup` looks up a key-value pair from the `BTreeStore`.
@@ -170,14 +184,22 @@ impl BTreeStore {
 
     /// `_insert` inserts a binary key-value pair in the `BTreeStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
-        if value.len() > self.get_max_value_size() as usize {
+        let key_size = key.len() as u32;
+        let value_size = value.len() as u32;
+
+        if value_size > self.get_max_value_size() {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
+        if key_size + value_size + self.size() > self.get_max_size() {
             let err = Error::InvalidSize;
             return Err(err);
         }
 
         self.db.insert(key.to_owned(), value.to_owned());
-        self.keys_size += key.len() as u32;
-        self.values_size += value.len() as u32;
+        self.keys_size += key_size;
+        self.values_size += value_size;
         Ok(())
     }
 
@@ -390,6 +412,21 @@ impl Store for BTreeStore {
         self.max_value_size
     }
 
+    fn set_max_size(&mut self, size: u32) -> Result<()> {
+        if size < self.get_max_value_size() {
+            let err = Error::InvalidSize;
+            return Err(err);
+        }
+
+        self.max_size = size;
+
+        Ok(())
+    }
+
+    fn get_max_size(&self) -> u32 {
+        self.max_size
+    }
+
     fn lookup(&self, key: &[u8]) -> Result<bool> {
         Ok(self._lookup(key))
     }
@@ -457,8 +494,17 @@ impl MemoryStore for BTreeStore {}
 fn test_btree_store_ops() {
     use crypto::random::Random;
 
-    let max_value_size = 1000;
-    let mut store = BTreeStore::new(max_value_size);
+    let max_value_size = 1 << 10;
+    let max_size = 1 << 30;
+
+    let res = BTreeStore::new(max_size, max_value_size);
+    assert!(res.is_err());
+
+    let res = BTreeStore::new(max_value_size, max_size);
+    assert!(res.is_ok());
+
+    let mut store = res.unwrap();
+
     let key_len = 100;
     let value_len = 1000;
     let mut expected_size = 0;
@@ -541,11 +587,11 @@ fn test_btree_store_ops() {
         assert_eq!(store.values_size(), 0);
     }
 
-    let invalid_value_len = 1001;
+    let invalid_value_len = max_value_size + 1;
 
     let invalid_item = (
         Random::bytes(key_len).unwrap(),
-        Random::bytes(invalid_value_len).unwrap(),
+        Random::bytes(invalid_value_len as usize).unwrap(),
     );
 
     let res = store.insert(&invalid_item.0, &invalid_item.1);
