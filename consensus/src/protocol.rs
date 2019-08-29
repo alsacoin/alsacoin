@@ -83,6 +83,14 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         self.state.clear()
     }
 
+    /// `validate` validates the `Protocol`.
+    pub fn validate(&self) -> Result<()> {
+        self.params.validate()?;
+        self.state.validate()?;
+
+        Ok(())
+    }
+
     /// `send_message` sends a `ConsensusMessage` to a `Node`.
     pub fn send_message(&mut self, cons_msg: &ConsensusMessage) -> Result<()> {
         cons_msg.validate()?;
@@ -185,6 +193,18 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         unreachable!()
     }
 
+    /// `handle` handles incoming `ConsensusMessage`s.
+    pub fn handle(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `serve` serves incoming `ConsensusMessage`s.
+    pub fn serve(&mut self) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
     /// `is_preferred` returns if a `Transaction` is preferred.
     /// The name of the function in the Avalanche paper is "IsPreferred".
     pub fn is_preferred(&self, tx_id: &Digest) -> Result<bool> {
@@ -227,18 +247,16 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         unreachable!()
     }
 
-    /// `exec` executes the main loop of the `Protocol`.
+    /// `avalanche_loop` executes the main loop of the `Protocol`.
     /// The name of the function in the Avalanche paper is "AvalancheLoop".
-    pub fn exec(&mut self) -> Result<()> {
+    pub fn avalanche_loop(&mut self) -> Result<()> {
         // TODO
         unreachable!()
     }
 
-    /// `validate` validates the `Protocol`.
-    pub fn validate(&self) -> Result<()> {
-        self.params.validate()?;
-        self.state.validate()?;
-
-        Ok(())
+    /// `run` runs the `Protocol`.
+    pub fn run(&mut self) -> Result<()> {
+        // TODO
+        unreachable!()
     }
 }
