@@ -163,9 +163,9 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `is_accepted` returns if a `Transaction` is accepted.
     /// The name of the function in the Avalanche paper is "IsAccepted".
     pub fn is_accepted(&self, tx_id: &Digest) -> Result<bool> {
-        let chit = self.state.get_transaction_chit(tx_id).unwrap_or(0);
+        let chit = self.state.get_transaction_chit(tx_id).unwrap_or(false);
 
-        if chit == 1 {
+        if chit {
             return Ok(true);
         }
 
@@ -228,12 +228,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
 
         Ok(false)
-    }
-
-    /// `update_chit` updates the chit of a `Transaction`.
-    pub fn update_chit(&mut self, _tx_id: &Digest) -> Result<()> {
-        // TODO
-        unreachable!()
     }
 
     /// `update_confidence` updates the confidence of a `Transaction`.
@@ -326,9 +320,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `query` queries remote nodes.
-    pub fn query(&mut self, _transaction: &Transaction) -> Result<Vec<u8>> {
+    pub fn query(&mut self, _transaction: &Transaction) -> Result<Vec<bool>> {
         // TODO
-        // NB: Vec<bool> when chit is updated
         // NB: use k as *maxnodes*
         unreachable!()
     }

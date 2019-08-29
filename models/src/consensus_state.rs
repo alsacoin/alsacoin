@@ -24,7 +24,7 @@ pub struct ConsensusState {
     pub queried_transactions: BTreeSet<Digest>,
     pub conflict_sets: BTreeSet<u64>,
     pub transaction_conflict_set: BTreeMap<Digest, u64>,
-    pub transaction_chit: BTreeMap<Digest, u64>,
+    pub transaction_chit: BTreeMap<Digest, bool>,
     pub transaction_confidence: BTreeMap<Digest, u64>,
     pub known_nodes: BTreeSet<Digest>,
 }
@@ -171,13 +171,13 @@ impl ConsensusState {
     }
 
     /// `get_transaction_chit` gets the chit of a `Transaction`.
-    pub fn get_transaction_chit(&self, tx_id: &Digest) -> Option<u64> {
+    pub fn get_transaction_chit(&self, tx_id: &Digest) -> Option<bool> {
         self.transaction_chit.get(tx_id).copied()
     }
 
     /// `add_transaction_chit` adds a known `Transaction` chit in
     /// the `ConsensusState`.
-    pub fn add_transaction_chit(&mut self, tx_id: Digest, chit: u64) -> Result<()> {
+    pub fn add_transaction_chit(&mut self, tx_id: Digest, chit: bool) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
@@ -715,7 +715,7 @@ fn test_consensus_state_transaction_chit_ops() {
     assert!(res.is_ok());
 
     let tx_id = Digest::random().unwrap();
-    let tx_chit = Random::u64().unwrap();
+    let tx_chit = Random::u32_range(0, 2).unwrap() as bool;
 
     state.add_known_transaction(tx_id);
 
