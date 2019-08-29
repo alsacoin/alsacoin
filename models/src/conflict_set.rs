@@ -24,7 +24,7 @@ pub struct ConflictSet {
     pub transactions: BTreeSet<Digest>,
     pub last: Option<Digest>,
     pub preferred: Option<Digest>,
-    pub counter: u64,
+    pub count: u64,
 }
 
 impl ConflictSet {
@@ -131,7 +131,7 @@ impl ConflictSet {
         self.transactions.clear();
         self.last = None;
         self.preferred = None;
-        self.counter = 0;
+        self.count = 0;
     }
 
     /// `to_bytes` converts the `ConflictSet` into a CBOR binary.
@@ -410,7 +410,7 @@ fn test_conflict_set_ops() {
     assert!(conflict_set.transactions.is_empty());
     assert_eq!(conflict_set.last, None);
     assert_eq!(conflict_set.preferred, None);
-    assert_eq!(conflict_set.counter, 0);
+    assert_eq!(conflict_set.count, 0);
 }
 
 #[test]

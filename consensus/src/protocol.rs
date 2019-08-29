@@ -9,11 +9,14 @@ use models::conflict_set::ConflictSet;
 use models::consensus_message::ConsensusMessage;
 use models::consensus_params::ConsensusParams;
 use models::consensus_state::ConsensusState;
+use models::error::Error as ModelsError;
+use models::node::Node;
 use models::stage::Stage;
 use models::traits::Storable;
 use models::transaction::Transaction;
 use network::message::Message;
 use network::traits::Transport;
+use std::collections::BTreeSet;
 use store::traits::Store;
 
 /// `Protocol` is the type encapsulating the Avalanche Consensus Protocol.
@@ -21,7 +24,7 @@ pub struct Protocol<S: Store, P: Store, T: Transport> {
     stage: Stage,
     params: ConsensusParams,
     state: ConsensusState,
-    _store: S,
+    store: S,
     pool: P,
     transport: T,
     timeout: Option<u64>,
@@ -51,7 +54,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             stage: params.stage,
             params: params.to_owned(),
             state: state.to_owned(),
-            _store: store,
+            store,
             pool,
             transport,
             timeout,
@@ -111,43 +114,187 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         msg.to_consensus_message().map_err(|e| e.into())
     }
 
-    /// `on_new_transaction` handles a new `Transaction`.
-    /// It is equivalent to the `OnGenerateTx` of the Avalanche paper.
-    pub fn on_new_transaction(&mut self, _transaction: &Transaction) -> Result<()> {
+    /// `is_preferred` returns if a `Transaction` is preferred.
+    /// The name of the function in the Avalanche paper is "IsPreferred".
+    pub fn is_preferred(&self, tx_id: &Digest) -> Result<bool> {
+        if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
+            let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
+            if let Some(pref_id) = cs.preferred {
+                let is_pref = tx_id == &pref_id;
+                Ok(is_pref)
+            } else {
+                Ok(false)
+            }
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// `is_strongly_preferred` returns if a `Transaction` is strongly preferred.
+    /// The name of the function in the Avalanche paper is "IsStronglyPreferred".
+    pub fn is_strongly_preferred(&self, tx_id: &Digest) -> Result<bool> {
+        match Transaction::get(&self.pool, self.stage, tx_id) {
+            Ok(tx) => {
+                let ancestors: BTreeSet<Digest> = tx
+                    .ancestors()
+                    .iter()
+                    .filter(|id| self.state.lookup_known_transaction(&id))
+                    .copied()
+                    .collect();
+
+                for tx_id in ancestors {
+                    if !self.is_preferred(&tx_id)? {
+                        return Ok(false);
+                    }
+                }
+
+                Ok(true)
+            }
+            Err(ModelsError::NotFound) => {
+                // if it was stored in the store it was
+                // accepted (chit = 1)
+                let found = Transaction::lookup(&self.store, self.stage, tx_id)?;
+                Ok(found)
+            }
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// `is_accepted` returns if a `Transaction` is accepted.
+    /// The name of the function in the Avalanche paper is "IsAccepted".
+    pub fn is_accepted(&self, tx_id: &Digest) -> Result<bool> {
+        let chit = self.state.get_transaction_chit(tx_id).unwrap_or(0);
+
+        if chit == 1 {
+            return Ok(true);
+        }
+
+        match Transaction::get(&self.pool, self.stage, tx_id) {
+            Ok(tx) => {
+                let ancestors: BTreeSet<Digest> = tx
+                    .ancestors()
+                    .iter()
+                    .filter(|id| self.state.lookup_known_transaction(&id))
+                    .copied()
+                    .collect();
+
+                let mut accepted = true;
+
+                for tx_id in ancestors {
+                    if !self.is_accepted(&tx_id)? {
+                        accepted = false;
+                    }
+                }
+
+                if accepted {
+                    return Ok(accepted);
+                }
+            }
+            Err(ModelsError::NotFound) => {
+                // if it was stored in the store it was
+                // accepted (chit = 1)
+                let found = Transaction::lookup(&self.store, self.stage, tx_id)?;
+                if found {
+                    return Ok(true);
+                }
+            }
+            Err(err) => {
+                return Err(err.into());
+            }
+        }
+
+        if self.params.beta1.is_some() || self.params.beta2.is_some() {
+            let cs_id = self.state.get_transaction_conflict_set(tx_id);
+            if cs_id.is_none() {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+
+            let cs_id = cs_id.unwrap();
+
+            let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
+
+            if let Some(beta1) = self.params.beta1 {
+                if cs.transactions.len() == 1 && cs.count > beta1 {
+                    return Ok(true);
+                }
+            }
+
+            if let Some(beta2) = self.params.beta2 {
+                if cs.count > beta2 {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
+    }
+
+    /// `update_chit` updates the chit of a `Transaction`.
+    pub fn update_chit(&mut self, _tx_id: &Digest) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `update_confidence` updates the confidence of a `Transaction`.
+    pub fn update_confidence(&mut self, _tx_id: &Digest) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `push_node` sends a `Node` to a remote node.
+    pub fn push_node(&mut self, _address: &[u8], _node: &Node) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `on_push_node` handles a `PushNode` request.
+    pub fn on_push_node(&mut self, _msg: ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `push_transaction` sends a `Transaction` to a remote transaction.
+    pub fn push_transaction(&mut self, _address: &[u8], _transaction: &Transaction) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `on_push_transaction` handles a `PushTransaction`.
+    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
+    pub fn on_push_transaction(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
         unreachable!()
     }
 
     /// `fetch_nodes` fetches nodes from remote.
-    pub fn fetch_nodes(&mut self) -> Result<()> {
+    pub fn fetch_nodes(&mut self) -> Result<Vec<Node>> {
         // TODO
         // NB: use k as *maxnodes*
         unreachable!()
     }
 
     /// `on_fetch_nodes` handles a `FetchNodes` request.
-    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
     pub fn on_fetch_nodes(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
         unreachable!()
     }
 
     /// `fetch_random_nodes` fetches random nodes from remote.
-    pub fn fetch_random_nodes(&mut self) -> Result<()> {
+    pub fn fetch_random_nodes(&mut self) -> Result<Vec<Node>> {
         // TODO
         // NB: use k as *maxnodes*
         unreachable!()
     }
 
     /// `on_fetch_random_nodes` handles a `FetchRandomNodes` request.
-    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
     pub fn on_fetch_random_nodes(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
         unreachable!()
     }
 
     /// `fetch_transactions` fetches transactions from remote.
-    pub fn fetch_transactions(&mut self) -> Result<()> {
+    pub fn fetch_transactions(&mut self) -> Result<Vec<Transaction>> {
         // TODO
         // NB: use k as *maxtransactions*
         unreachable!()
@@ -160,7 +307,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_random_transactions` fetches random transactions from remote.
-    pub fn fetch_random_transactions(&mut self) -> Result<()> {
+    pub fn fetch_random_transactions(&mut self) -> Result<Vec<Transaction>> {
         // TODO
         // NB: use k as *maxtransactions*
         unreachable!()
@@ -173,14 +320,15 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_ancestors` fetches a `Transaction` ancestors from remote if missing.
-    pub fn fetch_ancestors(&mut self, _transaction: &Transaction) -> Result<()> {
+    pub fn fetch_ancestors(&mut self, _transaction: &Transaction) -> Result<Vec<Transaction>> {
         // TODO
         unreachable!()
     }
 
     /// `query` queries remote nodes.
-    pub fn query(&mut self) -> Result<()> {
+    pub fn query(&mut self, _transaction: &Transaction) -> Result<Vec<u8>> {
         // TODO
+        // NB: Vec<bool> when chit is updated
         // NB: use k as *maxnodes*
         unreachable!()
     }
@@ -201,48 +349,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
     /// `serve` serves incoming `ConsensusMessage`s.
     pub fn serve(&mut self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `is_preferred` returns if a `Transaction` is preferred.
-    /// The name of the function in the Avalanche paper is "IsPreferred".
-    pub fn is_preferred(&self, tx_id: &Digest) -> Result<bool> {
-        if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
-            let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
-            if let Some(pref_id) = cs.preferred {
-                let is_pref = tx_id == &pref_id;
-                Ok(is_pref)
-            } else {
-                Ok(false)
-            }
-        } else {
-            Ok(false)
-        }
-    }
-
-    /// `is_strongly_preferred` returns if a `Transaction` is strongly preferred.
-    /// The name of the function in the Avalanche paper is "IsStronglyPreferred".
-    pub fn is_strongly_preferred(&self, _tx_id: &Digest) -> Result<bool> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `is_accepted` returns if a `Transaction` is accepted.
-    /// The name of the function in the Avalanche paper is "IsAccepted".
-    pub fn is_accepted(&self, _tx_id: &Digest) -> Result<bool> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `update_chit` updates the chit of a `Transaction`.
-    pub fn update_chit(&mut self, _tx_id: &Digest) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `update_confidence` updates the confidence of a `Transaction`.
-    pub fn update_confidence(&mut self, _tx_id: &Digest) -> Result<()> {
         // TODO
         unreachable!()
     }

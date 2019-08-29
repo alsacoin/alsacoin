@@ -16,7 +16,7 @@ use crypto::ecc::ed25519::{PublicKey, SecretKey};
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use store::traits::Store;
 
 /// `Transaction` is the Alsacoin transaction type. It is built
@@ -130,6 +130,17 @@ impl Transaction {
         } else {
             imbalance as u64
         }
+    }
+
+    /// `ancestors` returns the `Transaction` ancestors' ids.
+    pub fn ancestors(&self) -> BTreeSet<Digest> {
+        let mut ancestors = BTreeSet::new();
+
+        for input in self.inputs.values() {
+            ancestors.insert(input.account.transaction_id);
+        }
+
+        ancestors
     }
 
     /// `lookup_input` look ups an `Input` in the `Transaction`.
