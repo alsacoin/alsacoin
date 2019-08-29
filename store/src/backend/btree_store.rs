@@ -146,8 +146,21 @@ impl BTreeStore {
 
     /// `_sample` samples values from the `BTreeStore`.
     fn _sample(&self, from: Option<&[u8]>, to: Option<&[u8]>, count: u32) -> Result<Vec<Vec<u8>>> {
+        if let Some(from) = from {
+            if let Some(to) = to {
+                if from > to {
+                    let err = Error::InvalidRange;
+                    return Err(err);
+                }
+            }
+        }
+
+        let len = self.count(from, to, Some(count))?;
+
+        let count = u32::min(count, len);
+
         let values = self.query(from, to, Some(count), None)?;
-        let len = values.len() as u32;
+
         let idxs: Vec<u32> = Random::u32_sample_unique_range(0, len, count)?;
 
         let mut res = Vec::new();
