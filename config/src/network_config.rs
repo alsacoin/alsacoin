@@ -9,7 +9,7 @@ use serde_cbor;
 use serde_json;
 
 /// `NetworkConfig` is the type representing a network configuration.
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
     pub kind: Option<String>,
     pub address: Option<String>,
@@ -73,5 +73,14 @@ impl NetworkConfig {
     /// `from_json` converts a JSON string into an `NetworkConfig`.
     pub fn from_json(s: &str) -> Result<NetworkConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl Default for NetworkConfig {
+    fn default() -> NetworkConfig {
+        let kind = Some(NetworkConfig::DEFAULT_KIND.into());
+        let address = None;
+
+        NetworkConfig { kind, address }
     }
 }

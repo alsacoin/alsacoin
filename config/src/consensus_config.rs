@@ -8,7 +8,7 @@ use serde_cbor;
 use serde_json;
 
 /// `ConsensusConfig` is the type representing a consensus configuration.
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct ConsensusConfig {
     pub k: Option<u64>,
     pub alpha: Option<u64>,
@@ -74,5 +74,21 @@ impl ConsensusConfig {
     /// `from_json` converts a JSON string into an `ConsensusConfig`.
     pub fn from_json(s: &str) -> Result<ConsensusConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl Default for ConsensusConfig {
+    fn default() -> ConsensusConfig {
+        let k = Some(ConsensusConfig::DEFAULT_K);
+        let alpha = Some(ConsensusConfig::DEFAULT_ALPHA);
+        let beta1 = Some(ConsensusConfig::DEFAULT_BETA1);
+        let beta2 = Some(ConsensusConfig::DEFAULT_BETA2);
+
+        ConsensusConfig {
+            k,
+            alpha,
+            beta1,
+            beta2,
+        }
     }
 }

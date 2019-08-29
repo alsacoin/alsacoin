@@ -13,7 +13,7 @@ use serde_cbor;
 use serde_json;
 
 /// `Config` is the type representing an Alsacoin configuration.
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Config {
     pub stage: Stage,
     pub store_config: StoreConfig,
@@ -73,5 +73,23 @@ impl Config {
     /// `from_json` converts a JSON string into an `Config`.
     pub fn from_json(s: &str) -> Result<Config> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl Default for Config {
+    fn default() -> Config {
+        let stage = Stage::default();
+        let store_config = StoreConfig::default();
+        let pool_config = PoolConfig::default();
+        let network_config = NetworkConfig::default();
+        let consensus_config = ConsensusConfig::default();
+
+        Config {
+            stage,
+            store_config,
+            pool_config,
+            network_config,
+            consensus_config,
+        }
     }
 }

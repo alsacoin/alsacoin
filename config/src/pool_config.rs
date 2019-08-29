@@ -9,7 +9,7 @@ use serde_cbor;
 use serde_json;
 
 /// `PoolConfig` is the type representing a pool configuration.
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct PoolConfig {
     pub kind: Option<String>,
     pub max_value_size: Option<u32>,
@@ -89,5 +89,19 @@ impl PoolConfig {
     /// `from_json` converts a JSON string into an `PoolConfig`.
     pub fn from_json(s: &str) -> Result<PoolConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl Default for PoolConfig {
+    fn default() -> PoolConfig {
+        let kind = Some(PoolConfig::DEFAULT_KIND.into());
+        let max_value_size = Some(PoolConfig::DEFAULT_MAX_VALUE_SIZE);
+        let max_size = Some(PoolConfig::DEFAULT_MAX_SIZE);
+
+        PoolConfig {
+            kind,
+            max_value_size,
+            max_size,
+        }
     }
 }

@@ -9,7 +9,7 @@ use serde_cbor;
 use serde_json;
 
 /// `StoreConfig` is the type representing a store configuration.
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct StoreConfig {
     pub kind: Option<String>,
     pub path: Option<String>,
@@ -92,5 +92,21 @@ impl StoreConfig {
     /// `from_json` converts a JSON string into an `StoreConfig`.
     pub fn from_json(s: &str) -> Result<StoreConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
+    }
+}
+
+impl Default for StoreConfig {
+    fn default() -> StoreConfig {
+        let kind = Some(StoreConfig::DEFAULT_KIND.into());
+        let path = None;
+        let max_value_size = Some(StoreConfig::DEFAULT_MAX_VALUE_SIZE);
+        let max_size = Some(StoreConfig::DEFAULT_MAX_SIZE);
+
+        StoreConfig {
+            kind,
+            path,
+            max_value_size,
+            max_size,
+        }
     }
 }
