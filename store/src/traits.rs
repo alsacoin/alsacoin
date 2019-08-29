@@ -43,6 +43,9 @@ pub trait Store {
         skip: Option<u32>,
     ) -> Result<Vec<Vec<u8>>>;
 
+    /// `sample` samples `Store` values.
+    fn sample(&self, from: Option<&[u8]>, to: Option<&[u8]>, count: u32) -> Result<Vec<Vec<u8>>>;
+
     /// `count` counts `Store` items matching a specific query.
     fn count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32>;
 

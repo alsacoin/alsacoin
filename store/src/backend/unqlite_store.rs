@@ -5,6 +5,7 @@
 use crate::error::Error;
 use crate::result::Result;
 use crate::traits::{MemoryStore, PersistentStore, Store, TemporaryStore};
+use crypto::random::Random;
 use unqlite::Cursor as StoreCursor;
 use unqlite::{Config, UnQLite, KV};
 
@@ -846,6 +847,23 @@ impl UnQLiteStore {
         }
     }
 
+    /// `_sample` samples values from the `UnQLiteStore`.
+    fn _sample(&self, from: Option<&[u8]>, to: Option<&[u8]>, count: u32) -> Result<Vec<Vec<u8>>> {
+        let values = self.query(from, to, Some(count), None)?;
+        let len = values.len() as u32;
+        let idxs: Vec<u32> = Random::u32_sample_unique_range(0, len, count)?;
+
+        let mut res = Vec::new();
+
+        for (idx, value) in values.iter().enumerate() {
+            if idxs.contains(&(idx as u32)) {
+                res.push(value.clone());
+            }
+        }
+
+        Ok(res)
+    }
+
     /// `_insert` inserts a binary key-value pair in the `UnQLiteStore`.
     fn _insert(&mut self, key: &[u8], value: &[u8]) -> Result<()> {
         let key_size = key.len() as u32;
@@ -1226,6 +1244,10 @@ impl Store for UnQLiteStore {
         skip: Option<u32>,
     ) -> Result<Vec<Vec<u8>>> {
         self._query(from, to, count, skip)
+    }
+
+    fn sample(&self, from: Option<&[u8]>, to: Option<&[u8]>, count: u32) -> Result<Vec<Vec<u8>>> {
+        self._sample(from, to, count)
     }
 
     fn count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {

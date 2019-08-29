@@ -595,6 +595,40 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         Ok(items)
     }
 
+    fn sample(
+        store: &S,
+        stage: Stage,
+        from: Option<Self::Key>,
+        to: Option<Self::Key>,
+        count: u32,
+    ) -> Result<Vec<Self>> {
+        let from = if let Some(ref key) = from {
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
+            Some(key)
+        } else {
+            None
+        };
+
+        let to = if let Some(ref key) = to {
+            let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
+            Some(key)
+        } else {
+            None
+        };
+
+        let from = from.as_ref().map(|from| from.as_slice());
+        let to = to.as_ref().map(|to| to.as_slice());
+        let values = store.sample(from, to, count)?;
+        let mut items = Vec::new();
+
+        for value in values {
+            let item = Self::from_bytes(&value)?;
+            items.push(item);
+        }
+
+        Ok(items)
+    }
+
     fn count(
         store: &S,
         stage: Stage,

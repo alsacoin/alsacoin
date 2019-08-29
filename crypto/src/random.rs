@@ -33,7 +33,7 @@ impl Random {
         Ok(res)
     }
 
-    /// `u32_range_from_rng` returns a random `u32` between a specific exclusive range
+    /// `u32_range_from_rng` returns a random `u32` between a specific range
     /// using a given RNG.
     pub fn u32_range_from_rng<R>(rng: &mut R, from: u32, to: u32) -> Result<u32>
     where
@@ -51,6 +51,66 @@ impl Random {
         let interval = to - from;
         let val = Random::u32_from_rng(rng) % interval;
         let res = from + val;
+
+        Ok(res)
+    }
+
+    /// `u32_sample` returns a random sample of `u32` values.
+    pub fn u32_sample(count: u32) -> Result<Vec<u32>> {
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            res.push(Random::u32()?);
+        }
+
+        Ok(res)
+    }
+
+    /// `u32_sample_range` returns a random sample of `u32` values between an range.
+    pub fn u32_sample_range(from: u32, to: u32, count: u32) -> Result<Vec<u32>> {
+        if from > to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            res.push(Random::u32_range(from, to)?);
+        }
+
+        Ok(res)
+    }
+
+    /// `u32_sample_unique` returns a random sample of `u32` unique values.
+    pub fn u32_sample_unique(count: u32) -> Result<Vec<u32>> {
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            let value = Random::u32()?;
+            if !res.contains(&value) {
+                res.push(value);
+            }
+        }
+
+        Ok(res)
+    }
+
+    /// `u32_sample_unique_range` returns a random sample of `u32` unique values between an range.
+    pub fn u32_sample_unique_range(from: u32, to: u32, count: u32) -> Result<Vec<u32>> {
+        if from > to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            let value = Random::u32_range(from, to)?;
+            if !res.contains(&value) {
+                res.push(value);
+            }
+        }
 
         Ok(res)
     }
@@ -77,7 +137,7 @@ impl Random {
         Ok(res)
     }
 
-    /// `u64_range_from_rng` returns a random `u64` between a specific exclusive range
+    /// `u64_range_from_rng` returns a random `u64` between a specific range
     /// using a given RNG.
     pub fn u64_range_from_rng<R>(rng: &mut R, from: u64, to: u64) -> Result<u64>
     where
@@ -95,6 +155,66 @@ impl Random {
         let interval = to - from;
         let val = Random::u64_from_rng(rng) % interval;
         let res = from + val;
+
+        Ok(res)
+    }
+
+    /// `u64_sample` returns a random sample of `u64` values.
+    pub fn u64_sample(count: u64) -> Result<Vec<u64>> {
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            res.push(Random::u64()?);
+        }
+
+        Ok(res)
+    }
+
+    /// `u64_sample_range` returns a random sample of `u64` values between an range.
+    pub fn u64_sample_range(from: u64, to: u64, count: u64) -> Result<Vec<u64>> {
+        if from > to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            res.push(Random::u64_range(from, to)?);
+        }
+
+        Ok(res)
+    }
+
+    /// `u64_sample_unique` returns a random sample of `u64` unique values.
+    pub fn u64_sample_unique(count: u64) -> Result<Vec<u64>> {
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            let value = Random::u64()?;
+            if !res.contains(&value) {
+                res.push(value);
+            }
+        }
+
+        Ok(res)
+    }
+
+    /// `u64_sample_unique_range` returns a random sample of `u64` unique values between an range.
+    pub fn u64_sample_unique_range(from: u64, to: u64, count: u64) -> Result<Vec<u64>> {
+        if from > to {
+            let err = Error::InvalidRange;
+            return Err(err);
+        }
+
+        let mut res = Vec::new();
+
+        for _ in 0..count as usize {
+            let value = Random::u64_range(from, to)?;
+            if !res.contains(&value) {
+                res.push(value);
+            }
+        }
 
         Ok(res)
     }

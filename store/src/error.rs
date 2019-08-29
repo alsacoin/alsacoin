@@ -2,6 +2,7 @@
 //!
 //! `error` contains the `store` crate `Error` type.
 
+use crypto::error::Error as CryptoError;
 use std::convert::From;
 use std::io;
 use unqlite::Error as UnQLiteError;
@@ -10,6 +11,8 @@ use unqlite::Error as UnQLiteError;
 pub enum Error {
     #[fail(display = "IO: {}", msg)]
     IO { msg: String },
+    #[fail(display = "Crypto: {}", msg)]
+    Crypto { msg: String },
     #[fail(display = "Store: {}", msg)]
     Store { msg: String },
     #[fail(display = "Not implemented")]
@@ -36,6 +39,13 @@ impl From<io::Error> for Error {
     fn from(error: io::Error) -> Error {
         let msg = format!("{}", error);
         Error::IO { msg }
+    }
+}
+
+impl From<CryptoError> for Error {
+    fn from(error: CryptoError) -> Error {
+        let msg = format!("{}", error);
+        Error::Crypto { msg }
     }
 }
 

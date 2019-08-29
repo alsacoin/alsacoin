@@ -35,6 +35,15 @@ pub trait Storable<S: Store>: Sized {
         skip: Option<u32>,
     ) -> Result<Vec<Self>>;
 
+    /// `sample` samples model instances from the `Store`.
+    fn sample(
+        store: &S,
+        stage: Stage,
+        from: Option<Self::Key>,
+        to: Option<Self::Key>,
+        count: u32,
+    ) -> Result<Vec<Self>>;
+
     /// `count` counts `Store` model instances matching a specific query.
     fn count(
         store: &S,

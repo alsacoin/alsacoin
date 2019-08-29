@@ -5,6 +5,7 @@
 use crate::error::Error;
 use crate::result::Result;
 use crate::traits::{MemoryStore, Store};
+use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -139,6 +140,23 @@ impl BTreeStore {
         } else {
             self.db.iter().map(|(_, v)| v.to_owned()).collect()
         };
+
+        Ok(res)
+    }
+
+    /// `_sample` samples values from the `BTreeStore`.
+    fn _sample(&self, from: Option<&[u8]>, to: Option<&[u8]>, count: u32) -> Result<Vec<Vec<u8>>> {
+        let values = self.query(from, to, Some(count), None)?;
+        let len = values.len() as u32;
+        let idxs: Vec<u32> = Random::u32_sample_unique_range(0, len, count)?;
+
+        let mut res = Vec::new();
+
+        for (idx, value) in values.iter().enumerate() {
+            if idxs.contains(&(idx as u32)) {
+                res.push(value.clone());
+            }
+        }
 
         Ok(res)
     }
@@ -443,6 +461,10 @@ impl Store for BTreeStore {
         skip: Option<u32>,
     ) -> Result<Vec<Vec<u8>>> {
         self._query(from, to, count, skip)
+    }
+
+    fn sample(&self, from: Option<&[u8]>, to: Option<&[u8]>, count: u32) -> Result<Vec<Vec<u8>>> {
+        self._sample(from, to, count)
     }
 
     fn count(&self, from: Option<&[u8]>, to: Option<&[u8]>, skip: Option<u32>) -> Result<u32> {
