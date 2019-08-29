@@ -3,11 +3,11 @@
 //! `config` is the module containing the configuration type and functions.
 
 use crate::consensus_config::ConsensusConfig;
+use crate::error::Error;
 use crate::network_config::NetworkConfig;
 use crate::pool_config::PoolConfig;
 use crate::result::Result;
 use crate::store_config::StoreConfig;
-use models::stage::Stage;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
@@ -15,7 +15,7 @@ use serde_json;
 /// `Config` is the type representing an Alsacoin configuration.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub stage: Stage,
+    pub stage: Option<String>,
     pub store_config: StoreConfig,
     pub pool_config: PoolConfig,
     pub network_config: NetworkConfig,
@@ -23,14 +23,31 @@ pub struct Config {
 }
 
 impl Config {
+    /// `VALID_STAGES` sets the valid stages.
+    pub const VALID_STAGES: &'static [&'static str] = &["testing", "development", "testing"];
+
+    /// `DEFAULT_STAGE` is the default stage.
+    pub const DEFAULT_STAGE: &'static str = "production";
+
     /// `new` creates a new `Config`.
     pub fn new(
-        stage: Stage,
+        stage: Option<String>,
         store_conf: &StoreConfig,
         pool_conf: &PoolConfig,
         net_conf: &NetworkConfig,
         cons_conf: &ConsensusConfig,
     ) -> Result<Config> {
+        let stage = if let Some(stage) = stage {
+            if !Self::VALID_STAGES.contains(&stage.as_str()) {
+                let err = Error::InvalidStage;
+                return Err(err);
+            }
+
+            Some(stage)
+        } else {
+            Some(Self::DEFAULT_STAGE.into())
+        };
+
         store_conf.validate()?;
         pool_conf.validate()?;
         net_conf.validate()?;
@@ -48,6 +65,13 @@ impl Config {
 
     /// `validate` validates the `Config`.
     pub fn validate(&self) -> Result<()> {
+        if let Some(ref stage) = self.stage {
+            if !Self::VALID_STAGES.contains(&stage.as_str()) {
+                let err = Error::InvalidStage;
+                return Err(err);
+            }
+        };
+
         self.store_config.validate()?;
         self.pool_config.validate()?;
         self.network_config.validate()?;
@@ -78,7 +102,7 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Config {
-        let stage = Stage::default();
+        let stage = Some(Config::DEFAULT_STAGE.into());
         let store_config = StoreConfig::default();
         let pool_config = PoolConfig::default();
         let network_config = NetworkConfig::default();

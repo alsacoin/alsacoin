@@ -29,6 +29,8 @@ pub enum Error {
     NotFound,
     #[fail(display = "Invalid kind")]
     InvalidKind,
+    #[fail(display = "Invalid stage")]
+    InvalidStage,
 }
 
 impl From<io::Error> for Error {
