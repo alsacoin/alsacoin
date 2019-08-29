@@ -105,3 +105,39 @@ impl Default for PoolConfig {
         }
     }
 }
+
+#[test]
+fn test_pool_config_new() {}
+
+#[test]
+fn test_pool_config_validate() {}
+
+#[test]
+fn test_pool_config_serialize_bytes() {
+    let config_a = PoolConfig::default();
+
+    let res = config_a.to_bytes();
+    assert!(res.is_ok());
+    let cbor = res.unwrap();
+
+    let res = PoolConfig::from_bytes(&cbor);
+    assert!(res.is_ok());
+    let config_b = res.unwrap();
+
+    assert_eq!(config_a, config_b)
+}
+
+#[test]
+fn test_pool_config_serialize_json() {
+    let config_a = PoolConfig::default();
+
+    let res = config_a.to_json();
+    assert!(res.is_ok());
+    let json = res.unwrap();
+
+    let res = PoolConfig::from_json(&json);
+    assert!(res.is_ok());
+    let config_b = res.unwrap();
+
+    assert_eq!(config_a, config_b)
+}

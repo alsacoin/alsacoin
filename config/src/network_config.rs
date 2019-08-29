@@ -84,3 +84,39 @@ impl Default for NetworkConfig {
         NetworkConfig { kind, address }
     }
 }
+
+#[test]
+fn test_network_config_new() {}
+
+#[test]
+fn test_network_config_validate() {}
+
+#[test]
+fn test_network_config_serialize_bytes() {
+    let config_a = NetworkConfig::default();
+
+    let res = config_a.to_bytes();
+    assert!(res.is_ok());
+    let cbor = res.unwrap();
+
+    let res = NetworkConfig::from_bytes(&cbor);
+    assert!(res.is_ok());
+    let config_b = res.unwrap();
+
+    assert_eq!(config_a, config_b)
+}
+
+#[test]
+fn test_network_config_serialize_json() {
+    let config_a = NetworkConfig::default();
+
+    let res = config_a.to_json();
+    assert!(res.is_ok());
+    let json = res.unwrap();
+
+    let res = NetworkConfig::from_json(&json);
+    assert!(res.is_ok());
+    let config_b = res.unwrap();
+
+    assert_eq!(config_a, config_b)
+}
