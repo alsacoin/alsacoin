@@ -1,3 +1,7 @@
+//! # Consensus
+//!
+//! `consensus` contains Alsacoin`s consensus types and functions.
+
 #[macro_use]
 extern crate failure;
 

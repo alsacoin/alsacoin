@@ -1,3 +1,5 @@
+//! # Store
+//!
 //! `store` contains Alsacoin`s storage types and algorithms.
 
 #![feature(async_await)]

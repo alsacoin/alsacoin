@@ -1,3 +1,7 @@
+//! # Config
+//!
+//! `config` contains Alsacoin`s config types and functions.
+
 #[macro_use]
 extern crate failure;
 

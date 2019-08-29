@@ -1,3 +1,5 @@
+//! # Network
+//!
 //! `network` contains Alsacoin`s networking types and functions.
 
 #[macro_use]
