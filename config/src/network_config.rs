@@ -43,6 +43,14 @@ impl NetworkConfig {
         Ok(config)
     }
 
+    /// `populate` populates the `None` fields in the `NetworkConfig` when there are
+    /// defaults.
+    pub fn populate(&mut self) {
+        if self.kind.is_none() {
+            self.kind = Some(Self::DEFAULT_KIND.into());
+        }
+    }
+
     /// `validate` validates the `NetworkConfig`.
     pub fn validate(&self) -> Result<()> {
         if let Some(ref kind) = self.kind {
@@ -86,10 +94,37 @@ impl Default for NetworkConfig {
 }
 
 #[test]
-fn test_network_config_new() {}
+fn test_network_config_new() {
+    let invalid_kind: String = "kind".into();
+
+    let res = NetworkConfig::new(Some(invalid_kind.into()), None);
+    assert!(res.is_err());
+
+    for kind in NetworkConfig::VALID_KINDS.iter().copied() {
+        let res = NetworkConfig::new(Some(kind.into()), None);
+        assert!(res.is_ok());
+    }
+}
 
 #[test]
-fn test_network_config_validate() {}
+fn test_network_config_validate() {
+    let mut config = NetworkConfig::default();
+
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.kind = None;
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.populate();
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.kind = Some("".into());
+    let res = config.validate();
+    assert!(res.is_err());
+}
 
 #[test]
 fn test_network_config_serialize_bytes() {

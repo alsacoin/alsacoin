@@ -62,6 +62,22 @@ impl StoreConfig {
         Ok(config)
     }
 
+    /// `populate` populates the `None` fields in the `StoreConfig` when there are
+    /// defaults.
+    pub fn populate(&mut self) {
+        if self.kind.is_none() {
+            self.kind = Some(Self::DEFAULT_KIND.into());
+        }
+
+        if self.max_value_size.is_none() {
+            self.max_value_size = Some(Self::DEFAULT_MAX_VALUE_SIZE);
+        }
+
+        if self.max_size.is_none() {
+            self.max_size = Some(Self::DEFAULT_MAX_SIZE);
+        }
+    }
+
     /// `validate` validates the `StoreConfig`.
     pub fn validate(&self) -> Result<()> {
         if let Some(ref kind) = self.kind {
@@ -112,10 +128,37 @@ impl Default for StoreConfig {
 }
 
 #[test]
-fn test_store_config_new() {}
+fn test_store_config_new() {
+    let invalid_kind: String = "kind".into();
+
+    let res = StoreConfig::new(Some(invalid_kind.into()), None, None, None);
+    assert!(res.is_err());
+
+    for kind in StoreConfig::VALID_KINDS.iter().copied() {
+        let res = StoreConfig::new(Some(kind.into()), None, None, None);
+        assert!(res.is_ok());
+    }
+}
 
 #[test]
-fn test_store_config_validate() {}
+fn test_store_config_validate() {
+    let mut config = StoreConfig::default();
+
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.kind = None;
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.populate();
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.kind = Some("".into());
+    let res = config.validate();
+    assert!(res.is_err());
+}
 
 #[test]
 fn test_store_config_serialize_bytes() {

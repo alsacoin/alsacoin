@@ -94,12 +94,6 @@ impl Default for ConsensusConfig {
 }
 
 #[test]
-fn test_consensus_config_new() {}
-
-#[test]
-fn test_consensus_config_validate() {}
-
-#[test]
 fn test_consensus_config_serialize_bytes() {
     let config_a = ConsensusConfig::default();
 

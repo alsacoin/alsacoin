@@ -24,7 +24,7 @@ pub struct Config {
 
 impl Config {
     /// `VALID_STAGES` sets the valid stages.
-    pub const VALID_STAGES: &'static [&'static str] = &["testing", "development", "testing"];
+    pub const VALID_STAGES: &'static [&'static str] = &["testing", "development", "production"];
 
     /// `DEFAULT_STAGE` is the default stage.
     pub const DEFAULT_STAGE: &'static str = "production";
@@ -61,6 +61,14 @@ impl Config {
         };
 
         Ok(conf)
+    }
+
+    /// `populate` populates the `None` fields in the `Config` when there are
+    /// defaults.
+    pub fn populate(&mut self) {
+        if self.stage.is_none() {
+            self.stage = Some(Self::DEFAULT_STAGE.into());
+        }
     }
 
     /// `validate` validates the `Config`.
@@ -119,10 +127,121 @@ impl Default for Config {
 }
 
 #[test]
-fn test_config_new() {}
+fn test_config_new() {
+    let invalid_kind = "kind";
+    let invalid_stage = "stage";
+
+    let store_conf = StoreConfig::default();
+    let pool_conf = PoolConfig::default();
+    let net_conf = NetworkConfig::default();
+    let cons_conf = ConsensusConfig::default();
+
+    let mut invalid_store_conf = store_conf.clone();
+    invalid_store_conf.kind = Some(invalid_kind.into());
+
+    let mut invalid_pool_conf = pool_conf.clone();
+    invalid_pool_conf.kind = Some(invalid_kind.into());
+
+    let mut invalid_net_conf = net_conf.clone();
+    invalid_net_conf.kind = Some(invalid_kind.into());
+
+    let res = Config::new(
+        Some(invalid_stage.into()),
+        &store_conf,
+        &pool_conf,
+        &net_conf,
+        &cons_conf,
+    );
+    assert!(res.is_err());
+
+    for stage in Config::VALID_STAGES.iter().copied() {
+        let res = Config::new(
+            Some(stage.into()),
+            &invalid_store_conf,
+            &pool_conf,
+            &net_conf,
+            &cons_conf,
+        );
+        assert!(res.is_err());
+
+        let res = Config::new(
+            Some(stage.into()),
+            &store_conf,
+            &invalid_pool_conf,
+            &net_conf,
+            &cons_conf,
+        );
+        assert!(res.is_err());
+
+        let res = Config::new(
+            Some(stage.into()),
+            &store_conf,
+            &pool_conf,
+            &invalid_net_conf,
+            &cons_conf,
+        );
+        assert!(res.is_err());
+
+        let res = Config::new(
+            Some(stage.into()),
+            &store_conf,
+            &pool_conf,
+            &net_conf,
+            &cons_conf,
+        );
+        assert!(res.is_ok());
+    }
+}
 
 #[test]
-fn test_config_validate() {}
+fn test_config_validate() {
+    let invalid_kind = "kind";
+    let invalid_stage = "stage";
+
+    let mut invalid_store_conf = StoreConfig::default();
+    invalid_store_conf.kind = Some(invalid_kind.into());
+
+    let mut invalid_pool_conf = PoolConfig::default();
+    invalid_pool_conf.kind = Some(invalid_kind.into());
+
+    let mut invalid_net_conf = NetworkConfig::default();
+    invalid_net_conf.kind = Some(invalid_kind.into());
+
+    let mut config = Config::default();
+
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.stage = None;
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.populate();
+    let res = config.validate();
+    assert!(res.is_ok());
+
+    config.stage = Some(invalid_stage.into());
+    let res = config.validate();
+    assert!(res.is_err());
+
+    config.stage = None;
+
+    config.store_config = invalid_store_conf;
+    let res = config.validate();
+    assert!(res.is_err());
+
+    config.store_config = StoreConfig::default();
+
+    config.pool_config = invalid_pool_conf;
+    let res = config.validate();
+    assert!(res.is_err());
+
+    config.pool_config = PoolConfig::default();
+
+    config.network_config = invalid_net_conf;
+    let res = config.validate();
+    assert!(res.is_err());
+}
 
 #[test]
 fn test_config_serialize_bytes() {
