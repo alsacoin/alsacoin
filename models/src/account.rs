@@ -9,6 +9,7 @@ use crate::signers::Signers;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
@@ -23,11 +24,12 @@ pub struct Account {
     pub signers: Signers,
     pub value: u64, // NB: gonna be confidential
     pub counter: u64,
+    pub transaction_id: Digest,
 }
 
 impl Account {
     /// `new` creates a new `Account`.
-    pub fn new(stage: Stage, signers: &Signers, value: u64) -> Result<Account> {
+    pub fn new(stage: Stage, signers: &Signers, value: u64, tx_id: Digest) -> Result<Account> {
         signers.validate()?;
 
         let account = Account {
@@ -36,14 +38,16 @@ impl Account {
             signers: signers.to_owned(),
             value,
             counter: 0,
+            transaction_id: tx_id,
         };
 
         Ok(account)
     }
 
-    /// `update` updates the `Account` with a new value.
-    pub fn update(&mut self, value: u64) {
+    /// `update` updates the `Account`.
+    pub fn update(&mut self, value: u64, tx_id: Digest) {
         self.value = value;
+        self.transaction_id = tx_id;
         self.counter += 1;
     }
 
@@ -288,10 +292,12 @@ fn test_account_new() {
     let mut invalid_signers = valid_signers.clone();
     invalid_signers.threshold = invalid_signers.total_weight() + 1;
 
-    let res = Account::new(stage, &valid_signers, value);
+    let tx_id = Digest::random().unwrap();
+
+    let res = Account::new(stage, &valid_signers, value, tx_id);
     assert!(res.is_ok());
 
-    let res = Account::new(stage, &invalid_signers, value);
+    let res = Account::new(stage, &invalid_signers, value, tx_id);
     assert!(res.is_err());
 }
 
@@ -320,8 +326,9 @@ fn test_account_validate() {
 
     let mut invalid_signers = valid_signers.clone();
     invalid_signers.threshold = invalid_signers.total_weight() + 1;
+    let tx_id = Digest::random().unwrap();
 
-    let mut account = Account::new(stage, &valid_signers, value).unwrap();
+    let mut account = Account::new(stage, &valid_signers, value, tx_id).unwrap();
 
     let res = account.validate();
     assert!(res.is_ok());
@@ -345,7 +352,8 @@ fn test_account_serialize_bytes() {
         let stage = Stage::random().unwrap();
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
-        let account_a = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account_a = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let res = account_a.to_bytes();
         assert!(res.is_ok());
@@ -367,7 +375,8 @@ fn test_account_serialize_json() {
         let stage = Stage::random().unwrap();
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
-        let account_a = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account_a = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let res = account_a.to_json();
         assert!(res.is_ok());
@@ -397,7 +406,8 @@ fn test_account_storable() {
         .map(|_| {
             let signers = Signers::new().unwrap();
             let value = Random::u64().unwrap();
-            let account = Account::new(stage, &signers, value).unwrap();
+            let tx_id = Digest::random().unwrap();
+            let account = Account::new(stage, &signers, value, tx_id).unwrap();
             (account.address, account)
         })
         .collect();

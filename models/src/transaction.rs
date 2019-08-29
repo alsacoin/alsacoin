@@ -217,6 +217,11 @@ impl Transaction {
             return Err(err);
         }
 
+        if input.account.transaction_id == self.id {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
         Ok(())
     }
 
@@ -863,7 +868,8 @@ fn test_transaction_inputs() {
         signers.set_threshold(threshold).unwrap();
 
         let value = Random::u64().unwrap();
-        let account = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -1017,7 +1023,8 @@ fn test_transaction_distance() {
         signers.set_threshold(threshold).unwrap();
 
         let value = Random::u64().unwrap();
-        let account = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -1072,7 +1079,8 @@ fn test_transaction_balance() {
         signers.set_threshold(threshold).unwrap();
 
         let value = Random::u64().unwrap();
-        let account = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {

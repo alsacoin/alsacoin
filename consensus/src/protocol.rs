@@ -11,6 +11,7 @@ use models::consensus_params::ConsensusParams;
 use models::consensus_state::ConsensusState;
 use models::stage::Stage;
 use models::traits::Storable;
+use models::transaction::Transaction;
 use network::message::Message;
 use network::traits::Transport;
 use store::traits::Store;
@@ -28,8 +29,8 @@ pub struct Protocol<S: Store, P: Store, T: Transport> {
 
 impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `new` creates a new `Protocol` instance.
-    /// The method is equivalent to the Init procedure in
-    /// the Avalanche spec.
+    /// The method is equivalent to the "Init" procedure in
+    /// the Avalanche paper.
     pub fn new(
         params: &ConsensusParams,
         state: &ConsensusState,
@@ -102,8 +103,90 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         msg.to_consensus_message().map_err(|e| e.into())
     }
 
+    /// `on_new_transaction` handles a new `Transaction`.
+    /// It is equivalent to the `OnGenerateTx` of the Avalanche paper.
+    pub fn on_new_transaction(&mut self, _transaction: &Transaction) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_nodes` fetches nodes from remote.
+    pub fn fetch_nodes(&mut self) -> Result<()> {
+        // TODO
+        // NB: use k as *maxnodes*
+        unreachable!()
+    }
+
+    /// `on_fetch_nodes` handles a `FetchNodes` request.
+    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
+    pub fn on_fetch_nodes(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_random_nodes` fetches random nodes from remote.
+    pub fn fetch_random_nodes(&mut self) -> Result<()> {
+        // TODO
+        // NB: use k as *maxnodes*
+        unreachable!()
+    }
+
+    /// `on_fetch_random_nodes` handles a `FetchRandomNodes` request.
+    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
+    pub fn on_fetch_random_nodes(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_transactions` fetches transactions from remote.
+    pub fn fetch_transactions(&mut self) -> Result<()> {
+        // TODO
+        // NB: use k as *maxtransactions*
+        unreachable!()
+    }
+
+    /// `on_fetch_transactions` handles a `FetchTransactions` request.
+    pub fn on_fetch_transactions(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_random_transactions` fetches random transactions from remote.
+    pub fn fetch_random_transactions(&mut self) -> Result<()> {
+        // TODO
+        // NB: use k as *maxtransactions*
+        unreachable!()
+    }
+
+    /// `on_fetch_random_transactions` handles a `FetchRandomTransactions` request.
+    pub fn on_fetch_random_transactions(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_ancestors` fetches a `Transaction` ancestors from remote if missing.
+    pub fn fetch_ancestors(&mut self, _transaction: &Transaction) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `query` queries remote nodes.
+    pub fn query(&mut self) -> Result<()> {
+        // TODO
+        // NB: use k as *maxnodes*
+        unreachable!()
+    }
+
+    /// `reply` replies to a `Query` request.
+    /// In the Avalanche paper the function is called "OnQuery".
+    pub fn reply(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        // NB: use k as *maxnodes*
+        unreachable!()
+    }
+
     /// `is_preferred` returns if a `Transaction` is preferred.
-    /// The name of the function in the Avalanche spec is IsPreferred.
+    /// The name of the function in the Avalanche paper is "IsPreferred".
     pub fn is_preferred(&self, tx_id: &Digest) -> Result<bool> {
         if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
             let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
@@ -116,6 +199,39 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         } else {
             Ok(false)
         }
+    }
+
+    /// `is_strongly_preferred` returns if a `Transaction` is strongly preferred.
+    /// The name of the function in the Avalanche paper is "IsStronglyPreferred".
+    pub fn is_strongly_preferred(&self, _tx_id: &Digest) -> Result<bool> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `is_accepted` returns if a `Transaction` is accepted.
+    /// The name of the function in the Avalanche paper is "IsAccepted".
+    pub fn is_accepted(&self, _tx_id: &Digest) -> Result<bool> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `update_chit` updates the chit of a `Transaction`.
+    pub fn update_chit(&mut self, _tx_id: &Digest) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `update_confidence` updates the confidence of a `Transaction`.
+    pub fn update_confidence(&mut self, _tx_id: &Digest) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `exec` executes the main loop of the `Protocol`.
+    /// The name of the function in the Avalanche paper is "AvalancheLoop".
+    pub fn exec(&mut self) -> Result<()> {
+        // TODO
+        unreachable!()
     }
 
     /// `validate` validates the `Protocol`.

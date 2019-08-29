@@ -192,12 +192,14 @@ impl Input {
 fn test_input_new() {
     use crate::signers::Signers;
     use crate::stage::Stage;
+    use crypto::hash::Digest;
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
     let signers = Signers::new().unwrap();
     let value = Random::u64().unwrap();
-    let account = Account::new(stage, &signers, value).unwrap();
+    let tx_id = Digest::random().unwrap();
+    let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
@@ -219,6 +221,7 @@ fn test_input_sign() {
     use crate::signer::Signer;
     use crate::signers::Signers;
     use crate::stage::Stage;
+    use crypto::hash::Digest;
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
@@ -246,7 +249,8 @@ fn test_input_sign() {
     signers.add(&signer_b).unwrap();
 
     let value = Random::u64().unwrap();
-    let account = Account::new(stage, &signers, value).unwrap();
+    let tx_id = Digest::random().unwrap();
+    let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
@@ -286,12 +290,14 @@ fn test_input_sign() {
 fn test_input_validate() {
     use crate::signers::Signers;
     use crate::stage::Stage;
+    use crypto::hash::Digest;
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
     let signers = Signers::new().unwrap();
     let value = Random::u64().unwrap();
-    let account = Account::new(stage, &signers, value).unwrap();
+    let tx_id = Digest::random().unwrap();
+    let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
@@ -328,6 +334,7 @@ fn test_input_validate() {
 fn test_input_serialize_bytes() {
     use crate::signers::Signers;
     use crate::stage::Stage;
+    use crypto::hash::Digest;
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
@@ -335,7 +342,8 @@ fn test_input_serialize_bytes() {
     for _ in 0..10 {
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
-        let account = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -361,6 +369,7 @@ fn test_input_serialize_bytes() {
 fn test_input_serialize_json() {
     use crate::signers::Signers;
     use crate::stage::Stage;
+    use crypto::hash::Digest;
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
@@ -368,7 +377,8 @@ fn test_input_serialize_json() {
     for _ in 0..10 {
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
-        let account = Account::new(stage, &signers, value).unwrap();
+        let tx_id = Digest::random().unwrap();
+        let account = Account::new(stage, &signers, value, tx_id).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
