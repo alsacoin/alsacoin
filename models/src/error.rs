@@ -74,8 +74,6 @@ pub enum Error {
     InvalidTransactions,
     #[fail(display = "Invalid message")]
     InvalidMessage,
-    #[fail(display = "Invalid chit")]
-    InvalidChit,
 }
 
 impl From<io::Error> for Error {

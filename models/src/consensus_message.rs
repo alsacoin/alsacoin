@@ -68,7 +68,7 @@ pub enum ConsensusMessage {
         id: u64,
         node: Node,
         tx_id: Digest,
-        chit: u8,
+        chit: bool,
     },
 }
 
@@ -252,17 +252,12 @@ impl ConsensusMessage {
         query_id: u64,
         node: &Node,
         tx_id: Digest,
-        chit: u8,
+        chit: bool,
     ) -> Result<ConsensusMessage> {
         node.validate()?;
 
         if tx_id == node.id {
             let err = Error::InvalidId;
-            return Err(err);
-        }
-
-        if chit > 1 {
-            let err = Error::InvalidChit;
             return Err(err);
         }
 
@@ -479,17 +474,12 @@ impl ConsensusMessage {
     pub fn validate_reply(&self) -> Result<()> {
         match self {
             ConsensusMessage::Reply {
-                node, tx_id, chit, ..
+                node, tx_id, ..
             } => {
                 node.validate()?;
 
                 if tx_id == &node.id {
                     let err = Error::InvalidId;
-                    return Err(err);
-                }
-
-                if *chit > 1 {
-                    let err = Error::InvalidChit;
                     return Err(err);
                 }
 
@@ -729,7 +719,7 @@ fn test_consensus_message() {
     let node = Node::random(address_len).unwrap();
     let query_id = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let chit = Random::u32_range(0, 2).unwrap() as u8;
+    let chit = Random::u32_range(0, 2).unwrap() != 0;
 
     let mut invalid_node = node.clone();
     invalid_node.id = Digest::default();
@@ -776,7 +766,7 @@ fn test_consensus_message_serialize_bytes() {
         let node = Node::random(address_len).unwrap();
         let query_id = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let chit = Random::u32_range(0, 2).unwrap() as u8;
+        let chit = Random::u32_range(0, 2).unwrap() != 0;
 
         let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
 
@@ -800,7 +790,7 @@ fn test_consensus_message_serialize_json() {
         let node = Node::random(address_len).unwrap();
         let query_id = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let chit = Random::u32_range(0, 2).unwrap() as u8;
+        let chit = Random::u32_range(0, 2).unwrap() != 0;
 
         let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
 
@@ -833,7 +823,7 @@ fn test_consensus_message_storable() {
             let address = Random::bytes(address_len).unwrap();
             let node = Node::new(stage, &address);
             let tx_id = Digest::random().unwrap();
-            let chit = Random::u32_range(0, 2).unwrap() as u8;
+            let chit = Random::u32_range(0, 2).unwrap() != 0;
 
             let cons_msg = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
             (query_id, cons_msg)
