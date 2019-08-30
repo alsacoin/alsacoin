@@ -133,19 +133,19 @@ impl ConsensusState {
         Ok(())
     }
 
-    /// `lookup_conflict_set` looks up a `ConflictSet` id in the queried conflict_sets set of the `ConsensusState`.
+    /// `lookup_conflict_set` looks up a `ConflictSet` id.
     pub fn lookup_conflict_set(&self, cs_id: u64) -> bool {
         self.conflict_sets.contains(&cs_id)
     }
 
-    /// `add_conflict_set` adds a new `ConflictSet` id in the queried conflict_sets set of the `ConsensusState`.
+    /// `add_conflict_set` adds a new `ConflictSet` id.
     pub fn add_conflict_set(&mut self, cs_id: u64) {
         if !self.lookup_conflict_set(cs_id) {
             self.conflict_sets.insert(cs_id);
         }
     }
 
-    /// `remove_conflict_set` removes a `ConflictSet` id from the queried conflict_set set of the `ConsensusState`.
+    /// `remove_conflict_set` removes a `ConflictSet` id.
     pub fn remove_conflict_set(&mut self, cs_id: u64) -> Result<()> {
         if !self.lookup_conflict_set(cs_id) {
             let err = Error::NotFound;
@@ -168,9 +168,9 @@ impl ConsensusState {
         self.transaction_conflict_set.get(tx_id).copied()
     }
 
-    /// `add_transaction_conflict_set` adds a known `Transaction` conflict set id in
+    /// `set_transaction_conflict_set` sets a known `Transaction` conflict set id in
     /// the `ConsensusState`.
-    pub fn add_transaction_conflict_set(&mut self, tx_id: Digest, cs_id: u64) -> Result<()> {
+    pub fn set_transaction_conflict_set(&mut self, tx_id: Digest, cs_id: u64) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
@@ -215,9 +215,9 @@ impl ConsensusState {
         self.transaction_chit.get(tx_id).copied()
     }
 
-    /// `add_transaction_chit` adds a known `Transaction` chit in
+    /// `set_transaction_chit` sets a known `Transaction` chit in
     /// the `ConsensusState`.
-    pub fn add_transaction_chit(&mut self, tx_id: Digest, chit: bool) -> Result<()> {
+    pub fn set_transaction_chit(&mut self, tx_id: Digest, chit: bool) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
@@ -257,9 +257,9 @@ impl ConsensusState {
         self.transaction_confidence.get(tx_id).copied()
     }
 
-    /// `add_transaction_confidence` adds a known `Transaction` confidence in
+    /// `set_transaction_confidence` sets a known `Transaction` confidence in
     /// the `ConsensusState`.
-    pub fn add_transaction_confidence(&mut self, tx_id: Digest, confidence: u64) -> Result<()> {
+    pub fn set_transaction_confidence(&mut self, tx_id: Digest, confidence: u64) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
@@ -694,7 +694,7 @@ fn test_consensus_state_conflict_sets_ops() {
 }
 
 #[test]
-fn test_consensus_state_transaction_conflict_add_ops() {
+fn test_consensus_state_transaction_conflict_sets_ops() {
     use crypto::random::Random;
 
     let id = Random::u64().unwrap();
@@ -715,12 +715,12 @@ fn test_consensus_state_transaction_conflict_add_ops() {
     let res = state.remove_transaction_conflict_set(&tx_id);
     assert!(res.is_err());
 
-    let res = state.add_transaction_conflict_set(tx_id, tx_cs_id);
+    let res = state.set_transaction_conflict_set(tx_id, tx_cs_id);
     assert!(res.is_err());
 
     state.add_conflict_set(tx_cs_id);
 
-    let res = state.add_transaction_conflict_set(tx_id, tx_cs_id);
+    let res = state.set_transaction_conflict_set(tx_id, tx_cs_id);
     assert!(res.is_ok());
 
     let res = state.validate();
@@ -765,7 +765,7 @@ fn test_consensus_state_transaction_chit_ops() {
     let res = state.remove_transaction_chit(&tx_id);
     assert!(res.is_err());
 
-    let res = state.add_transaction_chit(tx_id, tx_chit);
+    let res = state.set_transaction_chit(tx_id, tx_chit);
     assert!(res.is_ok());
 
     let res = state.validate();
@@ -810,7 +810,7 @@ fn test_consensus_state_transaction_confidence_ops() {
     let res = state.remove_transaction_confidence(&tx_id);
     assert!(res.is_err());
 
-    let res = state.add_transaction_confidence(tx_id, tx_confidence);
+    let res = state.set_transaction_confidence(tx_id, tx_confidence);
     assert!(res.is_ok());
 
     let res = state.validate();
