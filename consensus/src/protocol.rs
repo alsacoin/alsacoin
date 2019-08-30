@@ -273,6 +273,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             .map_err(|e| e.into())
     }
 
+    /// `sample_nodes` samples a maximum of k nodes from the store.
+    pub fn sample_nodes(&self) -> Result<Vec<Node>> {
+        let count = self.params.k;
+        Node::sample(&self.store, self.stage, None, None, count).map_err(|e| e.into())
+    }
+
     /// `push_node` sends a `Node` to a remote node.
     pub fn push_node(&mut self, _address: &[u8], _node: &Node) -> Result<()> {
         // TODO

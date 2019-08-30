@@ -24,7 +24,7 @@ pub struct ConflictSet {
     pub transactions: BTreeSet<Digest>,
     pub last: Option<Digest>,
     pub preferred: Option<Digest>,
-    pub count: u64,
+    pub count: u32,
 }
 
 impl ConflictSet {

@@ -19,20 +19,20 @@ use store::traits::Store;
 pub struct ConsensusParams {
     pub id: Digest,
     pub stage: Stage,
-    pub k: u64,
-    pub alpha: u64,
-    pub beta1: Option<u64>,
-    pub beta2: Option<u64>,
+    pub k: u32,
+    pub alpha: u32,
+    pub beta1: Option<u32>,
+    pub beta2: Option<u32>,
 }
 
 impl ConsensusParams {
     /// `new` creates a new `ConsensusParams`.
     pub fn new(
         stage: Stage,
-        k: u64,
-        alpha: u64,
-        beta1: Option<u64>,
-        beta2: Option<u64>,
+        k: u32,
+        alpha: u32,
+        beta1: Option<u32>,
+        beta2: Option<u32>,
     ) -> Result<ConsensusParams> {
         let mut params = ConsensusParams {
             id: Digest::default(),
@@ -52,18 +52,18 @@ impl ConsensusParams {
     pub fn random() -> Result<ConsensusParams> {
         let stage = Stage::random()?;
 
-        let k = Random::u64()?;
+        let k = Random::u32()?;
 
-        let alpha = Random::u64()?;
+        let alpha = Random::u32()?;
 
         let beta1 = if Random::u32_range(0, 2)? == 1 {
-            Some(Random::u64()?)
+            Some(Random::u32()?)
         } else {
             None
         };
 
         let beta2 = if Random::u32_range(0, 2)? == 1 {
-            Some(Random::u64()?)
+            Some(Random::u32()?)
         } else {
             None
         };
