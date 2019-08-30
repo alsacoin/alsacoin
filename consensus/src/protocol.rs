@@ -22,6 +22,7 @@ use store::traits::Store;
 /// `Protocol` is the type encapsulating the Avalanche Consensus Protocol.
 pub struct Protocol<S: Store, P: Store, T: Transport> {
     stage: Stage,
+    address: Vec<u8>,
     params: ConsensusParams,
     state: ConsensusState,
     store: S,
@@ -35,6 +36,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// The method is equivalent to the "Init" procedure in
     /// the Avalanche paper.
     pub fn new(
+        address: &[u8],
         params: &ConsensusParams,
         state: &ConsensusState,
         store: S,
@@ -52,6 +54,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
         let protocol = Protocol {
             stage: params.stage,
+            address: address.to_owned(),
             params: params.to_owned(),
             state: state.to_owned(),
             store,
@@ -279,6 +282,20 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Node::sample(&self.store, self.stage, None, None, count).map_err(|e| e.into())
     }
 
+    /// `random_node` returns a random node.
+    pub fn random_node(&self) -> Result<Node> {
+        let nodes = Node::sample(&self.store, self.stage, None, None, 1)?;
+
+        if nodes.len() != 1 {
+            let err = ModelsError::InvalidLength;
+            return Err(err.into());
+        }
+
+        let node = nodes[0].clone();
+
+        Ok(node)
+    }
+
     /// `push_node` sends a `Node` to a remote node.
     pub fn push_node(&mut self, _address: &[u8], _node: &Node) -> Result<()> {
         // TODO
@@ -305,7 +322,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_nodes` fetches nodes from remote.
-    pub fn fetch_nodes(&mut self) -> Result<Vec<Node>> {
+    pub fn fetch_nodes(
+        &mut self,
+        _address: &[u8],
+        _nodes: &BTreeSet<Digest>,
+    ) -> Result<BTreeSet<Node>> {
         // TODO
         // NB: use k as *maxnodes*
         unreachable!()
@@ -318,7 +339,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_random_nodes` fetches random nodes from remote.
-    pub fn fetch_random_nodes(&mut self) -> Result<Vec<Node>> {
+    pub fn fetch_random_nodes(&mut self, _address: &[u8], _count: u32) -> Result<BTreeSet<Node>> {
         // TODO
         // NB: use k as *maxnodes*
         unreachable!()
@@ -331,7 +352,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_transactions` fetches transactions from remote.
-    pub fn fetch_transactions(&mut self) -> Result<Vec<Transaction>> {
+    pub fn fetch_transactions(
+        &mut self,
+        _address: &[u8],
+        _transactions: &BTreeSet<Digest>,
+    ) -> Result<BTreeSet<Transaction>> {
         // TODO
         // NB: use k as *maxtransactions*
         unreachable!()
@@ -344,7 +369,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_random_transactions` fetches random transactions from remote.
-    pub fn fetch_random_transactions(&mut self) -> Result<Vec<Transaction>> {
+    pub fn fetch_random_transactions(&mut self, _count: u32) -> Result<BTreeSet<Transaction>> {
         // TODO
         // NB: use k as *maxtransactions*
         unreachable!()
@@ -357,9 +382,43 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `fetch_ancestors` fetches a `Transaction` ancestors from remote if missing.
-    pub fn fetch_ancestors(&mut self, _transaction: &Transaction) -> Result<Vec<Transaction>> {
-        // TODO
-        unreachable!()
+    pub fn fetch_ancestors(&mut self, transaction: &Transaction) -> Result<BTreeSet<Transaction>> {
+        transaction.validate()?;
+
+        let to_fetch: BTreeSet<Digest> = transaction
+            .ancestors()
+            .iter()
+            .filter(|id| !self.state.lookup_known_transaction(&id))
+            .copied()
+            .collect();
+
+        if to_fetch.is_empty() {
+            return Ok(BTreeSet::new());
+        }
+
+        let nodes = self.sample_nodes()?;
+        let mut res = BTreeSet::new();
+
+        for node in &nodes {
+            let result = self.fetch_transactions(&node.address, &to_fetch);
+
+            let txs = if let Ok(txs) = result {
+                txs
+            } else {
+                let mut node = self.random_node()?;
+                while node.address == self.address || nodes.contains(&node) {
+                    node = self.random_node()?;
+                }
+
+                self.fetch_transactions(&node.address, &to_fetch)?
+            };
+
+            for tx in txs {
+                res.insert(tx);
+            }
+        }
+
+        Ok(res)
     }
 
     /// `query` queries remote nodes.
