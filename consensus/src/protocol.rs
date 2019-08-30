@@ -267,8 +267,10 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `update_confidence` updates the confidence of a `Transaction`.
     pub fn update_confidence(&mut self, tx_id: &Digest) -> Result<()> {
         let confidence = self.calc_confidence(tx_id)?;
-        
-        self.state.set_transaction_confidence(*tx_id, confidence).map_err(|e| e.into())
+
+        self.state
+            .set_transaction_confidence(*tx_id, confidence)
+            .map_err(|e| e.into())
     }
 
     /// `push_node` sends a `Node` to a remote node.

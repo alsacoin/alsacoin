@@ -473,9 +473,7 @@ impl ConsensusMessage {
     /// `validate_reply` validates a `Reply` `ConsensusMessage`.
     pub fn validate_reply(&self) -> Result<()> {
         match self {
-            ConsensusMessage::Reply {
-                node, tx_id, ..
-            } => {
+            ConsensusMessage::Reply { node, tx_id, .. } => {
                 node.validate()?;
 
                 if tx_id == &node.id {
