@@ -230,10 +230,45 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(false)
     }
 
+    /// `calc_confidence` calculates the confidence of a `Transaction`.
+    pub fn calc_confidence(&self, tx_id: &Digest) -> Result<u64> {
+        let tx_in_pool = Transaction::lookup(&self.pool, self.stage, tx_id)?;
+        let tx_in_store = Transaction::lookup(&self.store, self.stage, tx_id)?;
+
+        if tx_in_pool || tx_in_store {
+            let confidence = if let Some(successors) = self.state.get_successors(tx_id) {
+                let mut confidence = 0;
+
+                for succ_id in successors {
+                    if !self.state.lookup_known_transaction(&succ_id) {
+                        let err = ModelsError::NotFound;
+                        return Err(err.into());
+                    }
+
+                    let chit = self.state.get_transaction_chit(&succ_id).unwrap_or(false) as u64;
+
+                    confidence += chit;
+                }
+
+                confidence += self.state.get_transaction_chit(tx_id).unwrap_or(false) as u64;
+
+                confidence
+            } else {
+                0
+            };
+
+            Ok(confidence)
+        } else {
+            let err = ModelsError::NotFound;
+            Err(err.into())
+        }
+    }
+
     /// `update_confidence` updates the confidence of a `Transaction`.
-    pub fn update_confidence(&mut self, _tx_id: &Digest) -> Result<()> {
-        // TODO
-        unreachable!()
+    pub fn update_confidence(&mut self, tx_id: &Digest) -> Result<()> {
+        let confidence = self.calc_confidence(tx_id)?;
+        
+        self.state.set_transaction_confidence(*tx_id, confidence).map_err(|e| e.into())
     }
 
     /// `push_node` sends a `Node` to a remote node.
