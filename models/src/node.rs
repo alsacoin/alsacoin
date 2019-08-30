@@ -311,7 +311,7 @@ fn test_node_random() {
 #[test]
 fn test_node_validate() {
     let address_len = 10;
-    let address = Random::bytes(address_len).unwrap();;
+    let address = Random::bytes(address_len).unwrap();
     let stage = Stage::random().unwrap();
     let invalid_timestamp = Timestamp::new(2012, 12, 31, 12, 12, 12).unwrap();
 

@@ -1,7 +1,5 @@
 //! `model` contains Alsacoin`s model types and functions.
 
-#![feature(async_await)]
-
 #[macro_use]
 extern crate failure;
 

@@ -8,15 +8,7 @@ edition = "2018"
 failure = "~0.1"
 serde = { version = "~1.0", features = ["derive"] }
 serde_cbor = "~0.10"
-futures-preview = { version = "=0.3.0-alpha.17", features = ["async-await", "nightly"] }
 tempfile = "~3.1"
 unqlite = "~1.4"
-may = "~0.3"
-generator = "~0.6"
-conetty = { git = "https://github.com/Xudong-Huang/conetty" }
-may_signal = { git = "https://github.com/Xudong-Huang/may_signal" }
-may_process = { git = "https://github.com/Xudong-Huang/may_process" }
-may_thread = { git = "https://github.com/Xudong-Huang/may_thread" }
-may_rpc = { git = "https://github.com/Xudong-Huang/may_rpc" }
 
 crypto = { path = "../crypto" }

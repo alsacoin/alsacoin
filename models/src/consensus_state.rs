@@ -755,7 +755,7 @@ fn test_consensus_state_transaction_chit_ops() {
     assert!(res.is_ok());
 
     let tx_id = Digest::random().unwrap();
-    let tx_chit = Random::u32_range(0, 2).unwrap() as bool;
+    let tx_chit = Random::u32_range(0, 2).unwrap() != 0;
 
     state.add_known_transaction(tx_id);
 
