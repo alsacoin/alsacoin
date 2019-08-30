@@ -21,6 +21,7 @@ pub struct ConsensusState {
     pub id: u64,
     pub stage: Stage,
     pub known_transactions: BTreeSet<Digest>,
+    pub successors: BTreeMap<Digest, BTreeSet<Digest>>,
     pub queried_transactions: BTreeSet<Digest>,
     pub conflict_sets: BTreeSet<u64>,
     pub transaction_conflict_set: BTreeMap<Digest, u64>,
@@ -58,6 +59,45 @@ impl ConsensusState {
         }
 
         self.known_transactions.remove(tx_id);
+
+        Ok(())
+    }
+
+    /// `lookup_successors` looks up the successors of a `Transaction`.
+    pub fn lookup_successors(&self, tx_id: &Digest) -> bool {
+        self.successors.contains_key(tx_id)
+    }
+
+    /// `get_successors` returns a `Transaction` successors.
+    pub fn get_successors(&self, tx_id: &Digest) -> Option<BTreeSet<Digest>> {
+        self.successors.get(tx_id).cloned()
+    }
+
+    /// `add_successors` adds the successors of a `Transaction`.
+    pub fn add_successors(&mut self, tx_id: Digest, succ_ids: BTreeSet<Digest>) -> Result<()> {
+        if !self.lookup_known_transaction(&tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if succ_ids.contains(&tx_id) {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        self.successors.insert(tx_id, succ_ids);
+
+        Ok(())
+    }
+
+    /// `remove_successors` removes the successors of a `Transaction`.
+    pub fn remove_successors(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup_successors(tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        self.successors.remove(tx_id);
 
         Ok(())
     }
