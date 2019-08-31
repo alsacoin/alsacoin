@@ -32,7 +32,6 @@ pub struct Transaction {
     pub inputs: BTreeMap<Address, Input>,
     pub outputs: BTreeMap<Address, Output>,
     pub coinbase: Option<Coinbase>,
-    pub fee: u64,
     pub nonce: u64,
 }
 
@@ -49,7 +48,6 @@ impl Transaction {
             inputs: BTreeMap::default(),
             outputs: BTreeMap::default(),
             coinbase: None,
-            fee: 0,
             nonce: Random::u64()?,
         };
 
@@ -116,20 +114,8 @@ impl Transaction {
         let ibalance = self.input_balance() as i64;
         let obalance = self.output_balance() as i64;
         let coinbase = self.coinbase_amount() as i64;
-        let fee = self.fee as i64;
 
-        ibalance - obalance + coinbase - fee
-    }
-
-    /// `max_fee` returns the maximum fee available for the `Transaction`.
-    pub fn max_fee(&self) -> u64 {
-        let imbalance = self.balance() - (self.fee as i64);
-
-        if imbalance <= 0 {
-            0
-        } else {
-            imbalance as u64
-        }
+        ibalance + coinbase - obalance
     }
 
     /// `ancestors` returns the `Transaction` ancestors' ids.
@@ -367,18 +353,6 @@ impl Transaction {
         }
 
         Ok(())
-    }
-
-    /// `set_fee` sets the fee in the `Transaction`.
-    pub fn set_fee(&mut self, fee: u64) -> Result<()> {
-        if fee > self.max_fee() {
-            let err = Error::InvalidFee;
-            return Err(err);
-        }
-
-        self.fee = fee;
-
-        self.update_id()
     }
 
     /// `update_distance` updates the `Transaction` distance.
@@ -1076,7 +1050,6 @@ fn test_transaction_balance() {
 
     let mut input_balance = 0;
     let mut output_balance = 0;
-    let mut fee = 0;
     let mut expected_balance = 0i64;
 
     for _ in 0..10 {
@@ -1105,9 +1078,6 @@ fn test_transaction_balance() {
         input_balance += input.amount;
         expected_balance += input.amount as i64;
 
-        let max_fee = transaction.max_fee();
-        assert_eq!(max_fee, input_balance);
-
         let balance = transaction.balance();
         assert_eq!(balance, expected_balance);
         assert_eq!(balance, input_balance as i64);
@@ -1118,9 +1088,6 @@ fn test_transaction_balance() {
         transaction.delete_input(&input.address).unwrap();
         input_balance -= input.amount;
         expected_balance -= input.amount as i64;
-
-        let max_fee = transaction.max_fee();
-        assert_eq!(max_fee, 0);
 
         let balance = transaction.balance();
         assert_eq!(balance, expected_balance);
@@ -1140,9 +1107,6 @@ fn test_transaction_balance() {
         output_balance += output.amount;
         expected_balance -= output.amount as i64;
 
-        let max_fee = transaction.max_fee();
-        assert_eq!(max_fee, 0);
-
         let balance = transaction.balance();
         assert_eq!(balance, expected_balance);
         assert_eq!(balance, -(output_balance as i64));
@@ -1154,9 +1118,6 @@ fn test_transaction_balance() {
         output_balance -= output.amount;
         expected_balance += output.amount as i64;
 
-        let max_fee = transaction.max_fee();
-        assert_eq!(max_fee, 0);
-
         let balance = transaction.balance();
         assert_eq!(expected_balance, 0);
         assert_eq!(balance, expected_balance);
@@ -1165,26 +1126,9 @@ fn test_transaction_balance() {
         assert!(res.is_ok());
     }
 
-    let res = transaction.validate_balance();
-    assert!(res.is_ok());
-
-    fee += 10;
-    transaction.fee = fee;
-    expected_balance -= fee as i64;
-
-    let max_fee = transaction.max_fee();
-    assert_eq!(max_fee, 0);
-
     let balance = transaction.balance();
     assert_eq!(balance, expected_balance);
 
-    let res = transaction.validate_balance();
-    assert!(res.is_err());
-
-    let res = transaction.set_fee(fee);
-    assert!(res.is_err());
-
-    transaction.fee = 0;
     let res = transaction.validate_balance();
     assert!(res.is_ok());
 }
