@@ -454,10 +454,4 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         // TODO
         unreachable!()
     }
-
-    /// `run` runs the `Protocol`.
-    pub fn run(&mut self) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
 }
