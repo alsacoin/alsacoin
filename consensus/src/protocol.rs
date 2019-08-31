@@ -122,6 +122,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     pub fn is_preferred(&self, tx_id: &Digest) -> Result<bool> {
         if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
             let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
+            cs.validate()?;
+
             if let Some(pref_id) = cs.preferred {
                 let is_pref = tx_id == &pref_id;
                 Ok(is_pref)
@@ -138,6 +140,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     pub fn is_strongly_preferred(&self, tx_id: &Digest) -> Result<bool> {
         match Transaction::get(&self.pool, self.stage, tx_id) {
             Ok(tx) => {
+                tx.validate()?;
+
                 let ancestors: BTreeSet<Digest> = tx
                     .ancestors()
                     .iter()
@@ -174,6 +178,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
         match Transaction::get(&self.pool, self.stage, tx_id) {
             Ok(tx) => {
+                tx.validate()?;
+
                 let ancestors: BTreeSet<Digest> = tx
                     .ancestors()
                     .iter()
@@ -217,6 +223,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
             let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
 
+            cs.validate()?;
+
             if let Some(beta1) = self.params.beta1 {
                 if cs.transactions.len() == 1 && cs.count > beta1 {
                     return Ok(true);
@@ -244,8 +252,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
                 for succ_id in successors {
                     if !self.state.lookup_known_transaction(&succ_id) {
-                        let err = ModelsError::NotFound;
-                        return Err(err.into());
+                        let err = Error::NotFound;
+                        return Err(err);
                     }
 
                     let chit = self.state.get_transaction_chit(&succ_id).unwrap_or(false) as u64;
@@ -262,8 +270,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
             Ok(confidence)
         } else {
-            let err = ModelsError::NotFound;
-            Err(err.into())
+            let err = Error::NotFound;
+            Err(err)
         }
     }
 
@@ -287,13 +295,26 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = Node::sample(&self.store, self.stage, None, None, 1)?;
 
         if nodes.len() != 1 {
-            let err = ModelsError::InvalidLength;
-            return Err(err.into());
+            let err = Error::InvalidLength;
+            return Err(err);
         }
 
         let node = nodes[0].clone();
 
         Ok(node)
+    }
+
+    /// `on_node` elaborates an incoming `Node`.
+    pub fn on_node(&mut self, _node: &Node) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `on_transaction` elaborates an incoming `Node`.
+    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
+    pub fn on_transaction(&mut self, _transaction: &Transaction) -> Result<()> {
+        // TODO
+        unreachable!()
     }
 
     /// `push_node` sends a `Node` to a remote node.
@@ -315,7 +336,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `on_push_transaction` handles a `PushTransaction`.
-    /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
     pub fn on_push_transaction(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
         unreachable!()
@@ -328,7 +348,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         _nodes: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Node>> {
         // TODO
-        // NB: use k as *maxnodes*
         unreachable!()
     }
 
@@ -341,7 +360,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `fetch_random_nodes` fetches random nodes from remote.
     pub fn fetch_random_nodes(&mut self, _address: &[u8], _count: u32) -> Result<BTreeSet<Node>> {
         // TODO
-        // NB: use k as *maxnodes*
         unreachable!()
     }
 
@@ -358,7 +376,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         _transactions: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Transaction>> {
         // TODO
-        // NB: use k as *maxtransactions*
         unreachable!()
     }
 
@@ -371,7 +388,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `fetch_random_transactions` fetches random transactions from remote.
     pub fn fetch_random_transactions(&mut self, _count: u32) -> Result<BTreeSet<Transaction>> {
         // TODO
-        // NB: use k as *maxtransactions*
         unreachable!()
     }
 
@@ -421,18 +437,22 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(res)
     }
 
-    /// `query` queries remote nodes.
-    pub fn query(&mut self, _transaction: &Transaction) -> Result<Vec<bool>> {
-        // TODO
-        // NB: use k as *maxnodes*
-        unreachable!()
-    }
-
     /// `reply` replies to a `Query` request.
     /// In the Avalanche paper the function is called "OnQuery".
     pub fn reply(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
-        // NB: use k as *maxnodes*
+        unreachable!()
+    }
+
+    /// `query_node` queries a single remote node.
+    pub fn query_node(&mut self, _address: &[u8], _transaction: &Transaction) -> Result<bool> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `query` queries remote nodes.
+    pub fn query(&mut self, _transaction: &Transaction) -> Result<u32> {
+        // TODO
         unreachable!()
     }
 
@@ -448,10 +468,113 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         unreachable!()
     }
 
+    /// `avalanche_step` is a single execution of the main Avalanche Consensus procedure.
+    pub fn avalanche_step(&mut self) -> Result<()> {
+        let tx_ids: BTreeSet<Digest> = self
+            .state
+            .known_transactions
+            .iter()
+            .filter(|id| !self.state.lookup_queried_transaction(&id))
+            .copied()
+            .collect();
+
+        for tx_id in tx_ids {
+            let tx = match Transaction::get(&self.pool, self.stage, &tx_id) {
+                Ok(tx) => {
+                    tx.validate()?;
+                    Ok(tx)
+                }
+                Err(ModelsError::NotFound) => {
+                    let tx = Transaction::get(&self.store, self.stage, &tx_id)?;
+                    tx.validate()?;
+                    Ok(tx)
+                }
+                Err(err) => Err(err),
+            }?;
+
+            let missing_txs = self.fetch_ancestors(&tx)?;
+
+            for missing_tx in missing_txs.iter() {
+                self.on_transaction(&missing_tx)?;
+            }
+
+            let chit_sum = self.query(&tx)?;
+
+            if chit_sum >= self.params.alpha {
+                self.state.set_transaction_chit(tx_id, true)?;
+
+                let mut cs = if let Some(cs_id) = self.state.get_transaction_conflict_set(&tx_id) {
+                    ConflictSet::get(&self.pool, self.stage, &cs_id)
+                } else {
+                    let err = ModelsError::NotFound;
+                    Err(err)
+                }?;
+
+                cs.validate()?;
+
+                self.update_confidence(&tx_id)?;
+
+                if cs.preferred.is_none() || cs.last.is_none() {
+                    let err = Error::NotFound;
+                    return Err(err);
+                }
+
+                let pref_id = cs.preferred.unwrap();
+                let last_id = cs.last.unwrap();
+
+                let pref_confidence = self.state.get_transaction_confidence(&pref_id).unwrap_or(0);
+
+                let confidence = self.state.get_transaction_confidence(&tx_id).unwrap_or(0);
+
+                if confidence > pref_confidence {
+                    cs.preferred = Some(tx_id);
+                }
+
+                if tx_id != last_id {
+                    cs.last = Some(tx_id);
+                    cs.count = 1;
+                } else {
+                    cs.count += 1;
+                }
+
+                ConflictSet::update(&mut self.pool, self.stage, &cs.id, &cs)?;
+            } else {
+                let ancestors: BTreeSet<Digest> = tx
+                    .ancestors()
+                    .iter()
+                    .filter(|id| self.state.lookup_known_transaction(&id))
+                    .copied()
+                    .collect();
+
+                for tx_id in ancestors {
+                    if let Some(cs_id) = self.state.get_transaction_conflict_set(&tx_id) {
+                        let mut cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
+                        cs.validate()?;
+                        cs.count = 0;
+
+                        ConflictSet::update(&mut self.pool, self.stage, &cs_id, &cs)?;
+                    } else {
+                        let err = Error::NotFound;
+                        return Err(err);
+                    }
+                }
+            }
+
+            self.state.add_queried_transaction(tx.id)?;
+        }
+
+        Ok(())
+    }
+
     /// `avalanche_loop` executes the main loop of the `Protocol`.
     /// The name of the function in the Avalanche paper is "AvalancheLoop".
     pub fn avalanche_loop(&mut self) -> Result<()> {
-        // TODO
-        unreachable!()
+        let mut res = Ok(());
+
+        while res.is_ok() {
+            res = self.avalanche_step();
+        }
+
+        res
     }
 }
