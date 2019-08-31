@@ -25,6 +25,7 @@ pub struct Protocol<S: Store, P: Store, T: Transport> {
     address: Vec<u8>,
     params: ConsensusParams,
     state: ConsensusState,
+    last_cs_id: Option<u64>,
     store: S,
     pool: P,
     transport: T,
@@ -57,6 +58,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             address: address.to_owned(),
             params: params.to_owned(),
             state: state.to_owned(),
+            last_cs_id: None,
             store,
             pool,
             transport,
@@ -84,15 +86,32 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
-    /// `clear` clears the state of the `Protocol`.
-    pub fn clear(&mut self) {
-        self.state.clear()
+    /// `clear_state` clears the state of the `Protocol`.
+    pub fn clear_state(&mut self) {
+        self.state.clear();
+        self.last_cs_id = None;
+    }
+
+    /// `clear` clears the state and stores of the `Protocol`.
+    pub fn clear(&mut self) -> Result<()> {
+        self.clear_state();
+        self.pool.clear()?;
+        self.store.clear()?;
+
+        Ok(())
     }
 
     /// `validate` validates the `Protocol`.
     pub fn validate(&self) -> Result<()> {
         self.params.validate()?;
         self.state.validate()?;
+
+        let max_cs_id = self.state.conflict_sets.iter().max().copied();
+
+        if max_cs_id != self.last_cs_id {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
 
         Ok(())
     }
