@@ -454,7 +454,7 @@ fn test_conflict_set_storable() {
     let stage = Stage::random().unwrap();
 
     let items: Vec<(Address, ConflictSet)> = (0..10)
-        .map(|_| { 
+        .map(|_| {
             let addr = Address::random().unwrap();
             (addr, ConflictSet::new(addr, stage))
         })

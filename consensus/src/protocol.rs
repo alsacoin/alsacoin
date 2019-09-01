@@ -380,6 +380,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
+    /// `upsert_conflict_sets` upserts the `ConsensusState` conflict sets.
+    pub fn upsert_conflict_sets(&mut self, _transaction: &Transaction) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
     /// `on_transaction` elaborates an incoming `Node`.
     /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
     pub fn on_transaction(&mut self, transaction: &Transaction) -> Result<()> {
@@ -394,12 +400,10 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             Transaction::create(&mut self.pool, self.stage, &tx_id, &transaction)?;
             self.state.add_known_transaction(tx_id);
 
-            // TODO: self.upsert_conflict_sets(tx)
-            //          which depends on rewriting cs
-            //          with id = account_id: Address
-            //          and removing last_cs_id
-            // TODO: set chit as 0
-            // TODO: set confidence as 0
+            self.upsert_conflict_sets(&transaction)?;
+
+            self.state.set_transaction_chit(tx_id, false)?;
+            self.state.set_transaction_confidence(tx_id, 0)?;
 
             self.update_ancestors(transaction)?;
             self.update_successors(transaction)?;
