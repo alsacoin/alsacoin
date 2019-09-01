@@ -106,7 +106,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         self.params.validate()?;
         self.state.validate()?;
 
-        let max_cs_id = self.state.conflict_sets.iter().max().copied();
+        let max_cs_id = self.state.transaction_conflict_set.values().max().copied();
 
         if max_cs_id != self.last_cs_id {
             let err = Error::InvalidId;

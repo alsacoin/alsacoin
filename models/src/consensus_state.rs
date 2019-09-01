@@ -23,7 +23,6 @@ pub struct ConsensusState {
     pub known_transactions: BTreeSet<Digest>,
     pub successors: BTreeMap<Digest, BTreeSet<Digest>>,
     pub queried_transactions: BTreeSet<Digest>,
-    pub conflict_sets: BTreeSet<u64>,
     pub transaction_conflict_set: BTreeMap<Digest, u64>,
     pub transaction_chit: BTreeMap<Digest, bool>,
     pub transaction_confidence: BTreeMap<Digest, u64>,
@@ -133,30 +132,6 @@ impl ConsensusState {
         Ok(())
     }
 
-    /// `lookup_conflict_set` looks up a `ConflictSet` id.
-    pub fn lookup_conflict_set(&self, cs_id: u64) -> bool {
-        self.conflict_sets.contains(&cs_id)
-    }
-
-    /// `add_conflict_set` adds a new `ConflictSet` id.
-    pub fn add_conflict_set(&mut self, cs_id: u64) {
-        if !self.lookup_conflict_set(cs_id) {
-            self.conflict_sets.insert(cs_id);
-        }
-    }
-
-    /// `remove_conflict_set` removes a `ConflictSet` id.
-    pub fn remove_conflict_set(&mut self, cs_id: u64) -> Result<()> {
-        if !self.lookup_conflict_set(cs_id) {
-            let err = Error::NotFound;
-            return Err(err);
-        }
-
-        self.conflict_sets.remove(&cs_id);
-
-        Ok(())
-    }
-
     /// `lookup_transaction_conflict_set` looks up a `Transaction` id in the transaction
     /// conflict set of the `ConsensusState`.
     pub fn lookup_transaction_conflict_set(&self, tx_id: &Digest) -> bool {
@@ -172,11 +147,6 @@ impl ConsensusState {
     /// the `ConsensusState`.
     pub fn set_transaction_conflict_set(&mut self, tx_id: Digest, cs_id: u64) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
-            let err = Error::NotFound;
-            return Err(err);
-        }
-
-        if !self.lookup_conflict_set(cs_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -321,13 +291,8 @@ impl ConsensusState {
             }
         }
 
-        for (tx_id, cs_id) in &self.transaction_conflict_set {
+        for tx_id in self.transaction_conflict_set.keys() {
             if !self.lookup_known_transaction(&tx_id) {
-                let err = Error::NotFound;
-                return Err(err);
-            }
-
-            if !self.lookup_conflict_set(*cs_id) {
                 let err = Error::NotFound;
                 return Err(err);
             }
@@ -354,7 +319,6 @@ impl ConsensusState {
     pub fn clear(&mut self) {
         self.known_transactions.clear();
         self.queried_transactions.clear();
-        self.conflict_sets.clear();
         self.transaction_conflict_set.clear();
         self.transaction_chit.clear();
         self.transaction_confidence.clear();
@@ -657,43 +621,6 @@ fn test_consensus_state_queried_transactions_ops() {
 }
 
 #[test]
-fn test_consensus_state_conflict_sets_ops() {
-    use crypto::random::Random;
-
-    let id = Random::u64().unwrap();
-    let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
-
-    let res = state.validate();
-    assert!(res.is_ok());
-
-    let cs_id = Random::u64().unwrap();
-
-    let found = state.lookup_conflict_set(cs_id);
-    assert!(!found);
-
-    let res = state.remove_conflict_set(cs_id);
-    assert!(res.is_err());
-
-    state.add_conflict_set(cs_id);
-
-    let res = state.validate();
-    assert!(res.is_ok());
-
-    let found = state.lookup_conflict_set(cs_id);
-    assert!(found);
-
-    let res = state.remove_conflict_set(cs_id);
-    assert!(res.is_ok());
-
-    state.clear();
-    assert!(state.conflict_sets.is_empty());
-
-    let res = state.validate();
-    assert!(res.is_ok());
-}
-
-#[test]
 fn test_consensus_state_transaction_conflict_sets_ops() {
     use crypto::random::Random;
 
@@ -714,11 +641,6 @@ fn test_consensus_state_transaction_conflict_sets_ops() {
 
     let res = state.remove_transaction_conflict_set(&tx_id);
     assert!(res.is_err());
-
-    let res = state.set_transaction_conflict_set(tx_id, tx_cs_id);
-    assert!(res.is_err());
-
-    state.add_conflict_set(tx_cs_id);
 
     let res = state.set_transaction_conflict_set(tx_id, tx_cs_id);
     assert!(res.is_ok());
