@@ -3,12 +3,12 @@
 //! `conflict_set` is the module containing the type used to register mutually conflicting
 //! transactions.
 
+use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
-use byteorder::{BigEndian, WriteBytesExt};
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
@@ -19,7 +19,7 @@ use store::traits::Store;
 /// `ConflictSet` is the set used to represent a set of mutually conflicting transactions.
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Default, Serialize, Deserialize)]
 pub struct ConflictSet {
-    pub id: u64,
+    pub address: Address,
     pub stage: Stage,
     pub transactions: BTreeSet<Digest>,
     pub last: Option<Digest>,
@@ -29,9 +29,9 @@ pub struct ConflictSet {
 
 impl ConflictSet {
     /// `new` creates a new `ConflictSet`.
-    pub fn new(id: u64, stage: Stage) -> ConflictSet {
+    pub fn new(address: Address, stage: Stage) -> ConflictSet {
         let mut set = ConflictSet::default();
-        set.id = id;
+        set.address = address;
         set.stage = stage;
         set
     }
@@ -158,13 +158,13 @@ impl ConflictSet {
 impl<S: Store> Storable<S> for ConflictSet {
     const KEY_PREFIX: u8 = 5;
 
-    type Key = u64;
+    type Key = Address;
 
     fn key_to_bytes(stage: Stage, key: &Self::Key) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
         buf.push(stage as u8);
         buf.push(<Self as Storable<S>>::KEY_PREFIX);
-        buf.write_u64::<BigEndian>(*key)?;
+        buf.extend_from_slice(&key.to_bytes());
         Ok(buf)
     }
 
@@ -344,11 +344,9 @@ impl<S: Store> Storable<S> for ConflictSet {
 
 #[test]
 fn test_conflict_set_ops() {
-    use crypto::random::Random;
-
-    let id = Random::u64().unwrap();
+    let addr = Address::random().unwrap();
     let stage = Stage::random().unwrap();
-    let mut conflict_set = ConflictSet::new(id, stage);
+    let mut conflict_set = ConflictSet::new(addr, stage);
 
     let res = conflict_set.validate();
     assert!(res.is_ok());
@@ -455,8 +453,11 @@ fn test_conflict_set_storable() {
 
     let stage = Stage::random().unwrap();
 
-    let items: Vec<(u64, ConflictSet)> = (0..10)
-        .map(|id| (id, ConflictSet::new(id, stage)))
+    let items: Vec<(Address, ConflictSet)> = (0..10)
+        .map(|_| { 
+            let addr = Address::random().unwrap();
+            (addr, ConflictSet::new(addr, stage))
+        })
         .collect();
 
     for (key, value) in &items {

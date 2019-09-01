@@ -2,6 +2,7 @@
 //!
 //! `consensus_state` is the type used to manage the state of the Avalanche Consensus algorithm.
 
+use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crate::stage::Stage;
@@ -23,7 +24,7 @@ pub struct ConsensusState {
     pub known_transactions: BTreeSet<Digest>,
     pub successors: BTreeMap<Digest, BTreeSet<Digest>>,
     pub queried_transactions: BTreeSet<Digest>,
-    pub transaction_conflict_set: BTreeMap<Digest, u64>,
+    pub transaction_conflict_set: BTreeMap<Digest, Address>,
     pub transaction_chit: BTreeMap<Digest, bool>,
     pub transaction_confidence: BTreeMap<Digest, u64>,
     pub known_nodes: BTreeSet<Digest>,
@@ -159,19 +160,19 @@ impl ConsensusState {
     }
 
     /// `get_transaction_conflict_set` gets the conflict_set of a `Transaction`.
-    pub fn get_transaction_conflict_set(&self, tx_id: &Digest) -> Option<u64> {
+    pub fn get_transaction_conflict_set(&self, tx_id: &Digest) -> Option<Address> {
         self.transaction_conflict_set.get(tx_id).copied()
     }
 
     /// `set_transaction_conflict_set` sets a known `Transaction` conflict set id in
     /// the `ConsensusState`.
-    pub fn set_transaction_conflict_set(&mut self, tx_id: Digest, cs_id: u64) -> Result<()> {
+    pub fn set_transaction_conflict_set(&mut self, tx_id: Digest, address: Address) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.transaction_conflict_set.insert(tx_id, cs_id);
+        self.transaction_conflict_set.insert(tx_id, address);
 
         Ok(())
     }
@@ -652,7 +653,7 @@ fn test_consensus_state_transaction_conflict_sets_ops() {
     assert!(res.is_ok());
 
     let tx_id = Digest::random().unwrap();
-    let tx_cs_id = Random::u64().unwrap();
+    let cs_addr = Address::random().unwrap();
 
     state.add_known_transaction(tx_id);
 
@@ -662,7 +663,7 @@ fn test_consensus_state_transaction_conflict_sets_ops() {
     let res = state.remove_transaction_conflict_set(&tx_id);
     assert!(res.is_err());
 
-    let res = state.set_transaction_conflict_set(tx_id, tx_cs_id);
+    let res = state.set_transaction_conflict_set(tx_id, cs_addr);
     assert!(res.is_ok());
 
     let res = state.validate();
@@ -673,7 +674,7 @@ fn test_consensus_state_transaction_conflict_sets_ops() {
 
     let opt = state.get_transaction_conflict_set(&tx_id);
     assert!(opt.is_some());
-    assert_eq!(opt.unwrap(), tx_cs_id);
+    assert_eq!(opt.unwrap(), cs_addr);
 
     let res = state.remove_transaction_conflict_set(&tx_id);
     assert!(res.is_ok());
