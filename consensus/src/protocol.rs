@@ -86,6 +86,59 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
+    /// `get_known_ancestors` returns a `Transaction` known ancestors.
+    pub fn get_known_ancestors(&self, tx_id: &Digest) -> Result<BTreeSet<Digest>> {
+        let tx = match Transaction::get(&self.pool, self.stage, tx_id) {
+            Ok(tx) => Ok(tx),
+            Err(ModelsError::NotFound) => Transaction::get(&self.store, self.stage, tx_id),
+            Err(e) => Err(e),
+        }?;
+
+        tx.validate()?;
+
+        let ancestors: BTreeSet<Digest> = tx
+            .ancestors()
+            .iter()
+            .filter(|id| self.state.lookup_known_transaction(&id))
+            .copied()
+            .collect();
+
+        Ok(ancestors)
+    }
+
+    /// `get_unknown_ancestors` returns the unknown ancestors of a `Transactions`.
+    pub fn get_unknown_ancestors(&self, tx_id: &Digest) -> Result<BTreeSet<Digest>> {
+        let tx = match Transaction::get(&self.pool, self.stage, tx_id) {
+            Ok(tx) => Ok(tx),
+            Err(ModelsError::NotFound) => Transaction::get(&self.store, self.stage, tx_id),
+            Err(e) => Err(e),
+        }?;
+
+        tx.validate()?;
+
+        let ancestors: BTreeSet<Digest> = tx
+            .ancestors()
+            .iter()
+            .filter(|id| !self.state.lookup_known_transaction(&id))
+            .copied()
+            .collect();
+
+        Ok(ancestors)
+    }
+
+    /// `get_transaction_conflict_set` returns a `Transaction` `ConflictSet`.
+    pub fn get_transaction_conflict_set(&self, tx_id: &Digest) -> Result<ConflictSet> {
+        if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
+            let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
+            cs.validate()?;
+
+            Ok(cs)
+        } else {
+            let err = Error::NotFound;
+            Err(err)
+        }
+    }
+
     /// `clear_state` clears the state of the `Protocol`.
     pub fn clear_state(&mut self) {
         self.state.clear();
@@ -139,16 +192,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `is_preferred` returns if a `Transaction` is preferred.
     /// The name of the function in the Avalanche paper is "IsPreferred".
     pub fn is_preferred(&self, tx_id: &Digest) -> Result<bool> {
-        if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
-            let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
-            cs.validate()?;
+        let cs = self.get_transaction_conflict_set(tx_id)?;
+        cs.validate()?;
 
-            if let Some(pref_id) = cs.preferred {
-                let is_pref = tx_id == &pref_id;
-                Ok(is_pref)
-            } else {
-                Ok(false)
-            }
+        if let Some(pref_id) = cs.preferred {
+            let is_pref = tx_id == &pref_id;
+            Ok(is_pref)
         } else {
             Ok(false)
         }
@@ -232,15 +281,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
 
         if self.params.beta1.is_some() || self.params.beta2.is_some() {
-            let cs_id = self.state.get_transaction_conflict_set(tx_id);
-            if cs_id.is_none() {
-                let err = Error::NotFound;
-                return Err(err);
-            }
-
-            let cs_id = cs_id.unwrap();
-
-            let cs = ConflictSet::get(&self.pool, self.stage, &cs_id)?;
+            let cs = self.get_transaction_conflict_set(tx_id)?;
 
             cs.validate()?;
 
