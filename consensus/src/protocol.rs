@@ -365,16 +365,57 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `on_node` elaborates an incoming `Node`.
-    pub fn on_node(&mut self, _node: &Node) -> Result<()> {
-        // TODO
-        unreachable!()
+    pub fn on_node(&mut self, node: &Node) -> Result<()> {
+        node.validate()?;
+
+        if node.address == self.address {
+            let err = Error::InvalidNode;
+            return Err(err);
+        }
+
+        if !Node::lookup(&self.store, self.stage, &node.id)? {
+            Node::create(&mut self.store, self.stage, &node.id, &node)?;
+            self.state.add_known_node(node.id);
+        } else {
+            let known_node = Node::get(&self.store, self.stage, &node.id)?;
+            if known_node.last_seen < node.last_seen {
+                Node::update(&mut self.store, self.stage, &node.id, &node)?;
+            }
+
+            if !self.state.lookup_known_node(&node.id) {
+                self.state.add_known_node(node.id);
+            }
+        }
+
+        Ok(())
     }
 
     /// `on_transaction` elaborates an incoming `Node`.
     /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
-    pub fn on_transaction(&mut self, _transaction: &Transaction) -> Result<()> {
-        // TODO
-        unreachable!()
+    pub fn on_transaction(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+        let tx_id = transaction.id;
+
+        // NB: state may have been cleared, so the first places to check are the stores
+
+        if !Transaction::lookup(&self.pool, self.stage, &tx_id)?
+            && !Transaction::lookup(&self.store, self.stage, &tx_id)?
+        {
+            Transaction::create(&mut self.pool, self.stage, &tx_id, &transaction)?;
+            self.state.add_known_transaction(tx_id);
+
+            // TODO: self.upsert_conflict_sets(tx)
+            //          which depends on rewriting cs
+            //          with id = account_id: Address
+            //          and removing last_cs_id
+            // TODO: set chit as 0
+            // TODO: set confidence as 0
+
+            self.update_ancestors(transaction)?;
+            self.update_successors(transaction)?;
+        }
+
+        Ok(())
     }
 
     /// `push_node` sends a `Node` to a remote node.
@@ -457,8 +498,25 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         unreachable!()
     }
 
-    /// `fetch_ancestors` fetches a `Transaction` ancestors from remote if missing.
-    pub fn fetch_ancestors(&mut self, transaction: &Transaction) -> Result<BTreeSet<Transaction>> {
+    /// `update_successors` updates the set of successors of the ancestor `Transaction`s of the
+    /// `Transaction`.
+    pub fn update_successors(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
+        let id = transaction.id;
+        let ancestors = transaction.ancestors();
+        for anc_id in ancestors {
+            self.state.add_successor(&anc_id, id)?;
+        }
+
+        Ok(())
+    }
+
+    /// `fetch_missing_ancestors` fetches a `Transaction` ancestors from remote if missing.
+    pub fn fetch_missing_ancestors(
+        &mut self,
+        transaction: &Transaction,
+    ) -> Result<BTreeSet<Transaction>> {
         transaction.validate()?;
 
         let to_fetch: BTreeSet<Digest> = transaction
@@ -475,6 +533,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = self.sample_nodes()?;
         let mut res = BTreeSet::new();
 
+        // TODO: on other threads
         for node in &nodes {
             let result = self.fetch_transactions(&node.address, &to_fetch);
 
@@ -495,6 +554,16 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
 
         Ok(res)
+    }
+
+    /// `update_ancestors` updates the ancestors set of a `Transaction`.
+    pub fn update_ancestors(&mut self, transaction: &Transaction) -> Result<()> {
+        // TODO: threads
+        for ancestor in self.fetch_missing_ancestors(transaction)? {
+            self.on_transaction(&ancestor)?;
+        }
+
+        Ok(())
     }
 
     /// `reply` replies to a `Query` request.
@@ -552,7 +621,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 Err(err) => Err(err),
             }?;
 
-            let missing_txs = self.fetch_ancestors(&tx)?;
+            let missing_txs = self.fetch_missing_ancestors(&tx)?;
 
             for missing_tx in missing_txs.iter() {
                 self.on_transaction(&missing_tx)?;

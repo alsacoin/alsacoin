@@ -89,6 +89,26 @@ impl ConsensusState {
         Ok(())
     }
 
+    /// `add_successor` adds a single successor of a `Transaction`
+    pub fn add_successor(&mut self, tx_id: &Digest, succ_id: Digest) -> Result<()> {
+        if tx_id == &succ_id {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        if !self.lookup_known_transaction(tx_id) {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        let mut succ_ids = self.get_successors(tx_id).unwrap_or_default();
+        succ_ids.insert(succ_id);
+
+        self.successors.insert(*tx_id, succ_ids);
+
+        Ok(())
+    }
+
     /// `remove_successors` removes the successors of a `Transaction`.
     pub fn remove_successors(&mut self, tx_id: &Digest) -> Result<()> {
         if !self.lookup_successors(tx_id) {

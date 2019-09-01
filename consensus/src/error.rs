@@ -42,6 +42,10 @@ pub enum Error {
     NotFound,
     #[fail(display = "Invalid stage")]
     InvalidStage,
+    #[fail(display = "Invalid node")]
+    InvalidNode,
+    #[fail(display = "Invalid transaction")]
+    InvalidTransaction,
 }
 
 impl From<io::Error> for Error {
