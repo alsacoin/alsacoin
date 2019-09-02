@@ -36,14 +36,14 @@ impl ConflictSet {
         set
     }
 
-    /// `lookup` looks up a `Transaction` id in the transactions set of the `ConflictSet`.
-    pub fn lookup(&self, tx_id: &Digest) -> bool {
+    /// `lookup_transaction` looks up a `Transaction` id in the transactions set of the `ConflictSet`.
+    pub fn lookup_transaction(&self, tx_id: &Digest) -> bool {
         self.transactions.contains(tx_id)
     }
 
-    /// `add` adds a new `Transaction` id in the transactions set of the `ConflictSet`.
-    pub fn add(&mut self, tx_id: Digest) {
-        if !self.lookup(&tx_id) {
+    /// `add_transaction` adds a new `Transaction` id in the transactions set of the `ConflictSet`.
+    pub fn add_transaction(&mut self, tx_id: Digest) {
+        if !self.lookup_transaction(&tx_id) {
             self.transactions.insert(tx_id);
 
             self.last = Some(tx_id);
@@ -54,9 +54,9 @@ impl ConflictSet {
         }
     }
 
-    /// `remove` removes a `Transaction` from the transaction set of the `ConflictSet`.
-    pub fn remove(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.lookup(tx_id) {
+    /// `remove_transaction` removes a `Transaction` from the transaction set of the `ConflictSet`.
+    pub fn remove_transaction(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup_transaction(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -80,7 +80,7 @@ impl ConflictSet {
 
     /// `set_last` sets the last transaction in the `ConflictSet`.
     pub fn set_last(&mut self, tx_id: Digest) -> Result<()> {
-        if !self.lookup(&tx_id) {
+        if !self.lookup_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -92,7 +92,7 @@ impl ConflictSet {
 
     /// `set_preferred` sets the preferred transaction in the `ConflictSet`.
     pub fn set_preferred(&mut self, tx_id: Digest) -> Result<()> {
-        if !self.lookup(&tx_id) {
+        if !self.lookup_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
@@ -105,14 +105,14 @@ impl ConflictSet {
     /// `validate` validates the `ConflictSet`.
     pub fn validate(&self) -> Result<()> {
         if let Some(last) = self.last {
-            if !self.lookup(&last) {
+            if !self.lookup_transaction(&last) {
                 let err = Error::NotFound;
                 return Err(err);
             }
         }
 
         if let Some(preferred) = self.preferred {
-            if !self.lookup(&preferred) {
+            if !self.lookup_transaction(&preferred) {
                 let err = Error::NotFound;
                 return Err(err);
             }
@@ -353,21 +353,21 @@ fn test_conflict_set_ops() {
 
     let tx_id_1 = Digest::random().unwrap();
 
-    let found = conflict_set.lookup(&tx_id_1);
+    let found = conflict_set.lookup_transaction(&tx_id_1);
     assert!(!found);
 
-    let res = conflict_set.remove(&tx_id_1);
+    let res = conflict_set.remove_transaction(&tx_id_1);
     assert!(res.is_err());
 
-    conflict_set.add(tx_id_1);
+    conflict_set.add_transaction(tx_id_1);
 
     assert_eq!(conflict_set.last, Some(tx_id_1));
     assert_eq!(conflict_set.preferred, Some(tx_id_1));
 
-    let found = conflict_set.lookup(&tx_id_1);
+    let found = conflict_set.lookup_transaction(&tx_id_1);
     assert!(found);
 
-    let res = conflict_set.remove(&tx_id_1);
+    let res = conflict_set.remove_transaction(&tx_id_1);
     assert!(res.is_ok());
 
     assert_eq!(conflict_set.last, None);
@@ -379,11 +379,11 @@ fn test_conflict_set_ops() {
     let res = conflict_set.set_preferred(tx_id_1);
     assert!(res.is_err());
 
-    conflict_set.add(tx_id_1);
+    conflict_set.add_transaction(tx_id_1);
 
     let tx_id_2 = Digest::random().unwrap();
 
-    conflict_set.add(tx_id_2);
+    conflict_set.add_transaction(tx_id_2);
 
     assert_eq!(conflict_set.last, Some(tx_id_2));
     assert_eq!(conflict_set.preferred, Some(tx_id_1));
@@ -469,7 +469,7 @@ fn test_conflict_set_storable() {
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
+        let res = ConflictSet::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
@@ -488,7 +488,7 @@ fn test_conflict_set_storable() {
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![value.to_owned()]);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
+        let res = ConflictSet::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(found);
@@ -508,7 +508,7 @@ fn test_conflict_set_storable() {
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), vec![]);
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
+        let res = ConflictSet::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);
@@ -522,7 +522,7 @@ fn test_conflict_set_storable() {
         let res = <ConflictSet as Storable<BTreeStore>>::clear(&mut store, stage);
         assert!(res.is_ok());
 
-        let res = <ConflictSet as Storable<BTreeStore>>::lookup(&store, stage, &key);
+        let res = ConflictSet::lookup(&store, stage, &key);
         assert!(res.is_ok());
         let found = res.unwrap();
         assert!(!found);

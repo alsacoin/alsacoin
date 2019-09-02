@@ -5,6 +5,7 @@
 use crate::error::Error;
 use crate::result::Result;
 use crypto::hash::Digest;
+use models::address::Address;
 use models::conflict_set::ConflictSet;
 use models::consensus_message::ConsensusMessage;
 use models::consensus_params::ConsensusParams;
@@ -381,9 +382,31 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `upsert_conflict_sets` upserts the `ConsensusState` conflict sets.
-    pub fn upsert_conflict_sets(&mut self, _transaction: &Transaction) -> Result<()> {
-        // TODO
-        unreachable!()
+    pub fn upsert_conflict_sets(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
+        let tx_id = transaction.id;
+        let addresses: BTreeSet<Address> = transaction
+            .outputs
+            .values()
+            .map(|out| out.address)
+            .collect();
+
+        for address in addresses {
+            if ConflictSet::lookup(&self.pool, self.stage, &address)? {
+                let mut cs = ConflictSet::get(&self.pool, self.stage, &address)?;
+                cs.validate()?;
+                cs.transactions.insert(tx_id);
+                ConflictSet::update(&mut self.pool, self.stage, &address, &cs)?;
+            } else {
+                let mut cs = ConflictSet::new(address, self.stage);
+                cs.add_transaction(tx_id);
+                cs.count = 0;
+                ConflictSet::create(&mut self.pool, self.stage, &address, &cs)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// `on_transaction` elaborates an incoming `Node`.
