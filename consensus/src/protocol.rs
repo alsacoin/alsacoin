@@ -511,11 +511,84 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `on_push_transactions` handles a `PushTransactions`.
     pub fn on_push_transactions(
         &mut self,
-        _address: &[u8],
-        _msg: &ConsensusMessage,
+        msg: &ConsensusMessage,
+        fetch_id: u64,
+        ids: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Transaction>> {
-        // TODO
-        unreachable!()
+        msg.validate()?;
+        let expected_ids = ids;
+
+        if msg.is_push_transactions()?
+            && msg.node().address == self.address
+            && msg.id() == fetch_id + 1
+        {
+            match msg.to_owned() {
+                ConsensusMessage::PushTransactions {
+                    ids, transactions, ..
+                } => {
+                    if !ids.is_subset(&expected_ids) {
+                        let err = Error::InvalidMessage;
+                        return Err(err);
+                    }
+
+                    for transaction in &transactions {
+                        self.on_transaction(&transaction)?;
+                    }
+
+                    Ok(transactions)
+                }
+                _ => {
+                    let err = Error::InvalidMessage;
+                    Err(err)
+                }
+            }
+        } else {
+            let err = Error::InvalidMessage;
+            Err(err)
+        }
+    }
+
+    /// `on_push_random_transactions` handles a `PushTransactions` following a
+    /// `FetchRandomTransactions`.
+    pub fn on_push_random_transactions(
+        &mut self,
+        msg: &ConsensusMessage,
+        fetch_id: u64,
+        count: u32,
+    ) -> Result<BTreeSet<Transaction>> {
+        msg.validate()?;
+        let expected_count = count;
+
+        if msg.is_push_transactions()?
+            && msg.node().address == self.address
+            && msg.id() == fetch_id + 1
+        {
+            match msg.to_owned() {
+                ConsensusMessage::PushTransactions {
+                    count,
+                    transactions,
+                    ..
+                } => {
+                    if count > expected_count {
+                        let err = Error::InvalidMessage;
+                        return Err(err);
+                    }
+
+                    for transaction in &transactions {
+                        self.on_transaction(&transaction)?;
+                    }
+
+                    Ok(transactions)
+                }
+                _ => {
+                    let err = Error::InvalidMessage;
+                    Err(err)
+                }
+            }
+        } else {
+            let err = Error::InvalidMessage;
+            Err(err)
+        }
     }
 
     /// `fetch_node_transactions` fetches transactions from a remote node.
@@ -537,7 +610,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let transactions = self.on_push_transactions(address, &recv_cons_msg)?;
+                let transactions = self.on_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
 
                 // NB: threads?
                 for transaction in transactions {
@@ -570,7 +643,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.node().address == self.address
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
-                    let transactions = self.on_push_transactions(&node.address, &recv_cons_msg)?;
+                    let transactions =
+                        self.on_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
 
                     // NB: threads?
                     for transaction in transactions {
@@ -607,7 +681,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let transactions = self.on_push_transactions(address, &recv_cons_msg)?;
+                let transactions =
+                    self.on_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
 
                 // NB: threads?
                 for transaction in transactions {
@@ -640,7 +715,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.node().address == self.address
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
-                    let transactions = self.on_push_transactions(&node.address, &recv_cons_msg)?;
+                    let transactions =
+                        self.on_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
 
                     // NB: threads?
                     for transaction in transactions {
@@ -727,10 +803,75 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_push_nodes` handles a `PushNodes` request.
-    pub fn on_push_nodes(&mut self, _msg: &ConsensusMessage) -> Result<BTreeSet<Node>> {
-        // TODO
-        unreachable!()
+    /// `on_push_nodes` handles a `PushNodes`.
+    pub fn on_push_nodes(
+        &mut self,
+        msg: &ConsensusMessage,
+        fetch_id: u64,
+        ids: &BTreeSet<Digest>,
+    ) -> Result<BTreeSet<Node>> {
+        msg.validate()?;
+        let expected_ids = ids;
+
+        if msg.is_push_nodes()? && msg.node().address == self.address && msg.id() == fetch_id + 1 {
+            match msg.to_owned() {
+                ConsensusMessage::PushNodes { ids, nodes, .. } => {
+                    if !ids.is_subset(&expected_ids) {
+                        let err = Error::InvalidMessage;
+                        return Err(err);
+                    }
+
+                    for node in &nodes {
+                        self.on_node(&node)?;
+                    }
+
+                    Ok(nodes)
+                }
+                _ => {
+                    let err = Error::InvalidMessage;
+                    Err(err)
+                }
+            }
+        } else {
+            let err = Error::InvalidMessage;
+            Err(err)
+        }
+    }
+
+    /// `on_push_random_nodes` handles a `PushNodes` following a
+    /// `FetchRandomNodes`.
+    pub fn on_push_random_nodes(
+        &mut self,
+        msg: &ConsensusMessage,
+        fetch_id: u64,
+        count: u32,
+    ) -> Result<BTreeSet<Node>> {
+        msg.validate()?;
+        let expected_count = count;
+
+        if msg.is_push_nodes()? && msg.node().address == self.address && msg.id() == fetch_id + 1 {
+            match msg.to_owned() {
+                ConsensusMessage::PushNodes { count, nodes, .. } => {
+                    if count > expected_count {
+                        let err = Error::InvalidMessage;
+                        return Err(err);
+                    }
+
+                    for node in &nodes {
+                        self.on_node(&node)?;
+                    }
+
+                    Ok(nodes)
+                }
+                _ => {
+                    let err = Error::InvalidMessage;
+                    Err(err)
+                }
+            }
+        } else {
+            let err = Error::InvalidMessage;
+            Err(err)
+        }
     }
 
     /// `fetch_node_nodes` fetches nodes from a remote node.
@@ -752,7 +893,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let nodes = self.on_push_nodes(&recv_cons_msg)?;
+                let nodes = self.on_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
 
                 // NB: threads?
                 for node in nodes {
@@ -786,7 +927,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.node().address == self.address
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
-                    let nodes = self.on_push_nodes(&recv_cons_msg)?;
+                    let nodes = self.on_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
 
                     // NB: threads?
                     for node in nodes {
@@ -823,7 +964,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let nodes = self.on_push_nodes(&recv_cons_msg)?;
+                let nodes = self.on_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
 
                 // NB: threads?
                 for node in nodes {
@@ -857,7 +998,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.node().address == self.address
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
-                    let nodes = self.on_push_nodes(&recv_cons_msg)?;
+                    let nodes = self.on_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
 
                     // NB: threads?
                     for node in nodes {
