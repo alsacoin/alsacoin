@@ -539,7 +539,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             {
                 let transactions = self.on_push_transactions(address, &recv_cons_msg)?;
 
-                // TODO: threads?
+                // NB: threads?
                 for transaction in transactions {
                     self.on_transaction(&transaction)?;
                     res.insert(transaction);
@@ -572,7 +572,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 {
                     let transactions = self.on_push_transactions(&node.address, &recv_cons_msg)?;
 
-                    // TODO: threads?
+                    // NB: threads?
                     for transaction in transactions {
                         self.on_transaction(&transaction)?;
                         res.insert(transaction);
@@ -609,7 +609,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             {
                 let transactions = self.on_push_transactions(address, &recv_cons_msg)?;
 
-                // TODO: threads?
+                // NB: threads?
                 for transaction in transactions {
                     self.on_transaction(&transaction)?;
                     res.insert(transaction);
@@ -642,7 +642,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 {
                     let transactions = self.on_push_transactions(&node.address, &recv_cons_msg)?;
 
-                    // TODO: threads?
+                    // NB: threads?
                     for transaction in transactions {
                         self.on_transaction(&transaction)?;
                         res.insert(transaction);
@@ -754,7 +754,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             {
                 let nodes = self.on_push_nodes(&recv_cons_msg)?;
 
-                // TODO: threads?
+                // NB: threads?
                 for node in nodes {
                     self.on_node(&node)?;
                     res.insert(node);
@@ -788,7 +788,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 {
                     let nodes = self.on_push_nodes(&recv_cons_msg)?;
 
-                    // TODO: threads?
+                    // NB: threads?
                     for node in nodes {
                         self.on_node(&node)?;
                         res.insert(node);
@@ -825,7 +825,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             {
                 let nodes = self.on_push_nodes(&recv_cons_msg)?;
 
-                // TODO: threads?
+                // NB: threads?
                 for node in nodes {
                     self.on_node(&node)?;
                     res.insert(node);
@@ -859,7 +859,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 {
                     let nodes = self.on_push_nodes(&recv_cons_msg)?;
 
-                    // TODO: threads?
+                    // NB: threads?
                     for node in nodes {
                         self.on_node(&node)?;
                         res.insert(node);
@@ -910,7 +910,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = self.sample_nodes()?;
         let mut res = BTreeSet::new();
 
-        // TODO: threads?
+        // NB: threads?
         for node in &nodes {
             let result = self.fetch_node_transactions(&node.address, &to_fetch);
 
@@ -935,7 +935,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
     /// `update_ancestors` updates the ancestors set of a `Transaction`.
     pub fn update_ancestors(&mut self, transaction: &Transaction) -> Result<()> {
-        // TODO: threads?
+        // NB: threads?
         for ancestor in self.fetch_missing_ancestors(transaction)? {
             self.on_transaction(&ancestor)?;
         }
@@ -1013,7 +1013,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = self.sample_nodes()?;
         let mut res = 0u32;
 
-        // TODO: threads?
+        // NB: threads?
         for node in nodes {
             let chit = self.query_node(&node.address, transaction)? as u32;
             res += chit;
