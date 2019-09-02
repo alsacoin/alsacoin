@@ -29,7 +29,6 @@ pub struct Protocol<S: Store, P: Store, T: Transport> {
     store: S,
     pool: P,
     transport: T,
-    timeout: Option<u64>,
 }
 
 impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
@@ -43,7 +42,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         store: S,
         pool: P,
         transport: T,
-        timeout: Option<u64>,
     ) -> Result<Protocol<S, P, T>> {
         params.validate()?;
         state.validate()?;
@@ -61,7 +59,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             store,
             pool,
             transport,
-            timeout,
         };
 
         Ok(protocol)
@@ -169,13 +166,13 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let data = msg.to_bytes()?;
 
         self.transport
-            .send(&address, &data, self.timeout)
+            .send(&address, &data, self.params.timeout)
             .map_err(|e| e.into())
     }
 
     /// `recv_message` receives a `ConsensusMessage` from a `Node`.
     pub fn recv_message(&mut self) -> Result<ConsensusMessage> {
-        let msg = self.transport.recv(self.timeout)?;
+        let msg = self.transport.recv(self.params.timeout)?;
 
         msg.to_consensus_message().map_err(|e| e.into())
     }
@@ -435,48 +432,193 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
-    /// `push_node` sends a `Node` to a remote node.
-    pub fn push_node(&mut self, _address: &[u8], _node: &Node) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `on_push_node` handles a `PushNode` request.
-    pub fn on_push_node(&mut self, _msg: ConsensusMessage) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `push_transaction` sends a `Transaction` to a remote transaction.
-    pub fn push_transaction(&mut self, _address: &[u8], _transaction: &Transaction) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `on_push_transaction` handles a `PushTransaction`.
-    pub fn on_push_transaction(&mut self, _msg: &ConsensusMessage) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `fetch_nodes` fetches nodes from remote.
-    pub fn fetch_nodes(
+    /// `push_transactions` sends `Transaction`s to a remote node.
+    pub fn push_transactions(
         &mut self,
-        _address: &[u8],
-        _nodes: &BTreeSet<Digest>,
-    ) -> Result<BTreeSet<Node>> {
+        address: &[u8],
+        fetch_id: u64,
+        transactions: &BTreeSet<Transaction>,
+    ) -> Result<()> {
+        let node = Node::new(self.stage, address);
+        let cons_msg = ConsensusMessage::new_push_transactions(fetch_id, &node, transactions)?;
+        self.send_message(&cons_msg)
+    }
+
+    /// `on_fetch_transactions` handles a `FetchTransactions` request.
+    pub fn on_fetch_transactions(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
         unreachable!()
+    }
+
+    /// `on_fetch_random_transactions` handles a `FetchRandomTransactions` request.
+    pub fn on_fetch_random_transactions(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `on_push_transactions` handles a `PushTransactions`.
+    pub fn on_push_transactions(
+        &mut self,
+        _msg: &ConsensusMessage,
+    ) -> Result<BTreeSet<Transaction>> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_node_transactions` fetches transactions from a remote node.
+    pub fn fetch_node_transactions(
+        &mut self,
+        address: &[u8],
+        ids: &BTreeSet<Digest>,
+    ) -> Result<BTreeSet<Transaction>> {
+        let node = Node::new(self.stage, address);
+        let mut res = BTreeSet::new();
+
+        let cons_msg = ConsensusMessage::new_fetch_transactions(&node, ids)?;
+        self.send_message(&cons_msg)?;
+        let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+        while max_retries > 0 {
+            let recv_cons_msg = self.recv_message()?;
+            if recv_cons_msg.is_push_transactions()?
+                && recv_cons_msg.node().address == self.address
+                && recv_cons_msg.id() == cons_msg.id() + 1
+            {
+                let transactions = self.on_push_transactions(&recv_cons_msg)?;
+
+                // TODO: threads?
+                for transaction in transactions {
+                    self.on_transaction(&transaction)?;
+                    res.insert(transaction);
+                }
+
+                break;
+            } else {
+                max_retries -= 1;
+            }
+        }
+
+        Ok(res)
+    }
+
+    /// `fetch_transactions` fetches transactions from remote.
+    pub fn fetch_transactions(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Transaction>> {
+        let nodes = self.sample_nodes()?;
+        let mut res = BTreeSet::new();
+
+        for node in nodes {
+            let cons_msg = ConsensusMessage::new_fetch_transactions(&node, ids)?;
+            self.send_message(&cons_msg)?;
+            let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+            while max_retries > 0 {
+                let recv_cons_msg = self.recv_message()?;
+                if recv_cons_msg.is_push_transactions()?
+                    && recv_cons_msg.node().address == self.address
+                    && recv_cons_msg.id() == cons_msg.id() + 1
+                {
+                    let transactions = self.on_push_transactions(&recv_cons_msg)?;
+
+                    // TODO: threads?
+                    for transaction in transactions {
+                        self.on_transaction(&transaction)?;
+                        res.insert(transaction);
+                    }
+
+                    break;
+                } else {
+                    max_retries -= 1;
+                }
+            }
+        }
+
+        Ok(res)
+    }
+
+    /// `fetch_node_random_transactions` fetches random transactions from a remote node.
+    pub fn fetch_node_random_transactions(
+        &mut self,
+        address: &[u8],
+        count: u32,
+    ) -> Result<BTreeSet<Transaction>> {
+        let node = Node::new(self.stage, address);
+        let mut res = BTreeSet::new();
+
+        let cons_msg = ConsensusMessage::new_fetch_random_transactions(&node, count)?;
+        self.send_message(&cons_msg)?;
+        let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+        while max_retries > 0 {
+            let recv_cons_msg = self.recv_message()?;
+            if recv_cons_msg.is_push_transactions()?
+                && recv_cons_msg.node().address == self.address
+                && recv_cons_msg.id() == cons_msg.id() + 1
+            {
+                let transactions = self.on_push_transactions(&recv_cons_msg)?;
+
+                // TODO: threads?
+                for transaction in transactions {
+                    self.on_transaction(&transaction)?;
+                    res.insert(transaction);
+                }
+
+                break;
+            } else {
+                max_retries -= 1;
+            }
+        }
+
+        Ok(res)
+    }
+
+    /// `fetch_random_transactions` fetches random transactions from remote.
+    pub fn fetch_random_transactions(&mut self, count: u32) -> Result<BTreeSet<Transaction>> {
+        let nodes = self.sample_nodes()?;
+        let mut res = BTreeSet::new();
+
+        for node in nodes {
+            let cons_msg = ConsensusMessage::new_fetch_random_transactions(&node, count)?;
+            self.send_message(&cons_msg)?;
+            let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+            while max_retries > 0 {
+                let recv_cons_msg = self.recv_message()?;
+                if recv_cons_msg.is_push_transactions()?
+                    && recv_cons_msg.node().address == self.address
+                    && recv_cons_msg.id() == cons_msg.id() + 1
+                {
+                    let transactions = self.on_push_transactions(&recv_cons_msg)?;
+
+                    // TODO: threads?
+                    for transaction in transactions {
+                        self.on_transaction(&transaction)?;
+                        res.insert(transaction);
+                    }
+
+                    break;
+                } else {
+                    max_retries -= 1;
+                }
+            }
+        }
+
+        Ok(res)
+    }
+
+    /// `push_nodes` sends `Node`s to a remote node.
+    pub fn push_nodes(
+        &mut self,
+        address: &[u8],
+        fetch_id: u64,
+        nodes: &BTreeSet<Node>,
+    ) -> Result<()> {
+        let node = Node::new(self.stage, address);
+        let cons_msg = ConsensusMessage::new_push_nodes(fetch_id, &node, nodes)?;
+        self.send_message(&cons_msg)
     }
 
     /// `on_fetch_nodes` handles a `FetchNodes` request.
     pub fn on_fetch_nodes(&mut self, _msg: &ConsensusMessage) -> Result<()> {
-        // TODO
-        unreachable!()
-    }
-
-    /// `fetch_random_nodes` fetches random nodes from remote.
-    pub fn fetch_random_nodes(&mut self, _address: &[u8], _count: u32) -> Result<BTreeSet<Node>> {
         // TODO
         unreachable!()
     }
@@ -487,32 +629,152 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         unreachable!()
     }
 
-    /// `fetch_transactions` fetches transactions from remote.
-    pub fn fetch_transactions(
+    /// `on_push_nodes` handles a `PushNodes` request.
+    pub fn on_push_nodes(&mut self, _msg: &ConsensusMessage) -> Result<BTreeSet<Node>> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `fetch_node_nodes` fetches nodes from a remote node.
+    pub fn fetch_node_nodes(
         &mut self,
-        _address: &[u8],
-        _transactions: &BTreeSet<Digest>,
-    ) -> Result<BTreeSet<Transaction>> {
-        // TODO
-        unreachable!()
+        address: &[u8],
+        ids: &BTreeSet<Digest>,
+    ) -> Result<BTreeSet<Node>> {
+        let node = Node::new(self.stage, address);
+        let cons_msg = ConsensusMessage::new_fetch_nodes(&node, ids)?;
+        self.send_message(&cons_msg)?;
+
+        let mut res = BTreeSet::new();
+        let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+        while max_retries > 0 {
+            let recv_cons_msg = self.recv_message()?;
+            if recv_cons_msg.is_push_nodes()?
+                && recv_cons_msg.node().address == self.address
+                && recv_cons_msg.id() == cons_msg.id() + 1
+            {
+                let nodes = self.on_push_nodes(&recv_cons_msg)?;
+
+                // TODO: threads?
+                for node in nodes {
+                    self.on_node(&node)?;
+                    res.insert(node);
+                }
+
+                break;
+            } else {
+                max_retries -= 1;
+            }
+        }
+
+        Ok(res)
     }
 
-    /// `on_fetch_transactions` handles a `FetchTransactions` request.
-    pub fn on_fetch_transactions(&mut self, _msg: &ConsensusMessage) -> Result<()> {
-        // TODO
-        unreachable!()
+    /// `fetch_nodes` fetches nodes from remote.
+    pub fn fetch_nodes(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Node>> {
+        let nodes = self.sample_nodes()?;
+        let mut res = BTreeSet::new();
+
+        for node in nodes {
+            let cons_msg = ConsensusMessage::new_fetch_nodes(&node, ids)?;
+            self.send_message(&cons_msg)?;
+
+            let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+            while max_retries > 0 {
+                let recv_cons_msg = self.recv_message()?;
+                if recv_cons_msg.is_push_nodes()?
+                    && recv_cons_msg.node().address == self.address
+                    && recv_cons_msg.id() == cons_msg.id() + 1
+                {
+                    let nodes = self.on_push_nodes(&recv_cons_msg)?;
+
+                    // TODO: threads?
+                    for node in nodes {
+                        self.on_node(&node)?;
+                        res.insert(node);
+                    }
+
+                    break;
+                } else {
+                    max_retries -= 1;
+                }
+            }
+        }
+
+        Ok(res)
     }
 
-    /// `fetch_random_transactions` fetches random transactions from remote.
-    pub fn fetch_random_transactions(&mut self, _count: u32) -> Result<BTreeSet<Transaction>> {
-        // TODO
-        unreachable!()
+    /// `fetch_node_random_nodes` fetches random nodes from a remote node.
+    pub fn fetch_node_random_nodes(
+        &mut self,
+        address: &[u8],
+        count: u32,
+    ) -> Result<BTreeSet<Node>> {
+        let node = Node::new(self.stage, &address);
+        let cons_msg = ConsensusMessage::new_fetch_random_nodes(&node, count)?;
+        self.send_message(&cons_msg)?;
+
+        let mut max_retries = self.params.max_retries.unwrap_or(1);
+        let mut res = BTreeSet::new();
+
+        while max_retries > 0 {
+            let recv_cons_msg = self.recv_message()?;
+            if recv_cons_msg.is_push_nodes()?
+                && recv_cons_msg.node().address == self.address
+                && recv_cons_msg.id() == cons_msg.id() + 1
+            {
+                let nodes = self.on_push_nodes(&recv_cons_msg)?;
+
+                // TODO: threads?
+                for node in nodes {
+                    self.on_node(&node)?;
+                    res.insert(node);
+                }
+
+                break;
+            } else {
+                max_retries -= 1;
+            }
+        }
+
+        Ok(res)
     }
 
-    /// `on_fetch_random_transactions` handles a `FetchRandomTransactions` request.
-    pub fn on_fetch_random_transactions(&mut self, _msg: &ConsensusMessage) -> Result<()> {
-        // TODO
-        unreachable!()
+    /// `fetch_random_nodes` fetches random nodes from remote.
+    pub fn fetch_random_nodes(&mut self, count: u32) -> Result<BTreeSet<Node>> {
+        let nodes = self.sample_nodes()?;
+        let mut res = BTreeSet::new();
+
+        for node in nodes {
+            let cons_msg = ConsensusMessage::new_fetch_random_nodes(&node, count)?;
+            self.send_message(&cons_msg)?;
+
+            let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+            while max_retries > 0 {
+                let recv_cons_msg = self.recv_message()?;
+                if recv_cons_msg.is_push_nodes()?
+                    && recv_cons_msg.node().address == self.address
+                    && recv_cons_msg.id() == cons_msg.id() + 1
+                {
+                    let nodes = self.on_push_nodes(&recv_cons_msg)?;
+
+                    // TODO: threads?
+                    for node in nodes {
+                        self.on_node(&node)?;
+                        res.insert(node);
+                    }
+
+                    break;
+                } else {
+                    max_retries -= 1;
+                }
+            }
+        }
+
+        Ok(res)
     }
 
     /// `update_successors` updates the set of successors of the ancestor `Transaction`s of the
@@ -550,9 +812,9 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = self.sample_nodes()?;
         let mut res = BTreeSet::new();
 
-        // TODO: on other threads
+        // TODO: threads?
         for node in &nodes {
-            let result = self.fetch_transactions(&node.address, &to_fetch);
+            let result = self.fetch_node_transactions(&node.address, &to_fetch);
 
             let txs = if let Ok(txs) = result {
                 txs
@@ -562,7 +824,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     node = self.random_node()?;
                 }
 
-                self.fetch_transactions(&node.address, &to_fetch)?
+                self.fetch_node_transactions(&node.address, &to_fetch)?
             };
 
             for tx in txs {
@@ -575,7 +837,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
     /// `update_ancestors` updates the ancestors set of a `Transaction`.
     pub fn update_ancestors(&mut self, transaction: &Transaction) -> Result<()> {
-        // TODO: threads
+        // TODO: threads?
         for ancestor in self.fetch_missing_ancestors(transaction)? {
             self.on_transaction(&ancestor)?;
         }
@@ -583,21 +845,54 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
-    /// `reply` replies to a `Query` request.
-    /// In the Avalanche paper the function is called "OnQuery".
-    pub fn reply(&mut self, _msg: &ConsensusMessage) -> Result<()> {
+    /// `on_reply` handles a `Reply` request.
+    pub fn on_reply(&mut self, _msg: &ConsensusMessage) -> Result<bool> {
         // TODO
         unreachable!()
     }
 
     /// `query_node` queries a single remote node.
-    pub fn query_node(&mut self, _address: &[u8], _transaction: &Transaction) -> Result<bool> {
-        // TODO
-        unreachable!()
+    pub fn query_node(&mut self, address: &[u8], transaction: &Transaction) -> Result<bool> {
+        let node = Node::new(self.stage, address);
+        let cons_msg = ConsensusMessage::new_query(&node, transaction)?;
+        self.send_message(&cons_msg)?;
+
+        let mut res = false;
+        let mut max_retries = self.params.max_retries.unwrap_or(1);
+
+        while max_retries > 0 {
+            let recv_cons_msg = self.recv_message()?;
+            if recv_cons_msg.is_reply()?
+                && recv_cons_msg.node().address == self.address
+                && recv_cons_msg.id() == cons_msg.id() + 1
+            {
+                res = self.on_reply(&recv_cons_msg)?;
+                break;
+            } else {
+                max_retries -= 1;
+            }
+        }
+
+        Ok(res)
     }
 
     /// `query` queries remote nodes.
-    pub fn query(&mut self, _transaction: &Transaction) -> Result<u32> {
+    pub fn query(&mut self, transaction: &Transaction) -> Result<u32> {
+        let nodes = self.sample_nodes()?;
+        let mut res = 0u32;
+
+        // TODO: threads?
+        for node in nodes {
+            let chit = self.query_node(&node.address, transaction)? as u32;
+            res += chit;
+        }
+
+        Ok(res)
+    }
+
+    /// `reply` replies to a `Query` request.
+    /// In the Avalanche paper the function is called "OnQuery".
+    pub fn reply(&mut self, _msg: &ConsensusMessage) -> Result<()> {
         // TODO
         unreachable!()
     }

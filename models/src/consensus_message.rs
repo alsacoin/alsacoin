@@ -23,6 +23,10 @@ use store::traits::Store;
 #[allow(clippy::large_enum_variant)]
 pub enum ConsensusMessage {
     // NB: node is the sending node, not the receiving node
+    Ping {
+        id: u64,
+        node: Node,
+    },
     FetchNodes {
         id: u64,
         node: Node,
@@ -73,6 +77,18 @@ pub enum ConsensusMessage {
 }
 
 impl ConsensusMessage {
+    /// `new_ping` creates a new `Ping` `ConsensusMessage`.
+    pub fn new_ping(node: &Node) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        let message = ConsensusMessage::Ping {
+            id: Random::u64()?,
+            node: node.to_owned(),
+        };
+
+        Ok(message)
+    }
+
     /// `new_fetch_nodes` creates a new `FetchNodes` `ConsensusMessage`.
     pub fn new_fetch_nodes(node: &Node, ids: &BTreeSet<Digest>) -> Result<ConsensusMessage> {
         node.validate()?;
@@ -109,7 +125,6 @@ impl ConsensusMessage {
     pub fn new_push_nodes(
         fetch_id: u64,
         node: &Node,
-        ids: &BTreeSet<Digest>,
         nodes: &BTreeSet<Node>,
     ) -> Result<ConsensusMessage> {
         node.validate()?;
@@ -118,29 +133,9 @@ impl ConsensusMessage {
             node.validate()?;
         }
 
-        if ids.contains(&node.id) {
-            let err = Error::InvalidId;
-            return Err(err);
-        }
+        let ids: BTreeSet<Digest> = nodes.iter().map(|tx| tx.id).collect();
 
         let count = ids.len() as u32;
-
-        if nodes.len() != count as usize {
-            let err = Error::InvalidLength;
-            return Err(err);
-        }
-
-        if nodes.contains(node) {
-            let err = Error::InvalidNode;
-            return Err(err);
-        }
-
-        let found_ids: BTreeSet<Digest> = nodes.iter().map(|node| node.id).collect();
-
-        if ids != &found_ids {
-            let err = Error::InvalidTransactions;
-            return Err(err);
-        }
 
         let message = ConsensusMessage::PushNodes {
             id: fetch_id + 1,
@@ -189,7 +184,6 @@ impl ConsensusMessage {
     pub fn new_push_transactions(
         fetch_id: u64,
         node: &Node,
-        ids: &BTreeSet<Digest>,
         transactions: &BTreeSet<Transaction>,
     ) -> Result<ConsensusMessage> {
         node.validate()?;
@@ -198,29 +192,9 @@ impl ConsensusMessage {
             transaction.validate()?;
         }
 
-        if ids.contains(&node.id) {
-            let err = Error::InvalidId;
-            return Err(err);
-        }
+        let ids: BTreeSet<Digest> = transactions.iter().map(|tx| tx.id).collect();
 
         let count = ids.len() as u32;
-
-        if ids.len() != count as usize {
-            let err = Error::InvalidLength;
-            return Err(err);
-        }
-
-        if transactions.len() != count as usize {
-            let err = Error::InvalidLength;
-            return Err(err);
-        }
-
-        let found_ids: BTreeSet<Digest> = transactions.iter().map(|tx| tx.id).collect();
-
-        if ids != &found_ids {
-            let err = Error::InvalidTransactions;
-            return Err(err);
-        }
 
         let message = ConsensusMessage::PushTransactions {
             id: fetch_id + 1,
@@ -274,6 +248,7 @@ impl ConsensusMessage {
     /// `id` returns the `ConsensusMessage` id.
     pub fn id(&self) -> u64 {
         match self {
+            ConsensusMessage::Ping { id, .. } => *id,
             ConsensusMessage::FetchNodes { id, .. } => *id,
             ConsensusMessage::FetchRandomNodes { id, .. } => *id,
             ConsensusMessage::PushNodes { id, .. } => *id,
@@ -288,6 +263,7 @@ impl ConsensusMessage {
     /// `node` returns the `ConsensusMessage` `Node`.
     pub fn node(&self) -> Node {
         match self {
+            ConsensusMessage::Ping { node, .. } => node.clone(),
             ConsensusMessage::FetchNodes { node, .. } => node.clone(),
             ConsensusMessage::FetchRandomNodes { node, .. } => node.clone(),
             ConsensusMessage::PushNodes { node, .. } => node.clone(),
@@ -296,6 +272,19 @@ impl ConsensusMessage {
             ConsensusMessage::PushTransactions { node, .. } => node.clone(),
             ConsensusMessage::Query { node, .. } => node.clone(),
             ConsensusMessage::Reply { node, .. } => node.clone(),
+        }
+    }
+
+    /// `validate_ping` validates a `FetchTransactions`
+    /// `ConsensusMessage`.
+    pub fn validate_ping(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::Ping { node, .. } => {
+                node.validate()?;
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
         }
     }
 
@@ -487,9 +476,120 @@ impl ConsensusMessage {
         }
     }
 
+    /// `is_ping` returns if the `ConsensusMessage` is a `Ping` message.
+    pub fn is_ping(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::Ping { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_fetch_nodes` returns if the `ConsensusMessage` is a `FetchNodes` message.
+    pub fn is_fetch_nodes(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::FetchNodes { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_fetch_random_nodes` returns if the `ConsensusMessage` is a
+    /// `FetchRandomNodes` message.
+    pub fn is_fetch_random_nodes(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::FetchRandomNodes { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_push_nodes` returns if the `ConsensusMessage` is a `PushNodes` message.
+    pub fn is_push_nodes(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::PushNodes { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_fetch_transactions` returns if the `ConsensusMessage` is a `FetchTransactions` message.
+    pub fn is_fetch_transactions(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::FetchTransactions { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_fetch_random_transactions` returns if the `ConsensusMessage` is a
+    /// `FetchRandomTransactions` message.
+    pub fn is_fetch_random_transactions(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::FetchRandomTransactions { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_push_transactions` returns if the `ConsensusMessage` is a `PushTransactions` message.
+    pub fn is_push_transactions(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::PushTransactions { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_query` returns if the `ConsensusMessage` is a `Query` message.
+    pub fn is_query(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::Query { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
+    /// `is_reply` returns if the `ConsensusMessage` is a `Reply` message.
+    pub fn is_reply(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::Reply { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
     /// `validate` validates a `ConsensusMessage`.
     pub fn validate(&self) -> Result<()> {
         match self {
+            ConsensusMessage::Ping { .. } => self.validate_ping(),
             ConsensusMessage::FetchNodes { .. } => self.validate_fetch_nodes(),
             ConsensusMessage::FetchRandomNodes { .. } => self.validate_fetch_random_nodes(),
             ConsensusMessage::PushNodes { .. } => self.validate_push_nodes(),

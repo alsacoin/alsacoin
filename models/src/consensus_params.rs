@@ -23,6 +23,8 @@ pub struct ConsensusParams {
     pub alpha: u32,
     pub beta1: Option<u32>,
     pub beta2: Option<u32>,
+    pub max_retries: Option<u32>,
+    pub timeout: Option<u64>,
 }
 
 impl ConsensusParams {
@@ -33,6 +35,8 @@ impl ConsensusParams {
         alpha: u32,
         beta1: Option<u32>,
         beta2: Option<u32>,
+        max_retries: Option<u32>,
+        timeout: Option<u64>,
     ) -> Result<ConsensusParams> {
         let mut params = ConsensusParams {
             id: Digest::default(),
@@ -41,6 +45,8 @@ impl ConsensusParams {
             alpha,
             beta1,
             beta2,
+            max_retries,
+            timeout,
         };
 
         params.update_id()?;
@@ -68,7 +74,19 @@ impl ConsensusParams {
             None
         };
 
-        ConsensusParams::new(stage, k, alpha, beta1, beta2)
+        let max_retries = if Random::u32_range(0, 2)? == 1 {
+            Some(Random::u32()?)
+        } else {
+            None
+        };
+
+        let timeout = if Random::u32_range(0, 2)? == 1 {
+            Some(Random::u64_range(0, 60000)?)
+        } else {
+            None
+        };
+
+        ConsensusParams::new(stage, k, alpha, beta1, beta2, max_retries, timeout)
     }
 
     /// `update_id` updates the id of the `ConsensusParams`.
