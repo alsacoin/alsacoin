@@ -25,17 +25,20 @@ pub enum ConsensusMessage {
     // NB: node is the sending node, not the receiving node
     FetchNodes {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         count: u32,
         ids: BTreeSet<Digest>,
     },
     FetchRandomNodes {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         count: u32,
     },
     PushNodes {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         count: u32,
         ids: BTreeSet<Digest>,
@@ -43,17 +46,20 @@ pub enum ConsensusMessage {
     },
     FetchTransactions {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         count: u32,
         ids: BTreeSet<Digest>,
     },
     FetchRandomTransactions {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         count: u32,
     },
     PushTransactions {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         count: u32,
         ids: BTreeSet<Digest>,
@@ -61,11 +67,13 @@ pub enum ConsensusMessage {
     },
     Query {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         transaction: Transaction,
     },
     Reply {
         id: u64,
+        address: Vec<u8>,
         node: Node,
         tx_id: Digest,
         chit: bool,
@@ -74,7 +82,11 @@ pub enum ConsensusMessage {
 
 impl ConsensusMessage {
     /// `new_fetch_nodes` creates a new `FetchNodes` `ConsensusMessage`.
-    pub fn new_fetch_nodes(node: &Node, ids: &BTreeSet<Digest>) -> Result<ConsensusMessage> {
+    pub fn new_fetch_nodes(
+        address: &[u8],
+        node: &Node,
+        ids: &BTreeSet<Digest>,
+    ) -> Result<ConsensusMessage> {
         node.validate()?;
 
         if ids.contains(&node.id) {
@@ -84,6 +96,7 @@ impl ConsensusMessage {
 
         let message = ConsensusMessage::FetchNodes {
             id: Random::u64()?,
+            address: address.to_owned(),
             node: node.to_owned(),
             count: ids.len() as u32,
             ids: ids.to_owned(),
@@ -93,11 +106,16 @@ impl ConsensusMessage {
     }
 
     /// `new_fetch_random_nodes` creates a new `FetchRandomNodes` `ConsensusMessage`.
-    pub fn new_fetch_random_nodes(node: &Node, count: u32) -> Result<ConsensusMessage> {
+    pub fn new_fetch_random_nodes(
+        address: &[u8],
+        node: &Node,
+        count: u32,
+    ) -> Result<ConsensusMessage> {
         node.validate()?;
 
         let message = ConsensusMessage::FetchRandomNodes {
             id: Random::u64()?,
+            address: address.to_owned(),
             node: node.to_owned(),
             count,
         };
@@ -107,6 +125,7 @@ impl ConsensusMessage {
 
     /// `new_push_nodes` creates a new `PushNodes` `ConsensusMessage`.
     pub fn new_push_nodes(
+        address: &[u8],
         fetch_id: u64,
         node: &Node,
         nodes: &BTreeSet<Node>,
@@ -123,6 +142,7 @@ impl ConsensusMessage {
 
         let message = ConsensusMessage::PushNodes {
             id: fetch_id + 1,
+            address: address.to_owned(),
             node: node.to_owned(),
             count,
             ids: ids.to_owned(),
@@ -133,7 +153,11 @@ impl ConsensusMessage {
     }
 
     /// `new_fetch_transactions` creates a new `FetchTransactions` `ConsensusMessage`.
-    pub fn new_fetch_transactions(node: &Node, ids: &BTreeSet<Digest>) -> Result<ConsensusMessage> {
+    pub fn new_fetch_transactions(
+        address: &[u8],
+        node: &Node,
+        ids: &BTreeSet<Digest>,
+    ) -> Result<ConsensusMessage> {
         node.validate()?;
 
         if ids.contains(&node.id) {
@@ -143,6 +167,7 @@ impl ConsensusMessage {
 
         let message = ConsensusMessage::FetchTransactions {
             id: Random::u64()?,
+            address: address.to_owned(),
             node: node.to_owned(),
             count: ids.len() as u32,
             ids: ids.to_owned(),
@@ -152,11 +177,16 @@ impl ConsensusMessage {
     }
 
     /// `new_fetch_random_transactions` creates a new `FetchRandomTransactions` `ConsensusMessage`.
-    pub fn new_fetch_random_transactions(node: &Node, count: u32) -> Result<ConsensusMessage> {
+    pub fn new_fetch_random_transactions(
+        address: &[u8],
+        node: &Node,
+        count: u32,
+    ) -> Result<ConsensusMessage> {
         node.validate()?;
 
         let message = ConsensusMessage::FetchRandomTransactions {
             id: Random::u64()?,
+            address: address.to_owned(),
             node: node.to_owned(),
             count,
         };
@@ -166,6 +196,7 @@ impl ConsensusMessage {
 
     /// `new_push_transactions` creates a new `PushTransactions` `ConsensusMessage`.
     pub fn new_push_transactions(
+        address: &[u8],
         fetch_id: u64,
         node: &Node,
         transactions: &BTreeSet<Transaction>,
@@ -182,6 +213,7 @@ impl ConsensusMessage {
 
         let message = ConsensusMessage::PushTransactions {
             id: fetch_id + 1,
+            address: address.to_owned(),
             node: node.to_owned(),
             count,
             ids: ids.to_owned(),
@@ -192,12 +224,17 @@ impl ConsensusMessage {
     }
 
     /// `new_query` creates a new `Query` `ConsensusMessage`.
-    pub fn new_query(node: &Node, transaction: &Transaction) -> Result<ConsensusMessage> {
+    pub fn new_query(
+        address: &[u8],
+        node: &Node,
+        transaction: &Transaction,
+    ) -> Result<ConsensusMessage> {
         node.validate()?;
         transaction.validate()?;
 
         let message = ConsensusMessage::Query {
             id: Random::u64()?,
+            address: address.to_owned(),
             node: node.to_owned(),
             transaction: transaction.to_owned(),
         };
@@ -207,6 +244,7 @@ impl ConsensusMessage {
 
     /// `new_reply` creates a new `Reply` `ConsensusMessage`.
     pub fn new_reply(
+        address: &[u8],
         query_id: u64,
         node: &Node,
         tx_id: Digest,
@@ -221,6 +259,7 @@ impl ConsensusMessage {
 
         let message = ConsensusMessage::Reply {
             id: query_id + 1,
+            address: address.to_owned(),
             node: node.to_owned(),
             tx_id,
             chit,
@@ -770,6 +809,7 @@ impl<S: Store> Storable<S> for ConsensusMessage {
 #[test]
 fn test_consensus_message() {
     let address_len = 100;
+    let address = Random::bytes(address_len).unwrap();
     let node = Node::random(address_len).unwrap();
     let query_id = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
@@ -778,13 +818,13 @@ fn test_consensus_message() {
     let mut invalid_node = node.clone();
     invalid_node.id = Digest::default();
 
-    let res = ConsensusMessage::new_reply(query_id, &invalid_node, tx_id, chit);
+    let res = ConsensusMessage::new_reply(&address, query_id, &invalid_node, tx_id, chit);
     assert!(res.is_err());
 
-    let res = ConsensusMessage::new_reply(query_id, &node, node.id, chit);
+    let res = ConsensusMessage::new_reply(&address, query_id, &node, node.id, chit);
     assert!(res.is_err());
 
-    let res = ConsensusMessage::new_reply(query_id, &node, tx_id, chit);
+    let res = ConsensusMessage::new_reply(&address, query_id, &node, tx_id, chit);
     assert!(res.is_ok());
 
     let cons_msg = res.unwrap();
@@ -799,6 +839,7 @@ fn test_consensus_message() {
     assert!(res.is_ok());
 
     let cons_msg = ConsensusMessage::Reply {
+        address,
         id: query_id,
         node: invalid_node.clone(),
         tx_id,
@@ -817,12 +858,14 @@ fn test_consensus_message_serialize_bytes() {
     let address_len = 100;
 
     for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
         let node = Node::random(address_len).unwrap();
         let query_id = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
         let chit = Random::u32_range(0, 2).unwrap() != 0;
 
-        let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+        let cons_msg_a =
+            ConsensusMessage::new_reply(&address, query_id, &node, tx_id, chit).unwrap();
 
         let res = cons_msg_a.to_bytes();
         assert!(res.is_ok());
@@ -841,12 +884,14 @@ fn test_consensus_message_serialize_json() {
     let address_len = 100;
 
     for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
         let node = Node::random(address_len).unwrap();
         let query_id = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
         let chit = Random::u32_range(0, 2).unwrap() != 0;
 
-        let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+        let cons_msg_a =
+            ConsensusMessage::new_reply(&address, query_id, &node, tx_id, chit).unwrap();
 
         let res = cons_msg_a.to_json();
         assert!(res.is_ok());
@@ -879,7 +924,8 @@ fn test_consensus_message_storable() {
             let tx_id = Digest::random().unwrap();
             let chit = Random::u32_range(0, 2).unwrap() != 0;
 
-            let cons_msg = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+            let cons_msg =
+                ConsensusMessage::new_reply(&address, query_id, &node, tx_id, chit).unwrap();
             (query_id, cons_msg)
         })
         .collect();

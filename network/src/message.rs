@@ -78,12 +78,13 @@ fn test_message_consensus_message() {
     use models::node::Node;
 
     let address_len = 100;
+    let address = Random::bytes(address_len).unwrap();
     let node = Node::random(address_len).unwrap();
     let query_id = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
     let chit = Random::u32_range(0, 2).unwrap() != 0;
 
-    let cons_msg_a = ConsensusMessage::new_reply(query_id, &node, tx_id, chit).unwrap();
+    let cons_msg_a = ConsensusMessage::new_reply(&address, query_id, &node, tx_id, chit).unwrap();
 
     let res = Message::from_consensus_message(&cons_msg_a);
     assert!(res.is_ok());

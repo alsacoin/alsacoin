@@ -443,26 +443,30 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         transactions: &BTreeSet<Transaction>,
     ) -> Result<()> {
         let node = Node::new(self.stage, address);
-        let cons_msg = ConsensusMessage::new_push_transactions(fetch_id, &node, transactions)?;
+        let cons_msg =
+            ConsensusMessage::new_push_transactions(&self.address, fetch_id, &node, transactions)?;
         self.send_message(&cons_msg)
     }
 
     /// `handle_fetch_transactions` handles a `FetchTransactions` request.
-    pub fn handle_fetch_transactions(
-        &mut self,
-        address: &[u8],
-        msg: &ConsensusMessage,
-    ) -> Result<()> {
+    pub fn handle_fetch_transactions(&mut self, msg: &ConsensusMessage) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
-            ConsensusMessage::FetchTransactions { id, node, ids, .. } => {
+            ConsensusMessage::FetchTransactions {
+                address,
+                id,
+                node,
+                ids,
+                ..
+            } => {
                 if node.address != self.address {
                     let err = Error::InvalidAddress;
                     return Err(err);
                 }
 
-                let node = Node::new(self.stage, address);
+                let node = Node::new(self.stage, &address);
+                self.handle_node(&node)?;
 
                 let mut transactions = BTreeSet::new();
 
@@ -473,7 +477,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
                 }
 
-                let cons_msg = ConsensusMessage::new_push_transactions(id, &node, &transactions)?;
+                let cons_msg = ConsensusMessage::new_push_transactions(
+                    &self.address,
+                    id,
+                    &node,
+                    &transactions,
+                )?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -484,25 +493,32 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `handle_fetch_random_transactions` handles a `FetchRandomTransactions` request.
-    pub fn handle_fetch_random_transactions(
-        &mut self,
-        address: &[u8],
-        msg: &ConsensusMessage,
-    ) -> Result<()> {
+    pub fn handle_fetch_random_transactions(&mut self, msg: &ConsensusMessage) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
-            ConsensusMessage::FetchRandomTransactions { id, node, count } => {
+            ConsensusMessage::FetchRandomTransactions {
+                address,
+                id,
+                node,
+                count,
+            } => {
                 if node.address != self.address {
                     let err = Error::InvalidAddress;
                     return Err(err);
                 }
 
-                let node = Node::new(self.stage, address);
+                let node = Node::new(self.stage, &address);
+                self.handle_node(&node)?;
 
                 let transactions = Transaction::sample(&self.store, self.stage, None, None, count)?;
 
-                let cons_msg = ConsensusMessage::new_push_transactions(id, &node, &transactions)?;
+                let cons_msg = ConsensusMessage::new_push_transactions(
+                    &self.address,
+                    id,
+                    &node,
+                    &transactions,
+                )?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -604,7 +620,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let node = Node::new(self.stage, address);
         let mut res = BTreeSet::new();
 
-        let cons_msg = ConsensusMessage::new_fetch_transactions(&node, ids)?;
+        let cons_msg = ConsensusMessage::new_fetch_transactions(&self.address, &node, ids)?;
         self.send_message(&cons_msg)?;
         let mut max_retries = self.params.max_retries.unwrap_or(1);
 
@@ -638,7 +654,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let mut res = BTreeSet::new();
 
         for node in nodes {
-            let cons_msg = ConsensusMessage::new_fetch_transactions(&node, ids)?;
+            let cons_msg = ConsensusMessage::new_fetch_transactions(&self.address, &node, ids)?;
             self.send_message(&cons_msg)?;
             let mut max_retries = self.params.max_retries.unwrap_or(1);
 
@@ -676,7 +692,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let node = Node::new(self.stage, address);
         let mut res = BTreeSet::new();
 
-        let cons_msg = ConsensusMessage::new_fetch_random_transactions(&node, count)?;
+        let cons_msg =
+            ConsensusMessage::new_fetch_random_transactions(&self.address, &node, count)?;
         self.send_message(&cons_msg)?;
         let mut max_retries = self.params.max_retries.unwrap_or(1);
 
@@ -710,7 +727,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let mut res = BTreeSet::new();
 
         for node in nodes {
-            let cons_msg = ConsensusMessage::new_fetch_random_transactions(&node, count)?;
+            let cons_msg =
+                ConsensusMessage::new_fetch_random_transactions(&self.address, &node, count)?;
             self.send_message(&cons_msg)?;
             let mut max_retries = self.params.max_retries.unwrap_or(1);
 
@@ -747,22 +765,29 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         nodes: &BTreeSet<Node>,
     ) -> Result<()> {
         let node = Node::new(self.stage, address);
-        let cons_msg = ConsensusMessage::new_push_nodes(fetch_id, &node, nodes)?;
+        let cons_msg = ConsensusMessage::new_push_nodes(&self.address, fetch_id, &node, nodes)?;
         self.send_message(&cons_msg)
     }
 
     /// `handle_fetch_nodes` handles a `FetchNodes` request.
-    pub fn handle_fetch_nodes(&mut self, address: &[u8], msg: &ConsensusMessage) -> Result<()> {
+    pub fn handle_fetch_nodes(&mut self, msg: &ConsensusMessage) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
-            ConsensusMessage::FetchNodes { id, node, ids, .. } => {
+            ConsensusMessage::FetchNodes {
+                address,
+                id,
+                node,
+                ids,
+                ..
+            } => {
                 if node.address != self.address {
                     let err = Error::InvalidAddress;
                     return Err(err);
                 }
 
-                let node = Node::new(self.stage, address);
+                let node = Node::new(self.stage, &address);
+                self.handle_node(&node)?;
 
                 let mut nodes = BTreeSet::new();
 
@@ -773,7 +798,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
                 }
 
-                let cons_msg = ConsensusMessage::new_push_nodes(id, &node, &nodes)?;
+                let cons_msg = ConsensusMessage::new_push_nodes(&self.address, id, &node, &nodes)?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -784,25 +809,27 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `handle_fetch_random_nodes` handles a `FetchRandomNodes` request.
-    pub fn handle_fetch_random_nodes(
-        &mut self,
-        address: &[u8],
-        msg: &ConsensusMessage,
-    ) -> Result<()> {
+    pub fn handle_fetch_random_nodes(&mut self, msg: &ConsensusMessage) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
-            ConsensusMessage::FetchRandomNodes { id, node, count } => {
+            ConsensusMessage::FetchRandomNodes {
+                address,
+                id,
+                node,
+                count,
+            } => {
                 if node.address != self.address {
                     let err = Error::InvalidAddress;
                     return Err(err);
                 }
 
-                let node = Node::new(self.stage, address);
+                let node = Node::new(self.stage, &address);
+                self.handle_node(&node)?;
 
                 let nodes = Node::sample(&self.store, self.stage, None, None, count)?;
 
-                let cons_msg = ConsensusMessage::new_push_nodes(id, &node, &nodes)?;
+                let cons_msg = ConsensusMessage::new_push_nodes(&self.address, id, &node, &nodes)?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -890,7 +917,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         ids: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Node>> {
         let node = Node::new(self.stage, address);
-        let cons_msg = ConsensusMessage::new_fetch_nodes(&node, ids)?;
+        let cons_msg = ConsensusMessage::new_fetch_nodes(&self.address, &node, ids)?;
         self.send_message(&cons_msg)?;
 
         let mut res = BTreeSet::new();
@@ -925,7 +952,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let mut res = BTreeSet::new();
 
         for node in nodes {
-            let cons_msg = ConsensusMessage::new_fetch_nodes(&node, ids)?;
+            let cons_msg = ConsensusMessage::new_fetch_nodes(&self.address, &node, ids)?;
             self.send_message(&cons_msg)?;
 
             let mut max_retries = self.params.max_retries.unwrap_or(1);
@@ -961,7 +988,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         count: u32,
     ) -> Result<BTreeSet<Node>> {
         let node = Node::new(self.stage, &address);
-        let cons_msg = ConsensusMessage::new_fetch_random_nodes(&node, count)?;
+        let cons_msg = ConsensusMessage::new_fetch_random_nodes(&self.address, &node, count)?;
         self.send_message(&cons_msg)?;
 
         let mut max_retries = self.params.max_retries.unwrap_or(1);
@@ -996,7 +1023,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let mut res = BTreeSet::new();
 
         for node in nodes {
-            let cons_msg = ConsensusMessage::new_fetch_random_nodes(&node, count)?;
+            let cons_msg = ConsensusMessage::new_fetch_random_nodes(&self.address, &node, count)?;
             self.send_message(&cons_msg)?;
 
             let mut max_retries = self.params.max_retries.unwrap_or(1);
@@ -1109,6 +1136,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 node,
                 tx_id,
                 chit,
+                ..
             } => {
                 if id != query_id + 1 {
                     let err = Error::InvalidId;
@@ -1137,7 +1165,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// `query_node` queries a single remote node.
     pub fn query_node(&mut self, address: &[u8], transaction: &Transaction) -> Result<bool> {
         let node = Node::new(self.stage, address);
-        let cons_msg = ConsensusMessage::new_query(&node, transaction)?;
+        let cons_msg = ConsensusMessage::new_query(&self.address, &node, transaction)?;
         self.send_message(&cons_msg)?;
 
         let mut res = false;
@@ -1175,11 +1203,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
     /// `reply` replies to a `Query` request.
     /// In the Avalanche paper the function is called "OnQuery".
-    pub fn reply(&mut self, address: &[u8], msg: &ConsensusMessage) -> Result<()> {
+    pub fn reply(&mut self, msg: &ConsensusMessage) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
             ConsensusMessage::Query {
+                address,
                 id,
                 node,
                 transaction,
@@ -1190,8 +1219,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 }
 
                 let chit = self.is_strongly_preferred(&transaction.id)?;
-                let node = Node::new(self.stage, address);
-                let cons_msg = ConsensusMessage::new_reply(id, &node, transaction.id, chit)?;
+                let node = Node::new(self.stage, &address);
+                self.handle_node(&node)?;
+
+                let cons_msg =
+                    ConsensusMessage::new_reply(&self.address, id, &node, transaction.id, chit)?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -1202,9 +1234,22 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     }
 
     /// `handle` handles incoming `ConsensusMessage`s.
-    pub fn handle(&mut self, _msg: &ConsensusMessage) -> Result<()> {
-        // TODO
-        unreachable!()
+    pub fn handle(&mut self, msg: &ConsensusMessage) -> Result<()> {
+        msg.validate()?;
+
+        match msg.to_owned() {
+            ConsensusMessage::FetchNodes { .. } => self.handle_fetch_nodes(msg),
+            ConsensusMessage::FetchRandomNodes { .. } => self.handle_fetch_random_nodes(msg),
+            ConsensusMessage::FetchTransactions { .. } => self.handle_fetch_transactions(msg),
+            ConsensusMessage::FetchRandomTransactions { .. } => {
+                self.handle_fetch_random_transactions(msg)
+            }
+            ConsensusMessage::Query { .. } => self.reply(msg),
+            _ => {
+                let err = Error::InvalidMessage;
+                Err(err)
+            }
+        }
     }
 
     /// `serve` serves incoming `ConsensusMessage`s.
