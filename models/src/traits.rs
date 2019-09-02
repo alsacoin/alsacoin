@@ -5,6 +5,7 @@
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
+use std::collections::BTreeSet;
 use store::traits::Store;
 
 /// `Storable` is the trait implemented by storable models.
@@ -33,7 +34,7 @@ pub trait Storable<S: Store>: Sized {
         to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
-    ) -> Result<Vec<Self>>;
+    ) -> Result<BTreeSet<Self>>;
 
     /// `sample` samples model instances from the `Store`.
     fn sample(
@@ -42,7 +43,7 @@ pub trait Storable<S: Store>: Sized {
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         count: u32,
-    ) -> Result<Vec<Self>>;
+    ) -> Result<BTreeSet<Self>>;
 
     /// `count` counts `Store` model instances matching a specific query.
     fn count(

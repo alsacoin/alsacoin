@@ -46,6 +46,10 @@ pub enum Error {
     InvalidNode,
     #[fail(display = "Invalid transaction")]
     InvalidTransaction,
+    #[fail(display = "Invalid address")]
+    InvalidAddress,
+    #[fail(display = "Invalid message")]
+    InvalidMessage,
 }
 
 impl From<io::Error> for Error {

@@ -10,35 +10,45 @@ use serde_json;
 /// `ConsensusConfig` is the type representing a consensus configuration.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct ConsensusConfig {
-    pub k: Option<u64>,
-    pub alpha: Option<u64>,
-    pub beta1: Option<u64>,
-    pub beta2: Option<u64>,
+    pub k: Option<u32>,
+    pub alpha: Option<u32>,
+    pub beta1: Option<u32>,
+    pub beta2: Option<u32>,
+    pub max_retries: Option<u32>,
+    pub timeout: Option<u64>,
 }
 
 impl ConsensusConfig {
     /// `DEFAULT_K` is the default consensus parameter k.
     /// See the Avalanche Consensus paper.
-    pub const DEFAULT_K: u64 = 1; // TODO
+    pub const DEFAULT_K: u32 = 1; // TODO
 
     /// `DEFAULT_ALPHA` is the default consensus parameter alpha.
     /// See the Avalanche Consensus paper.
-    pub const DEFAULT_ALPHA: u64 = 1; // TODO
+    pub const DEFAULT_ALPHA: u32 = 1; // TODO
 
     /// `DEFAULT_BETA1` is the default consensus parameter beta1.
     /// See the Avalanche Consensus paper.
-    pub const DEFAULT_BETA1: u64 = 1; // TODO
+    pub const DEFAULT_BETA1: u32 = 1; // TODO
 
     /// `DEFAULT_BETA2` is the default consensus parameter beta2.
     /// See the Avalanche Consensus paper.
-    pub const DEFAULT_BETA2: u64 = 1; // TODO
+    pub const DEFAULT_BETA2: u32 = 1; // TODO
+
+    /// `DEFAULT_MAX_RETRIES` is the default consensus parameter max_retries.
+    pub const DEFAULT_MAX_RETRIES: u32 = 3; // TODO
+
+    /// `DEFAULT_TIMEOUT` is the default consensus parameter timeout.
+    pub const DEFAULT_TIMEOUT: u64 = 180; // TODO
 
     /// `new` creates a new `ConsensusConfig`.
     pub fn new(
-        k: Option<u64>,
-        alpha: Option<u64>,
-        beta1: Option<u64>,
-        beta2: Option<u64>,
+        k: Option<u32>,
+        alpha: Option<u32>,
+        beta1: Option<u32>,
+        beta2: Option<u32>,
+        max_retries: Option<u32>,
+        timeout: Option<u64>,
     ) -> ConsensusConfig {
         let k = Some(k.unwrap_or(Self::DEFAULT_K));
 
@@ -48,11 +58,17 @@ impl ConsensusConfig {
 
         let beta2 = Some(beta2.unwrap_or(Self::DEFAULT_BETA2));
 
+        let max_retries = Some(max_retries.unwrap_or(Self::DEFAULT_MAX_RETRIES));
+
+        let timeout = Some(timeout.unwrap_or(Self::DEFAULT_TIMEOUT));
+
         ConsensusConfig {
             k,
             alpha,
             beta1,
             beta2,
+            max_retries,
+            timeout,
         }
     }
 
@@ -83,12 +99,16 @@ impl Default for ConsensusConfig {
         let alpha = Some(ConsensusConfig::DEFAULT_ALPHA);
         let beta1 = Some(ConsensusConfig::DEFAULT_BETA1);
         let beta2 = Some(ConsensusConfig::DEFAULT_BETA2);
+        let max_retries = Some(ConsensusConfig::DEFAULT_MAX_RETRIES);
+        let timeout = Some(ConsensusConfig::DEFAULT_TIMEOUT);
 
         ConsensusConfig {
             k,
             alpha,
             beta1,
             beta2,
+            max_retries,
+            timeout,
         }
     }
 }

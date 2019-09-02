@@ -13,6 +13,7 @@ use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
+use std::collections::BTreeSet;
 use store::traits::Store;
 
 /// `Account` is the type used to represent an Alsacoin account
@@ -115,7 +116,7 @@ impl<S: Store> Storable<S> for Account {
         to: Option<Self::Key>,
         count: Option<u32>,
         skip: Option<u32>,
-    ) -> Result<Vec<Self>> {
+    ) -> Result<BTreeSet<Self>> {
         let from = if let Some(ref key) = from {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
@@ -133,11 +134,11 @@ impl<S: Store> Storable<S> for Account {
         let from = from.as_ref().map(|from| from.as_slice());
         let to = to.as_ref().map(|to| to.as_slice());
         let values = store.query(from, to, count, skip)?;
-        let mut items = Vec::new();
+        let mut items = BTreeSet::new();
 
         for value in values {
             let item = Self::from_bytes(&value)?;
-            items.push(item);
+            items.insert(item);
         }
 
         Ok(items)
@@ -149,7 +150,7 @@ impl<S: Store> Storable<S> for Account {
         from: Option<Self::Key>,
         to: Option<Self::Key>,
         count: u32,
-    ) -> Result<Vec<Self>> {
+    ) -> Result<BTreeSet<Self>> {
         let from = if let Some(ref key) = from {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
@@ -167,11 +168,11 @@ impl<S: Store> Storable<S> for Account {
         let from = from.as_ref().map(|from| from.as_slice());
         let to = to.as_ref().map(|to| to.as_slice());
         let values = store.sample(from, to, count)?;
-        let mut items = Vec::new();
+        let mut items = BTreeSet::new();
 
         for value in values {
             let item = Self::from_bytes(&value)?;
-            items.push(item);
+            items.insert(item);
         }
 
         Ok(items)
@@ -222,13 +223,13 @@ impl<S: Store> Storable<S> for Account {
     }
 
     fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()> {
-        let mut _items = Vec::new();
+        let mut _items = BTreeSet::new();
 
         for (k, v) in items {
             let key = <Self as Storable<S>>::key_to_bytes(stage, k)?;
             let value = v.to_bytes()?;
             let item = (key, value);
-            _items.push(item);
+            _items.insert(item);
         }
 
         let items: Vec<(&[u8], &[u8])> = _items
@@ -245,10 +246,10 @@ impl<S: Store> Storable<S> for Account {
     }
 
     fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
-        let mut _keys = Vec::new();
+        let mut _keys = BTreeSet::new();
         for key in keys {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-            _keys.push(key);
+            _keys.insert(key);
         }
 
         let keys: Vec<&[u8]> = _keys.iter().map(|k| k.as_slice()).collect();
@@ -419,7 +420,7 @@ fn test_account_storable() {
 
         let res = Account::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), vec![]);
+        assert_eq!(res.unwrap().len(), 0);
 
         let res = Account::lookup(&store, stage, &key);
         assert!(res.is_ok());
@@ -438,7 +439,7 @@ fn test_account_storable() {
 
         let res = Account::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), vec![value.to_owned()]);
+        assert_eq!(res.unwrap().iter().next(), Some(value));
 
         let res = Account::lookup(&store, stage, &key);
         assert!(res.is_ok());
@@ -458,7 +459,7 @@ fn test_account_storable() {
 
         let res = Account::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap(), vec![]);
+        assert_eq!(res.unwrap().len(), 0);
 
         let res = Account::lookup(&store, stage, &key);
         assert!(res.is_ok());
