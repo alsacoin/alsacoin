@@ -355,8 +355,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_node` elaborates an incoming `Node`.
-    pub fn on_node(&mut self, node: &Node) -> Result<()> {
+    /// `handle_node` elaborates an incoming `Node`.
+    pub fn handle_node(&mut self, node: &Node) -> Result<()> {
         node.validate()?;
 
         if node.address == self.address {
@@ -409,9 +409,9 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
-    /// `on_transaction` elaborates an incoming `Node`.
+    /// `handle_transaction` elaborates an incoming `Node`.
     /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
-    pub fn on_transaction(&mut self, transaction: &Transaction) -> Result<()> {
+    pub fn handle_transaction(&mut self, transaction: &Transaction) -> Result<()> {
         transaction.validate()?;
         let tx_id = transaction.id;
 
@@ -447,8 +447,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         self.send_message(&cons_msg)
     }
 
-    /// `on_fetch_transactions` handles a `FetchTransactions` request.
-    pub fn on_fetch_transactions(&mut self, address: &[u8], msg: &ConsensusMessage) -> Result<()> {
+    /// `handle_fetch_transactions` handles a `FetchTransactions` request.
+    pub fn handle_fetch_transactions(
+        &mut self,
+        address: &[u8],
+        msg: &ConsensusMessage,
+    ) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
@@ -479,8 +483,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_fetch_random_transactions` handles a `FetchRandomTransactions` request.
-    pub fn on_fetch_random_transactions(
+    /// `handle_fetch_random_transactions` handles a `FetchRandomTransactions` request.
+    pub fn handle_fetch_random_transactions(
         &mut self,
         address: &[u8],
         msg: &ConsensusMessage,
@@ -508,8 +512,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_push_transactions` handles a `PushTransactions`.
-    pub fn on_push_transactions(
+    /// `handle_push_transactions` handles a `PushTransactions`.
+    pub fn handle_push_transactions(
         &mut self,
         msg: &ConsensusMessage,
         fetch_id: u64,
@@ -532,7 +536,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
 
                     for transaction in &transactions {
-                        self.on_transaction(&transaction)?;
+                        self.handle_transaction(&transaction)?;
                     }
 
                     Ok(transactions)
@@ -548,9 +552,9 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_push_random_transactions` handles a `PushTransactions` following a
+    /// `handle_push_random_transactions` handles a `PushTransactions` following a
     /// `FetchRandomTransactions`.
-    pub fn on_push_random_transactions(
+    pub fn handle_push_random_transactions(
         &mut self,
         msg: &ConsensusMessage,
         fetch_id: u64,
@@ -575,7 +579,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
 
                     for transaction in &transactions {
-                        self.on_transaction(&transaction)?;
+                        self.handle_transaction(&transaction)?;
                     }
 
                     Ok(transactions)
@@ -610,11 +614,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let transactions = self.on_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
+                let transactions =
+                    self.handle_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
 
                 // NB: threads?
                 for transaction in transactions {
-                    self.on_transaction(&transaction)?;
+                    self.handle_transaction(&transaction)?;
                     res.insert(transaction);
                 }
 
@@ -644,11 +649,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
                     let transactions =
-                        self.on_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
+                        self.handle_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
 
                     // NB: threads?
                     for transaction in transactions {
-                        self.on_transaction(&transaction)?;
+                        self.handle_transaction(&transaction)?;
                         res.insert(transaction);
                     }
 
@@ -682,11 +687,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
                 let transactions =
-                    self.on_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
+                    self.handle_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
 
                 // NB: threads?
                 for transaction in transactions {
-                    self.on_transaction(&transaction)?;
+                    self.handle_transaction(&transaction)?;
                     res.insert(transaction);
                 }
 
@@ -716,11 +721,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
                     let transactions =
-                        self.on_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
+                        self.handle_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
 
                     // NB: threads?
                     for transaction in transactions {
-                        self.on_transaction(&transaction)?;
+                        self.handle_transaction(&transaction)?;
                         res.insert(transaction);
                     }
 
@@ -746,8 +751,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         self.send_message(&cons_msg)
     }
 
-    /// `on_fetch_nodes` handles a `FetchNodes` request.
-    pub fn on_fetch_nodes(&mut self, address: &[u8], msg: &ConsensusMessage) -> Result<()> {
+    /// `handle_fetch_nodes` handles a `FetchNodes` request.
+    pub fn handle_fetch_nodes(&mut self, address: &[u8], msg: &ConsensusMessage) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
@@ -778,8 +783,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_fetch_random_nodes` handles a `FetchRandomNodes` request.
-    pub fn on_fetch_random_nodes(&mut self, address: &[u8], msg: &ConsensusMessage) -> Result<()> {
+    /// `handle_fetch_random_nodes` handles a `FetchRandomNodes` request.
+    pub fn handle_fetch_random_nodes(
+        &mut self,
+        address: &[u8],
+        msg: &ConsensusMessage,
+    ) -> Result<()> {
         msg.validate()?;
 
         match msg.to_owned() {
@@ -803,8 +812,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_push_nodes` handles a `PushNodes`.
-    pub fn on_push_nodes(
+    /// `handle_push_nodes` handles a `PushNodes`.
+    pub fn handle_push_nodes(
         &mut self,
         msg: &ConsensusMessage,
         fetch_id: u64,
@@ -822,7 +831,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
 
                     for node in &nodes {
-                        self.on_node(&node)?;
+                        self.handle_node(&node)?;
                     }
 
                     Ok(nodes)
@@ -838,9 +847,9 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `on_push_random_nodes` handles a `PushNodes` following a
+    /// `handle_push_random_nodes` handles a `PushNodes` following a
     /// `FetchRandomNodes`.
-    pub fn on_push_random_nodes(
+    pub fn handle_push_random_nodes(
         &mut self,
         msg: &ConsensusMessage,
         fetch_id: u64,
@@ -858,7 +867,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
 
                     for node in &nodes {
-                        self.on_node(&node)?;
+                        self.handle_node(&node)?;
                     }
 
                     Ok(nodes)
@@ -893,11 +902,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let nodes = self.on_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
+                let nodes = self.handle_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
 
                 // NB: threads?
                 for node in nodes {
-                    self.on_node(&node)?;
+                    self.handle_node(&node)?;
                     res.insert(node);
                 }
 
@@ -927,11 +936,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.node().address == self.address
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
-                    let nodes = self.on_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
+                    let nodes = self.handle_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
 
                     // NB: threads?
                     for node in nodes {
-                        self.on_node(&node)?;
+                        self.handle_node(&node)?;
                         res.insert(node);
                     }
 
@@ -964,11 +973,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                let nodes = self.on_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
+                let nodes = self.handle_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
 
                 // NB: threads?
                 for node in nodes {
-                    self.on_node(&node)?;
+                    self.handle_node(&node)?;
                     res.insert(node);
                 }
 
@@ -998,11 +1007,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     && recv_cons_msg.node().address == self.address
                     && recv_cons_msg.id() == cons_msg.id() + 1
                 {
-                    let nodes = self.on_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
+                    let nodes =
+                        self.handle_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
 
                     // NB: threads?
                     for node in nodes {
-                        self.on_node(&node)?;
+                        self.handle_node(&node)?;
                         res.insert(node);
                     }
 
@@ -1078,14 +1088,14 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     pub fn update_ancestors(&mut self, transaction: &Transaction) -> Result<()> {
         // NB: threads?
         for ancestor in self.fetch_missing_ancestors(transaction)? {
-            self.on_transaction(&ancestor)?;
+            self.handle_transaction(&ancestor)?;
         }
 
         Ok(())
     }
 
-    /// `on_reply` handles a `Reply` request.
-    pub fn on_reply(
+    /// `handle_reply` handles a `Reply` request.
+    pub fn handle_reply(
         &mut self,
         msg: &ConsensusMessage,
         query_id: u64,
@@ -1139,7 +1149,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 && recv_cons_msg.node().address == self.address
                 && recv_cons_msg.id() == cons_msg.id() + 1
             {
-                res = self.on_reply(&recv_cons_msg, cons_msg.id(), &transaction.id)?;
+                res = self.handle_reply(&recv_cons_msg, cons_msg.id(), &transaction.id)?;
                 break;
             } else {
                 max_retries -= 1;
@@ -1230,7 +1240,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             let missing_txs = self.fetch_missing_ancestors(&tx)?;
 
             for missing_tx in missing_txs.iter() {
-                self.on_transaction(&missing_tx)?;
+                self.handle_transaction(&missing_tx)?;
             }
 
             let chit_sum = self.query(&tx)?;
