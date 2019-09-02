@@ -5,7 +5,7 @@ sudo: required
 language: rust
 
 rust:
-  - nightly-2019-07-19
+  - nightly-2019-08-30
 
 cache: cargo
 
@@ -15,7 +15,6 @@ before_cache:
 before_install:
   - set -e
   - rustup self update
-  # - sudo apt update && sudo apt install llvm
 
 install:
   - echo "installing clippy"
