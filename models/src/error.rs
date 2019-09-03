@@ -70,6 +70,10 @@ pub enum Error {
     InvalidThreshold,
     #[fail(display = "Invalid node")]
     InvalidNode,
+    #[fail(display = "Invalid account")]
+    InvalidAccount,
+    #[fail(display = "Invalid input")]
+    InvalidInput,
     #[fail(display = "Invalid transactions")]
     InvalidTransactions,
     #[fail(display = "Invalid message")]

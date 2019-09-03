@@ -199,7 +199,7 @@ fn test_input_new() {
     let signers = Signers::new().unwrap();
     let value = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let account = Account::new(stage, &signers, value, tx_id).unwrap();
+    let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
@@ -250,7 +250,7 @@ fn test_input_sign() {
 
     let value = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let account = Account::new(stage, &signers, value, tx_id).unwrap();
+    let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
@@ -297,7 +297,7 @@ fn test_input_validate() {
     let signers = Signers::new().unwrap();
     let value = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let account = Account::new(stage, &signers, value, tx_id).unwrap();
+    let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
@@ -343,7 +343,7 @@ fn test_input_serialize_bytes() {
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -378,7 +378,7 @@ fn test_input_serialize_json() {
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {

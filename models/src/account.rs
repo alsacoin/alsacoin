@@ -25,12 +25,17 @@ pub struct Account {
     pub signers: Signers,
     pub value: u64, // NB: gonna be confidential
     pub counter: u64,
-    pub transaction_id: Digest,
+    pub transaction_id: Option<Digest>,
 }
 
 impl Account {
     /// `new` creates a new `Account`.
-    pub fn new(stage: Stage, signers: &Signers, value: u64, tx_id: Digest) -> Result<Account> {
+    pub fn new(
+        stage: Stage,
+        signers: &Signers,
+        value: u64,
+        tx_id: Option<Digest>,
+    ) -> Result<Account> {
         signers.validate()?;
 
         let account = Account {
@@ -45,10 +50,26 @@ impl Account {
         Ok(account)
     }
 
+    /// `new_eve` creates a new eve `Account`.
+    pub fn new_eve(stage: Stage, signers: &Signers) -> Result<Account> {
+        signers.validate()?;
+
+        Account::new(stage, signers, 0, None)
+    }
+
+    /// `is_eve` returns if the `Account` is an eve `Account`.
+    pub fn is_eve(&self) -> Result<bool> {
+        self.signers.validate()?;
+
+        let res = self.value == 0 && self.transaction_id.is_none() && self.counter == 0;
+
+        Ok(res)
+    }
+
     /// `update` updates the `Account`.
     pub fn update(&mut self, value: u64, tx_id: Digest) {
         self.value = value;
-        self.transaction_id = tx_id;
+        self.transaction_id = Some(tx_id);
         self.counter += 1;
     }
 
@@ -58,6 +79,11 @@ impl Account {
 
         if self.address != self.signers.address {
             let err = Error::InvalidAddress;
+            return Err(err);
+        }
+
+        if (self.value != 0 || self.counter != 0) && self.transaction_id.is_none() {
+            let err = Error::InvalidAccount;
             return Err(err);
         }
 
@@ -295,10 +321,66 @@ fn test_account_new() {
 
     let tx_id = Digest::random().unwrap();
 
-    let res = Account::new(stage, &valid_signers, value, tx_id);
+    let res = Account::new(stage, &valid_signers, value, Some(tx_id));
     assert!(res.is_ok());
 
-    let res = Account::new(stage, &invalid_signers, value, tx_id);
+    let res = Account::new(stage, &invalid_signers, value, Some(tx_id));
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_account_new_eve() {
+    use crate::signer::Signer;
+    use crypto::ecc::ed25519::PublicKey;
+    use crypto::random::Random;
+
+    let stage = Stage::random().unwrap();
+    let mut valid_signers = Signers::new().unwrap();
+
+    for _ in 0..10 {
+        let public_key = PublicKey::random().unwrap();
+        let weight = Random::u64_range(1, 11).unwrap();
+        let signer = Signer { public_key, weight };
+
+        valid_signers.add(&signer).unwrap();
+    }
+
+    let mut invalid_signers = valid_signers.clone();
+    invalid_signers.threshold = invalid_signers.total_weight() + 1;
+
+    let res = Account::new_eve(stage, &invalid_signers);
+    assert!(res.is_err());
+
+    let res = Account::new_eve(stage, &valid_signers);
+    assert!(res.is_ok());
+
+    let mut eve_account = res.unwrap();
+
+    let res = eve_account.is_eve();
+    assert!(res.is_ok());
+    assert!(res.unwrap());
+
+    let res = eve_account.validate();
+    assert!(res.is_ok());
+
+    eve_account.value = 1;
+
+    let res = eve_account.is_eve();
+    assert!(res.is_ok());
+    assert!(!res.unwrap());
+
+    let res = eve_account.validate();
+    assert!(res.is_err());
+
+    eve_account.value = 0;
+
+    eve_account.counter = 1;
+
+    let res = eve_account.is_eve();
+    assert!(res.is_ok());
+    assert!(!res.unwrap());
+
+    let res = eve_account.validate();
     assert!(res.is_err());
 }
 
@@ -329,7 +411,7 @@ fn test_account_validate() {
     invalid_signers.threshold = invalid_signers.total_weight() + 1;
     let tx_id = Digest::random().unwrap();
 
-    let mut account = Account::new(stage, &valid_signers, value, tx_id).unwrap();
+    let mut account = Account::new(stage, &valid_signers, value, Some(tx_id)).unwrap();
 
     let res = account.validate();
     assert!(res.is_ok());
@@ -354,7 +436,7 @@ fn test_account_serialize_bytes() {
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account_a = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account_a = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let res = account_a.to_bytes();
         assert!(res.is_ok());
@@ -377,7 +459,7 @@ fn test_account_serialize_json() {
         let signers = Signers::new().unwrap();
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account_a = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account_a = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let res = account_a.to_json();
         assert!(res.is_ok());
@@ -408,7 +490,7 @@ fn test_account_storable() {
             let signers = Signers::new().unwrap();
             let value = Random::u64().unwrap();
             let tx_id = Digest::random().unwrap();
-            let account = Account::new(stage, &signers, value, tx_id).unwrap();
+            let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
             (account.address, account)
         })
         .collect();

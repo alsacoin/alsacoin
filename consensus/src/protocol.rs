@@ -5,6 +5,7 @@
 use crate::error::Error;
 use crate::result::Result;
 use crypto::hash::Digest;
+use models::account::Account;
 use models::address::Address;
 use models::conflict_set::ConflictSet;
 use models::consensus_message::ConsensusMessage;
@@ -22,11 +23,14 @@ use std::collections::BTreeSet;
 use store::traits::Store;
 
 /// `Protocol` is the type encapsulating the Avalanche Consensus Protocol.
+#[allow(dead_code)]
 pub struct Protocol<S: Store, P: Store, T: Transport> {
     stage: Stage,
     address: Vec<u8>,
     params: ConsensusParams,
     state: ConsensusState,
+    eve_account: Account,
+    eve_transaction: Transaction,
     store: S,
     pool: P,
     transport: T,
@@ -40,23 +44,46 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         address: &[u8],
         params: &ConsensusParams,
         state: &ConsensusState,
-        store: S,
+        eve_account: &Account,
+        mut store: S,
         pool: P,
         transport: T,
     ) -> Result<Protocol<S, P, T>> {
         params.validate()?;
         state.validate()?;
+        eve_account.validate()?;
 
-        if params.stage != state.stage {
+        if !eve_account.is_eve()? {
+            let err = Error::InvalidAccount;
+            return Err(err);
+        }
+
+        let stage = state.stage;
+
+        if params.stage != stage {
             let err = Error::InvalidStage;
             return Err(err);
         }
+
+        if eve_account.stage != stage {
+            let err = Error::InvalidStage;
+            return Err(err);
+        }
+
+        let mut eve_transaction = Transaction::new_eve(stage, &eve_account.address)?;
+        eve_transaction.mine()?;
+
+        Account::create(&mut store, stage, &eve_account.address, &eve_account)?;
+
+        Transaction::create(&mut store, stage, &eve_transaction.id, &eve_transaction)?;
 
         let protocol = Protocol {
             stage: params.stage,
             address: address.to_owned(),
             params: params.to_owned(),
             state: state.to_owned(),
+            eve_account: eve_account.to_owned(),
+            eve_transaction: eve_transaction.to_owned(),
             store,
             pool,
             transport,
@@ -94,7 +121,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         tx.validate()?;
 
         let ancestors: BTreeSet<Digest> = tx
-            .ancestors()
+            .ancestors()?
             .iter()
             .filter(|id| self.state.lookup_known_transaction(&id))
             .copied()
@@ -114,7 +141,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         tx.validate()?;
 
         let ancestors: BTreeSet<Digest> = tx
-            .ancestors()
+            .ancestors()?
             .iter()
             .filter(|id| !self.state.lookup_known_transaction(&id))
             .copied()
@@ -200,7 +227,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 tx.validate()?;
 
                 let ancestors: BTreeSet<Digest> = tx
-                    .ancestors()
+                    .ancestors()?
                     .iter()
                     .filter(|id| self.state.lookup_known_transaction(&id))
                     .copied()
@@ -238,7 +265,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 tx.validate()?;
 
                 let ancestors: BTreeSet<Digest> = tx
-                    .ancestors()
+                    .ancestors()?
                     .iter()
                     .filter(|id| self.state.lookup_known_transaction(&id))
                     .copied()
@@ -414,6 +441,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
     pub fn handle_transaction(&mut self, transaction: &Transaction) -> Result<()> {
         transaction.validate()?;
+        transaction.validate_mining_proof()?;
+
         let tx_id = transaction.id;
 
         // NB: state may have been cleared, so the first places to check are the stores
@@ -1052,7 +1081,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         transaction.validate()?;
 
         let id = transaction.id;
-        let ancestors = transaction.ancestors();
+        let ancestors = transaction.ancestors()?;
         for anc_id in ancestors {
             self.state.add_successor(&anc_id, id)?;
         }
@@ -1068,7 +1097,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         transaction.validate()?;
 
         let to_fetch: BTreeSet<Digest> = transaction
-            .ancestors()
+            .ancestors()?
             .iter()
             .filter(|id| !self.state.lookup_known_transaction(&id))
             .copied()
@@ -1328,9 +1357,11 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 }
 
                 ConflictSet::update(&mut self.pool, self.stage, &cs.address, &cs)?;
+
+                Transaction::insert(&mut self.store, self.stage, &tx_id, &tx)?;
             } else {
                 let ancestors: BTreeSet<Digest> = tx
-                    .ancestors()
+                    .ancestors()?
                     .iter()
                     .filter(|id| self.state.lookup_known_transaction(&id))
                     .copied()

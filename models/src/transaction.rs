@@ -157,14 +157,23 @@ impl Transaction {
     }
 
     /// `ancestors` returns the `Transaction` ancestors' ids.
-    pub fn ancestors(&self) -> BTreeSet<Digest> {
+    pub fn ancestors(&self) -> Result<BTreeSet<Digest>> {
         let mut ancestors = BTreeSet::new();
 
-        for input in self.inputs.values() {
-            ancestors.insert(input.account.transaction_id);
+        if self.is_eve()? {
+            return Ok(ancestors);
         }
 
-        ancestors
+        for input in self.inputs.values() {
+            if let Some(tx_id) = input.account.transaction_id {
+                ancestors.insert(tx_id);
+            } else {
+                let err = Error::InvalidInput;
+                return Err(err);
+            }
+        }
+
+        Ok(ancestors)
     }
 
     /// `lookup_input` look ups an `Input` in the `Transaction`.
@@ -264,7 +273,7 @@ impl Transaction {
             return Err(err);
         }
 
-        if input.account.transaction_id == self.id {
+        if input.account.transaction_id == Some(self.id) {
             let err = Error::InvalidId;
             return Err(err);
         }
@@ -953,7 +962,7 @@ fn test_transaction_inputs() {
 
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -1108,7 +1117,7 @@ fn test_transaction_distance() {
 
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
@@ -1164,7 +1173,7 @@ fn test_transaction_balance() {
 
         let value = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, tx_id).unwrap();
+        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {

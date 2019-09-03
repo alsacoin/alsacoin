@@ -42,6 +42,8 @@ pub enum Error {
     NotFound,
     #[fail(display = "Invalid stage")]
     InvalidStage,
+    #[fail(display = "Invalid account")]
+    InvalidAccount,
     #[fail(display = "Invalid node")]
     InvalidNode,
     #[fail(display = "Invalid transaction")]
