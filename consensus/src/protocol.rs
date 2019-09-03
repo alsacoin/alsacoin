@@ -634,7 +634,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 let transactions =
                     self.handle_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
 
-                // NB: threads?
                 for transaction in transactions {
                     self.handle_transaction(&transaction)?;
                     res.insert(transaction);
@@ -668,7 +667,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     let transactions =
                         self.handle_push_transactions(&recv_cons_msg, cons_msg.id(), ids)?;
 
-                    // NB: threads?
                     for transaction in transactions {
                         self.handle_transaction(&transaction)?;
                         res.insert(transaction);
@@ -707,7 +705,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 let transactions =
                     self.handle_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
 
-                // NB: threads?
                 for transaction in transactions {
                     self.handle_transaction(&transaction)?;
                     res.insert(transaction);
@@ -742,7 +739,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     let transactions =
                         self.handle_push_random_transactions(&recv_cons_msg, cons_msg.id(), count)?;
 
-                    // NB: threads?
                     for transaction in transactions {
                         self.handle_transaction(&transaction)?;
                         res.insert(transaction);
@@ -932,7 +928,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             {
                 let nodes = self.handle_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
 
-                // NB: threads?
                 for node in nodes {
                     self.handle_node(&node)?;
                     res.insert(node);
@@ -966,7 +961,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                 {
                     let nodes = self.handle_push_nodes(&recv_cons_msg, cons_msg.id(), ids)?;
 
-                    // NB: threads?
                     for node in nodes {
                         self.handle_node(&node)?;
                         res.insert(node);
@@ -1003,7 +997,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
             {
                 let nodes = self.handle_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
 
-                // NB: threads?
                 for node in nodes {
                     self.handle_node(&node)?;
                     res.insert(node);
@@ -1038,7 +1031,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     let nodes =
                         self.handle_push_random_nodes(&recv_cons_msg, cons_msg.id(), count)?;
 
-                    // NB: threads?
                     for node in nodes {
                         self.handle_node(&node)?;
                         res.insert(node);
@@ -1089,7 +1081,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = self.sample_nodes()?;
         let mut res = BTreeSet::new();
 
-        // NB: threads?
         for node in &nodes {
             let result = self.fetch_node_transactions(&node.address, &to_fetch);
 
@@ -1114,7 +1105,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
     /// `update_ancestors` updates the ancestors set of a `Transaction`.
     pub fn update_ancestors(&mut self, transaction: &Transaction) -> Result<()> {
-        // NB: threads?
         for ancestor in self.fetch_missing_ancestors(transaction)? {
             self.handle_transaction(&ancestor)?;
         }
@@ -1193,7 +1183,6 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         let nodes = self.sample_nodes()?;
         let mut res = 0u32;
 
-        // NB: threads?
         for node in nodes {
             let chit = self.query_node(&node.address, transaction)? as u32;
             res += chit;
