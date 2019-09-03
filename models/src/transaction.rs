@@ -56,6 +56,44 @@ impl Transaction {
         Ok(transaction)
     }
 
+    /// `new_eve` creates a new eve `Transaction`.
+    pub fn new_eve(stage: Stage, address: &Address) -> Result<Transaction> {
+        let coinbase = Coinbase::new_eve(address)?;
+
+        let mut transaction = Transaction {
+            id: Digest::default(),
+            version: Version::default(),
+            stage,
+            time: Timestamp::default(),
+            locktime: Timestamp::default(),
+            distance: 0,
+            inputs: BTreeMap::default(),
+            outputs: BTreeMap::default(),
+            coinbase: Some(coinbase),
+            nonce: Random::u64()?,
+        };
+
+        transaction.update_id()?;
+
+        Ok(transaction)
+    }
+
+    /// `is_eve` returns if a `Transaction` is an eve `Transaction`.
+    pub fn is_eve(&self) -> Result<bool> {
+        self.validate_coinbase()?;
+
+        if let Some(coinbase) = self.coinbase {
+            let res = self.distance == 0
+                && self.inputs.is_empty()
+                && self.outputs.is_empty()
+                && coinbase.is_eve()?;
+
+            Ok(res)
+        } else {
+            Ok(false)
+        }
+    }
+
     /// `set_time` sets the `Transaction` time.
     pub fn set_time(&mut self, time: Timestamp) -> Result<()> {
         time.validate()?;
@@ -113,9 +151,9 @@ impl Transaction {
     pub fn balance(&self) -> i64 {
         let ibalance = self.input_balance() as i64;
         let obalance = self.output_balance() as i64;
-        let coinbase = self.coinbase_amount() as i64;
+        let cbalance = self.coinbase_amount() as i64;
 
-        ibalance + coinbase - obalance
+        ibalance + cbalance - obalance
     }
 
     /// `ancestors` returns the `Transaction` ancestors' ids.
@@ -158,6 +196,12 @@ impl Transaction {
 
         if input.distance > self.distance {
             self.distance = input.distance;
+
+            if let Some(mut coinbase) = self.coinbase {
+                coinbase.distance = self.distance;
+                coinbase.update_amount()?;
+                self.coinbase = Some(coinbase);
+            }
         }
 
         self.update_id()
@@ -180,6 +224,12 @@ impl Transaction {
 
         if input.distance > self.distance {
             self.distance = input.distance;
+
+            if let Some(mut coinbase) = self.coinbase {
+                coinbase.distance = self.distance;
+                coinbase.update_amount()?;
+                self.coinbase = Some(coinbase);
+            }
         }
 
         self.update_id()
@@ -357,6 +407,10 @@ impl Transaction {
 
     /// `update_distance` updates the `Transaction` distance.
     pub fn update_distance(&mut self) -> Result<()> {
+        if self.is_eve()? {
+            return Ok(());
+        }
+
         let mut distance = self.distance;
 
         if distance == 0 {
@@ -371,6 +425,12 @@ impl Transaction {
         }
 
         self.distance = distance;
+
+        if let Some(mut coinbase) = self.coinbase {
+            coinbase.distance = distance;
+            coinbase.update_amount()?;
+            self.coinbase = Some(coinbase);
+        }
 
         Ok(())
     }
@@ -476,9 +536,20 @@ impl Transaction {
 
     /// `validate_distance` validates the `Transaction` distance.
     pub fn validate_distance(&self) -> Result<()> {
+        if self.is_eve()? {
+            return Ok(());
+        }
+
         if self.distance == 0 {
             let err = Error::InvalidDistance;
             return Err(err);
+        }
+
+        if let Some(coinbase) = self.coinbase {
+            if coinbase.distance != self.distance {
+                let err = Error::InvalidDistance;
+                return Err(err);
+            }
         }
 
         let max_distance = self.distance;
@@ -781,6 +852,34 @@ fn test_transaction_new() {
 }
 
 #[test]
+fn test_transaction_eve() {
+    let stage = Stage::random().unwrap();
+    let address = Address::random().unwrap();
+
+    let res = Transaction::new_eve(stage, &address);
+    assert!(res.is_ok());
+
+    let mut eve_transaction = res.unwrap();
+
+    let res = eve_transaction.validate();
+    assert!(res.is_ok());
+
+    let res = eve_transaction.is_eve();
+    assert!(res.is_ok());
+    assert!(res.unwrap());
+
+    eve_transaction.distance = 1;
+
+    let res = eve_transaction.validate();
+    assert!(res.is_err());
+
+    let transaction = Transaction::new().unwrap();
+    let res = transaction.is_eve();
+    assert!(res.is_ok());
+    assert!(!res.unwrap());
+}
+
+#[test]
 fn test_transaction_id() {
     let mut transaction = Transaction::new().unwrap();
 
@@ -1032,6 +1131,7 @@ fn test_transaction_distance() {
     }
 
     transaction.distance -= 1;
+
     let res = transaction.validate_distance();
     assert!(res.is_err());
 }
