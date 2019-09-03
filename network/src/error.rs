@@ -26,6 +26,8 @@ pub enum Error {
     Store { msg: String },
     #[fail(display = "Model: {}", msg)]
     Model { msg: String },
+    #[fail(display = "Consensus: {}", msg)]
+    Consensus { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
     #[fail(display = "Invalid id")]

@@ -12,13 +12,15 @@ use crypto::random::Random;
 use std::collections::BTreeMap;
 use std::ops::FnMut;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::{Arc, Mutex};
 
 /// `ChannelNode` is a node using a mpsc Channel as transport. It only communicates to local nodes
 /// inhabiting other threads.
+#[derive(Clone)]
 pub struct ChannelNode {
     id: Digest,
     address: Vec<u8>,
-    receiver: Receiver<Message>,
+    receiver: Arc<Mutex<Receiver<Message>>>,
     channels: BTreeMap<Digest, Sender<Message>>,
 }
 
@@ -35,6 +37,8 @@ impl ChannelNode {
 
         let mut channels = BTreeMap::new();
         channels.insert(id, sender.clone());
+
+        let receiver = Arc::new(Mutex::new(receiver));
 
         let node = ChannelNode {
             id,
@@ -133,7 +137,7 @@ impl ChannelNode {
     /// `_recv` receives a `Message` from a known `ChannelNode`.
     /// No timeouts: https://github.com/rust-lang/rust/issues/39364.
     fn _recv(&mut self, _timeout: Option<u64>) -> Result<Message> {
-        self.receiver.recv().map_err(|e| e.into())
+        self.receiver.lock().unwrap().recv().map_err(|e| e.into())
     }
 
     /// `_serve` handles incoming `Message`s.
@@ -141,7 +145,7 @@ impl ChannelNode {
     where
         F: FnMut(Message) -> Result<()>,
     {
-        for message in self.receiver.try_iter() {
+        for message in self.receiver.lock().unwrap().try_iter() {
             handler(message)?;
         }
 

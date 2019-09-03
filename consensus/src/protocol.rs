@@ -15,6 +15,7 @@ use models::node::Node;
 use models::stage::Stage;
 use models::traits::Storable;
 use models::transaction::Transaction;
+use network::error::Error as NetworkError;
 use network::message::Message;
 use network::traits::Transport;
 use std::collections::BTreeSet;
@@ -1254,8 +1255,18 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
     /// `serve` serves incoming `ConsensusMessage`s.
     pub fn serve(&mut self) -> Result<()> {
-        // TODO
-        unreachable!()
+        let timeout = self.params.timeout;
+        let mut transport = self.transport.clone();
+
+        transport
+            .serve(timeout, |msg| {
+                let cons_msg = msg.to_consensus_message()?;
+
+                self.handle(&cons_msg).map_err(|e| NetworkError::Consensus {
+                    msg: format!("{}", e),
+                })
+            })
+            .map_err(|e| e.into())
     }
 
     /// `avalanche_step` is a single execution of the main Avalanche Consensus procedure.
