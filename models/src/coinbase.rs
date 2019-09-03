@@ -13,9 +13,6 @@ use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
 
-/// `COINBASE_BASE_AMOUNT` is the coinbase base amount.
-pub const COINBASE_BASE_AMOUNT: u64 = 1_000_000_000;
-
 /// `Coinbase` is the Alsacoin coinbase output type.
 #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
 pub struct Coinbase {
@@ -30,14 +27,17 @@ pub struct Coinbase {
 }
 
 impl Coinbase {
+    /// `BASE_AMOUNT` is the coinbase base amount.
+    pub const BASE_AMOUNT: u64 = 1_000_000_000;
+
     /// `new` creates a new unmined `Coinbase`.
     pub fn new(address: &Address, distance: u64, difficulty: u64) -> Result<Coinbase> {
-        if distance == 0 {
+        if distance == 0 && difficulty != 0 {
             let err = Error::InvalidDistance;
             return Err(err);
         }
 
-        if difficulty == 0 {
+        if difficulty == 0 && distance != 0 {
             let err = Error::InvalidDifficulty;
             return Err(err);
         }
@@ -49,6 +49,20 @@ impl Coinbase {
         coinbase.update_amount()?;
 
         Ok(coinbase)
+    }
+
+    /// `new_eve` creates a new unmined eve `Coinbase`.
+    pub fn new_eve(address: &Address) -> Result<Coinbase> {
+        Coinbase::new(address, 0, 0)
+    }
+
+    /// `is_eve` returns if the `Coinbase` is a eve `Coinbase`.
+    pub fn is_eve(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = self.distance == 0 && self.difficulty == 0;
+
+        Ok(res)
     }
 
     /// `clear` clears the `Coinbase` of the mining proof.
@@ -63,13 +77,17 @@ impl Coinbase {
         let distance = self.distance;
         let difficulty = self.difficulty;
 
-        if (distance == 0) || (difficulty == 0) || (difficulty > 512) {
+        if ((distance == 0) ^ (difficulty == 0)) || (difficulty > 512) {
             let err = Error::OutOfBound;
             return Err(err);
         }
 
+        if distance == 0 && difficulty == 0 {
+            return Ok(Coinbase::BASE_AMOUNT);
+        }
+
         let epoch = 1 + (distance as f64 / 1000f64) as u64;
-        let res = ((COINBASE_BASE_AMOUNT as f64) * riemmann_zeta_2(epoch)?
+        let res = ((Coinbase::BASE_AMOUNT as f64) * riemmann_zeta_2(epoch)?
             / riemmann_zeta_2(difficulty)?)
         .floor() as u64;
         Ok(res)
@@ -124,7 +142,7 @@ impl Coinbase {
     pub fn validate(&self) -> Result<()> {
         self.params.validate()?;
 
-        if (self.distance == 0) || (self.difficulty == 0) || (self.difficulty > 512) {
+        if ((self.distance == 0) ^ (self.difficulty == 0)) || (self.difficulty > 512) {
             let err = Error::OutOfBound;
             return Err(err);
         }
@@ -201,11 +219,47 @@ fn test_coinbase_new() {
 }
 
 #[test]
+fn test_coinbase_new_eve() {
+    let address = Address::random().unwrap();
+
+    let res = Coinbase::new_eve(&address);
+    assert!(res.is_ok());
+
+    let mut eve_coinbase = res.unwrap();
+
+    let res = eve_coinbase.validate();
+    assert!(res.is_ok());
+
+    eve_coinbase.distance = 1;
+
+    let res = eve_coinbase.is_eve();
+    assert!(res.is_err());
+
+    eve_coinbase.distance = 0;
+
+    let res = eve_coinbase.is_eve();
+    assert!(res.is_ok());
+    assert!(res.unwrap());
+
+    let hs = [1, 1000, 1_000_000];
+    let ds = [1, 255, 512];
+
+    for h in hs.iter() {
+        for d in ds.iter() {
+            let coinbase = Coinbase::new(&address, *h, *d).unwrap();
+            let res = coinbase.is_eve();
+            assert!(res.is_ok());
+            assert!(!res.unwrap());
+        }
+    }
+}
+
+#[test]
 fn test_coinbase_amount() {
     let hs = [1, 1000, 1_000_000];
     let ds = [1, 255, 512];
     let expected = [
-        [COINBASE_BASE_AMOUNT, 609377028, 608649080],
+        [Coinbase::BASE_AMOUNT, 609377028, 608649080],
         [1250000000, 761721286, 760811350],
         [1643935564, 1001776569, 1000579870],
     ];
