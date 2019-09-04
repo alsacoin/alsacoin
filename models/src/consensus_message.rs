@@ -65,6 +65,14 @@ pub enum ConsensusMessage {
         ids: BTreeSet<Digest>,
         transactions: BTreeSet<Transaction>,
     },
+    Mine {
+        id: u64,
+        address: Vec<u8>,
+        node: Node,
+        count: u32,
+        ids: BTreeSet<Digest>,
+        transactions: BTreeSet<Transaction>,
+    },
     Query {
         id: u64,
         address: Vec<u8>,
@@ -223,6 +231,39 @@ impl ConsensusMessage {
         Ok(message)
     }
 
+    /// `new_mine` creates a new `Mine` `ConsensusMessage`.
+    pub fn new_mine(
+        address: &[u8],
+        node: &Node,
+        transactions: &BTreeSet<Transaction>,
+    ) -> Result<ConsensusMessage> {
+        node.validate()?;
+
+        for transaction in transactions.iter() {
+            transaction.validate()?;
+
+            if transaction.is_mined() {
+                let err = Error::InvalidTransaction;
+                return Err(err);
+            }
+        }
+
+        let ids: BTreeSet<Digest> = transactions.iter().map(|tx| tx.id).collect();
+
+        let count = ids.len() as u32;
+
+        let message = ConsensusMessage::Mine {
+            id: Random::u64()?,
+            address: address.to_owned(),
+            node: node.to_owned(),
+            count,
+            ids: ids.to_owned(),
+            transactions: transactions.to_owned(),
+        };
+
+        Ok(message)
+    }
+
     /// `new_query` creates a new `Query` `ConsensusMessage`.
     pub fn new_query(
         address: &[u8],
@@ -277,6 +318,7 @@ impl ConsensusMessage {
             ConsensusMessage::FetchTransactions { id, .. } => *id,
             ConsensusMessage::FetchRandomTransactions { id, .. } => *id,
             ConsensusMessage::PushTransactions { id, .. } => *id,
+            ConsensusMessage::Mine { id, .. } => *id,
             ConsensusMessage::Query { id, .. } => *id,
             ConsensusMessage::Reply { id, .. } => *id,
         }
@@ -291,6 +333,7 @@ impl ConsensusMessage {
             ConsensusMessage::FetchTransactions { node, .. } => node.clone(),
             ConsensusMessage::FetchRandomTransactions { node, .. } => node.clone(),
             ConsensusMessage::PushTransactions { node, .. } => node.clone(),
+            ConsensusMessage::Mine { node, .. } => node.clone(),
             ConsensusMessage::Query { node, .. } => node.clone(),
             ConsensusMessage::Reply { node, .. } => node.clone(),
         }
@@ -454,6 +497,55 @@ impl ConsensusMessage {
         }
     }
 
+    /// `validate_mine` validates a `Mine` `ConsensusMessage`.
+    pub fn validate_mine(&self) -> Result<()> {
+        match self {
+            ConsensusMessage::Mine {
+                node,
+                count,
+                ids,
+                transactions,
+                ..
+            } => {
+                node.validate()?;
+
+                for transaction in transactions.iter() {
+                    transaction.validate()?;
+
+                    if transaction.is_mined() {
+                        let err = Error::InvalidTransaction;
+                        return Err(err);
+                    }
+                }
+
+                if ids.contains(&node.id) {
+                    let err = Error::InvalidId;
+                    return Err(err);
+                }
+
+                if ids.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                if transactions.len() as u32 != *count {
+                    let err = Error::InvalidLength;
+                    return Err(err);
+                }
+
+                let found_ids: BTreeSet<Digest> = transactions.iter().map(|tx| tx.id).collect();
+
+                if ids != &found_ids {
+                    let err = Error::InvalidTransactions;
+                    return Err(err);
+                }
+
+                Ok(())
+            }
+            _ => Err(Error::InvalidMessage),
+        }
+    }
+
     /// `validate_query` validates a `Query` `ConsensusMessage`.
     pub fn validate_query(&self) -> Result<()> {
         match self {
@@ -558,6 +650,18 @@ impl ConsensusMessage {
         Ok(res)
     }
 
+    /// `is_mine` returns if the `ConsensusMessage` is a `Mine` message.
+    pub fn is_mine(&self) -> Result<bool> {
+        self.validate()?;
+
+        let res = match self {
+            ConsensusMessage::Mine { .. } => true,
+            _ => false,
+        };
+
+        Ok(res)
+    }
+
     /// `is_query` returns if the `ConsensusMessage` is a `Query` message.
     pub fn is_query(&self) -> Result<bool> {
         self.validate()?;
@@ -593,6 +697,7 @@ impl ConsensusMessage {
                 self.validate_fetch_random_transactions()
             }
             ConsensusMessage::PushTransactions { .. } => self.validate_push_transactions(),
+            ConsensusMessage::Mine { .. } => self.validate_mine(),
             ConsensusMessage::Query { .. } => self.validate_query(),
             ConsensusMessage::Reply { .. } => self.validate_reply(),
         }

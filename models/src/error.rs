@@ -66,6 +66,8 @@ pub enum Error {
     InvalidDifficulty,
     #[fail(display = "Invalid coinbase")]
     InvalidCoinbase,
+    #[fail(display = "Not mined")]
+    NotMined,
     #[fail(display = "Invalid threshold")]
     InvalidThreshold,
     #[fail(display = "Invalid node")]
@@ -74,6 +76,8 @@ pub enum Error {
     InvalidAccount,
     #[fail(display = "Invalid input")]
     InvalidInput,
+    #[fail(display = "Invalid transaction")]
+    InvalidTransaction,
     #[fail(display = "Invalid transactions")]
     InvalidTransactions,
     #[fail(display = "Invalid message")]

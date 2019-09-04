@@ -24,6 +24,7 @@ pub struct Coinbase {
     pub params: BalloonParams,
     pub nonce: u64,
     pub digest: Digest,
+    pub mined: bool,
 }
 
 impl Coinbase {
@@ -101,6 +102,11 @@ impl Coinbase {
         Ok(())
     }
 
+    /// `is_mined` returns if the `Coinbase` is mined.
+    pub fn is_mined(&self) -> bool {
+        self.mined
+    }
+
     /// `mining_message` returns the `Coinbase` mining message
     /// given an other provided binary message.
     pub fn mining_message(self, msg: &[u8]) -> Result<Vec<u8>> {
@@ -111,6 +117,7 @@ impl Coinbase {
         let mut copy = self;
         copy.nonce = 0;
         copy.digest = Digest::default();
+        copy.mined = false;
 
         let buf = copy.to_bytes()?;
 
@@ -134,6 +141,7 @@ impl Coinbase {
 
         self.nonce = nonce;
         self.digest = digest;
+        self.mined = true;
 
         Ok(())
     }
@@ -150,9 +158,14 @@ impl Coinbase {
         Ok(())
     }
 
-    /// `validate_mining_proof` validates the `Coinbase` mining proof.
-    pub fn validate_mining_proof(&self, msg: &[u8]) -> Result<()> {
+    /// `validate_mined` validates the `Coinbase` mining proof.
+    pub fn validate_mined(&self, msg: &[u8]) -> Result<()> {
         self.validate()?;
+
+        if !self.is_mined() {
+            let err = Error::NotMined;
+            return Err(err);
+        }
 
         let miner = Miner::new(self.params, self.difficulty)?;
         let mmsg = self.mining_message(msg)?;
@@ -194,6 +207,7 @@ impl Default for Coinbase {
             nonce: 0,
             digest: Digest::default(),
             amount: 0,
+            mined: false,
         }
     }
 }
@@ -356,7 +370,7 @@ fn test_coinbase_mine() {
         let msg = Random::bytes(msg_len).unwrap();
 
         let mut coinbase = Coinbase::new(&address, distance, difficulty).unwrap();
-        let res = coinbase.validate_mining_proof(&msg);
+        let res = coinbase.validate_mined(&msg);
         assert!(res.is_err());
 
         let res = coinbase.calc_mining_proof(&msg);
@@ -369,7 +383,7 @@ fn test_coinbase_mine() {
         assert_eq!(coinbase.nonce, nonce);
         assert_eq!(coinbase.digest, digest);
 
-        let res = coinbase.validate_mining_proof(&msg);
+        let res = coinbase.validate_mined(&msg);
         assert!(res.is_ok());
 
         coinbase.clear();

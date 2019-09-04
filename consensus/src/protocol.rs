@@ -441,7 +441,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
     pub fn handle_transaction(&mut self, transaction: &Transaction) -> Result<()> {
         transaction.validate()?;
-        transaction.validate_mining_proof()?;
+        transaction.validate_mined()?;
 
         let tx_id = transaction.id;
 

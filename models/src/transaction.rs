@@ -369,6 +369,15 @@ impl Transaction {
         clone.to_bytes()
     }
 
+    /// `is_mined` checks if the `Transaction` is mined.
+    pub fn is_mined(&self) -> bool {
+        if let Some(coinbase) = self.coinbase {
+            coinbase.is_mined()
+        } else {
+            false
+        }
+    }
+
     /// `mine` mines the `Transaction` `Coinbase`.
     pub fn mine(&mut self) -> Result<()> {
         if self.coinbase.is_none() {
@@ -385,8 +394,8 @@ impl Transaction {
         Ok(())
     }
 
-    /// `verify_mining_proof` verifies the `Transaction` mined `Coinbase` proof.
-    pub fn validate_mining_proof(&self) -> Result<()> {
+    /// `validate_mined` verifies the `Transaction` mined `Coinbase` proof.
+    pub fn validate_mined(&self) -> Result<()> {
         if self.coinbase.is_none() {
             let err = Error::InvalidCoinbase;
             return Err(err);
@@ -394,7 +403,7 @@ impl Transaction {
 
         if let Some(coinbase) = self.coinbase {
             let msg = self.mining_message()?;
-            coinbase.validate_mining_proof(&msg)?;
+            coinbase.validate_mined(&msg)?;
         }
 
         Ok(())
@@ -1284,7 +1293,7 @@ fn test_transaction_mine() {
         let res = transaction.validate_coinbase();
         assert!(res.is_ok());
 
-        let res = transaction.validate_mining_proof();
+        let res = transaction.validate_mined();
         assert!(res.is_ok());
 
         let mut coinbase = transaction.coinbase.unwrap();
@@ -1297,7 +1306,7 @@ fn test_transaction_mine() {
 
         transaction.coinbase = Some(coinbase);
 
-        let res = transaction.validate_mining_proof();
+        let res = transaction.validate_mined();
         assert!(res.is_err());
     }
 }
