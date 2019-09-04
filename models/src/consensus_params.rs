@@ -7,6 +7,7 @@ use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crypto::hash::BalloonParams;
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
@@ -24,21 +25,36 @@ pub struct ConsensusParams {
     pub alpha: u32,
     pub beta1: Option<u32>,
     pub beta2: Option<u32>,
+    pub s_cost: Option<u32>,
+    pub t_cost: Option<u32>,
+    pub delta: Option<u32>,
     pub max_retries: Option<u32>,
     pub timeout: Option<u64>,
 }
 
 impl ConsensusParams {
     /// `new` creates a new `ConsensusParams`.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         stage: Stage,
         k: u32,
         alpha: u32,
         beta1: Option<u32>,
         beta2: Option<u32>,
+        s_cost: Option<u32>,
+        t_cost: Option<u32>,
+        delta: Option<u32>,
         max_retries: Option<u32>,
         timeout: Option<u64>,
     ) -> Result<ConsensusParams> {
+        let s_cost = s_cost.unwrap_or(BalloonParams::DEFAULT_S_COST);
+
+        let t_cost = t_cost.unwrap_or(BalloonParams::DEFAULT_T_COST);
+
+        let delta = delta.unwrap_or(BalloonParams::DEFAULT_DELTA);
+
+        let _ = BalloonParams::new(s_cost, t_cost, delta)?;
+
         let mut params = ConsensusParams {
             id: Digest::default(),
             stage,
@@ -46,6 +62,9 @@ impl ConsensusParams {
             alpha,
             beta1,
             beta2,
+            s_cost: Some(s_cost),
+            t_cost: Some(t_cost),
+            delta: Some(delta),
             max_retries,
             timeout,
         };
@@ -75,6 +94,24 @@ impl ConsensusParams {
             None
         };
 
+        let s_cost = if Random::u32_range(0, 2)? == 1 {
+            Some(Random::u32_range(1, 10)?)
+        } else {
+            None
+        };
+
+        let t_cost = if Random::u32_range(0, 2)? == 1 {
+            Some(Random::u32_range(1, 10)?)
+        } else {
+            None
+        };
+
+        let delta = if Random::u32_range(0, 2)? == 1 {
+            Some(Random::u32_range(3, 10)?)
+        } else {
+            None
+        };
+
         let max_retries = if Random::u32_range(0, 2)? == 1 {
             Some(Random::u32()?)
         } else {
@@ -87,7 +124,18 @@ impl ConsensusParams {
             None
         };
 
-        ConsensusParams::new(stage, k, alpha, beta1, beta2, max_retries, timeout)
+        ConsensusParams::new(
+            stage,
+            k,
+            alpha,
+            beta1,
+            beta2,
+            s_cost,
+            t_cost,
+            delta,
+            max_retries,
+            timeout,
+        )
     }
 
     /// `update_id` updates the id of the `ConsensusParams`.
@@ -97,7 +145,13 @@ impl ConsensusParams {
             self.id = id;
         }
 
-        Ok(())
+        let s_cost = self.s_cost.unwrap_or(BalloonParams::DEFAULT_S_COST);
+        let t_cost = self.t_cost.unwrap_or(BalloonParams::DEFAULT_T_COST);
+        let delta = self.delta.unwrap_or(BalloonParams::DEFAULT_DELTA);
+
+        BalloonParams::new(s_cost, t_cost, delta)
+            .map_err(|e| e.into())
+            .map(|_| ())
     }
 
     /// `calc_id` calculates the id of the `ConsensusParams`.
