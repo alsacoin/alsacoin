@@ -7,6 +7,7 @@ use crate::result::Result;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
+use toml;
 
 /// `StoreConfig` is the type representing a store configuration.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -109,6 +110,16 @@ impl StoreConfig {
     pub fn from_json(s: &str) -> Result<StoreConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
     }
+
+    /// `to_toml` converts the `StoreConfig` into a TOML string.
+    pub fn to_toml(&self) -> Result<String> {
+        toml::to_string(self).map_err(|e| e.into())
+    }
+
+    /// `from_toml` converts a TOML string into an `StoreConfig`.
+    pub fn from_toml(s: &str) -> Result<StoreConfig> {
+        toml::from_str(s).map_err(|e| e.into())
+    }
 }
 
 impl Default for StoreConfig {
@@ -184,6 +195,21 @@ fn test_store_config_serialize_json() {
     let json = res.unwrap();
 
     let res = StoreConfig::from_json(&json);
+    assert!(res.is_ok());
+    let config_b = res.unwrap();
+
+    assert_eq!(config_a, config_b)
+}
+
+#[test]
+fn test_store_config_serialize_toml() {
+    let config_a = StoreConfig::default();
+
+    let res = config_a.to_toml();
+    assert!(res.is_ok());
+    let toml = res.unwrap();
+
+    let res = StoreConfig::from_toml(&toml);
     assert!(res.is_ok());
     let config_b = res.unwrap();
 

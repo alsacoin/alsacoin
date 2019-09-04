@@ -7,6 +7,7 @@ use crate::result::Result;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
+use toml;
 
 /// `PoolConfig` is the type representing a pool configuration.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
@@ -106,6 +107,16 @@ impl PoolConfig {
     pub fn from_json(s: &str) -> Result<PoolConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
     }
+
+    /// `to_toml` converts the `PoolConfig` into a TOML string.
+    pub fn to_toml(&self) -> Result<String> {
+        toml::to_string(self).map_err(|e| e.into())
+    }
+
+    /// `from_toml` converts a TOML string into an `PoolConfig`.
+    pub fn from_toml(s: &str) -> Result<PoolConfig> {
+        toml::from_str(s).map_err(|e| e.into())
+    }
 }
 
 impl Default for PoolConfig {
@@ -179,6 +190,21 @@ fn test_pool_config_serialize_json() {
     let json = res.unwrap();
 
     let res = PoolConfig::from_json(&json);
+    assert!(res.is_ok());
+    let config_b = res.unwrap();
+
+    assert_eq!(config_a, config_b)
+}
+
+#[test]
+fn test_pool_config_serialize_toml() {
+    let config_a = PoolConfig::default();
+
+    let res = config_a.to_toml();
+    assert!(res.is_ok());
+    let toml = res.unwrap();
+
+    let res = PoolConfig::from_toml(&toml);
     assert!(res.is_ok());
     let config_b = res.unwrap();
 

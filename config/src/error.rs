@@ -7,6 +7,7 @@ use serde_cbor;
 use serde_json;
 use std::convert::From;
 use std::io;
+use toml;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -46,6 +47,20 @@ impl From<serde_cbor::error::Error> for Error {
 
 impl From<serde_json::error::Error> for Error {
     fn from(err: serde_json::error::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Parse { msg }
+    }
+}
+
+impl From<toml::de::Error> for Error {
+    fn from(err: toml::de::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Parse { msg }
+    }
+}
+
+impl From<toml::ser::Error> for Error {
+    fn from(err: toml::ser::Error) -> Error {
         let msg = format!("{}", err);
         Error::Parse { msg }
     }
