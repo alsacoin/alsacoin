@@ -18,6 +18,15 @@ pub struct BalloonParams {
 }
 
 impl BalloonParams {
+    /// `DEFAULT_S_COST` is the default s_cost parameter value.
+    pub const DEFAULT_S_COST: u32 = 1;
+
+    /// `DEFAULT_T_COST` is the default t_cost parameter value.
+    pub const DEFAULT_T_COST: u32 = 1;
+
+    /// `DEFAULT_DELTA` is the default delta parameter value.
+    pub const DEFAULT_DELTA: u32 = 3;
+
     /// Creates a new `BalloonParams`.
     pub fn new(s_cost: u32, t_cost: u32, delta: u32) -> Result<BalloonParams> {
         let params = BalloonParams {
@@ -58,9 +67,9 @@ impl BalloonParams {
 impl Default for BalloonParams {
     fn default() -> BalloonParams {
         BalloonParams {
-            s_cost: 1,
-            t_cost: 1,
-            delta: 3,
+            s_cost: BalloonParams::DEFAULT_S_COST,
+            t_cost: BalloonParams::DEFAULT_T_COST,
+            delta: BalloonParams::DEFAULT_DELTA,
         }
     }
 }
