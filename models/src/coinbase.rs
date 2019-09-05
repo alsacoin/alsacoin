@@ -70,6 +70,7 @@ impl Coinbase {
     pub fn clear(&mut self) {
         self.nonce = 0;
         self.digest = Digest::default();
+        self.mined = false;
     }
 
     /// `calc_amount` calculates the `Coinbase` amount given the transaction
@@ -115,9 +116,7 @@ impl Coinbase {
         mmsg.extend_from_slice(msg);
 
         let mut copy = self;
-        copy.nonce = 0;
-        copy.digest = Digest::default();
-        copy.mined = false;
+        copy.clear();
 
         let buf = copy.to_bytes()?;
 

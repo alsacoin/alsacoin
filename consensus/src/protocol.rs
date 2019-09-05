@@ -1271,8 +1271,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
     }
 
-    /// `serve` serves incoming `ConsensusMessage`s.
-    pub fn serve(&mut self) -> Result<()> {
+    /// `serve_incoming` serves incoming `ConsensusMessage`s.
+    pub fn serve_incoming(&mut self) -> Result<()> {
         let timeout = self.params.timeout;
         let mut transport = self.transport.clone();
 
@@ -1387,9 +1387,9 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         Ok(())
     }
 
-    /// `avalanche_loop` executes the main loop of the `Protocol`.
+    /// `serve_avalanche` serves the main loop of the `Protocol`.
     /// The name of the function in the Avalanche paper is "AvalancheLoop".
-    pub fn avalanche_loop(&mut self) -> Result<()> {
+    pub fn serve_avalanche(&mut self) -> Result<()> {
         let mut res = Ok(());
 
         while res.is_ok() {
