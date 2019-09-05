@@ -7,7 +7,7 @@ use crate::result::Result;
 use crypto::hash::Digest;
 use models::account::Account;
 use models::conflict_set::ConflictSet;
-use models::consensus_params::ConsensusParams;
+use config::consensus_config::ConsensusConfig;
 use models::consensus_state::ConsensusState;
 use models::error::Error as ModelsError;
 use models::node::Node;
@@ -23,7 +23,7 @@ use store::traits::Store;
 pub struct ProtocolState<S: Store, P: Store> {
     stage: Stage,
     address: Vec<u8>,
-    params: ConsensusParams,
+    config: ConsensusConfig,
     state: ConsensusState,
     eve_account: Account,
     eve_transaction: Transaction,
@@ -38,14 +38,14 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
     /// the Avalanche paper.
     pub fn new(
         address: &[u8],
-        params: &ConsensusParams,
+        config: &ConsensusConfig,
         state: &ConsensusState,
         eve_account: &Account,
         seed: &BTreeSet<&[u8]>,
         store: Arc<Mutex<S>>,
         pool: Arc<Mutex<P>>,
     ) -> Result<ProtocolState<S, P>> {
-        params.validate()?;
+        config.validate()?;
         state.validate()?;
         eve_account.validate()?;
 
@@ -55,11 +55,6 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         }
 
         let stage = state.stage;
-
-        if params.stage != stage {
-            let err = Error::InvalidStage;
-            return Err(err);
-        }
 
         if eve_account.stage != stage {
             let err = Error::InvalidStage;
@@ -92,9 +87,9 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         }
 
         let state = ProtocolState {
-            stage: params.stage,
+            stage,
             address: address.to_owned(),
-            params: params.to_owned(),
+            config: config.to_owned(),
             state: state.to_owned(),
             eve_account: eve_account.to_owned(),
             eve_transaction: eve_transaction.to_owned(),
@@ -106,11 +101,11 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         Ok(state)
     }
 
-    /// `set_consensus_params` sets a new `ConsensusParams` in the `ProtocolState`.
-    pub fn set_consensus_params(&mut self, params: &ConsensusParams) -> Result<()> {
-        params.validate()?;
+    /// `set_consensus_config` sets a new `ConsensusConfig` in the `ProtocolState`.
+    pub fn set_consensus_config(&mut self, config: &ConsensusConfig) -> Result<()> {
+        config.validate()?;
 
-        self.params = params.to_owned();
+        self.config = config.to_owned();
 
         Ok(())
     }
@@ -197,7 +192,7 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
 
     /// `validate` validates the `ProtocolState`.
     pub fn validate(&self) -> Result<()> {
-        self.params.validate()?;
+        self.config.validate()?;
         self.state.validate()?;
 
         Ok(())

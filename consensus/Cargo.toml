@@ -18,3 +18,4 @@ mining = { path = "../mining" }
 store = { path = "../store" }
 models = { path = "../models" }
 network = { path = "../network" }
+config = { path = "../config" }

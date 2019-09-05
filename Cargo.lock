@@ -332,6 +332,7 @@ name = "consensus"
 version = "0.1.0"
 dependencies = [
  "byteorder 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "config 0.1.0",
  "crypto 0.1.0",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "mining 0.1.0",

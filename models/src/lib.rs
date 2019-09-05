@@ -51,9 +51,6 @@ pub mod coinbase;
 /// `transaction` contains the transaction type and functions.
 pub mod transaction;
 
-/// `consensus_params` contains the consensus parameters type and functions.
-pub mod consensus_params;
-
 /// `conflict_set` contains the conflict set type and functions.
 pub mod conflict_set;
 

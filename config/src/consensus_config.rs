@@ -19,6 +19,7 @@ pub struct ConsensusConfig {
     pub s_cost: Option<u32>,
     pub t_cost: Option<u32>,
     pub delta: Option<u32>,
+    pub max_threads: Option<u32>,
     pub max_retries: Option<u32>,
     pub timeout: Option<u64>,
 }
@@ -39,6 +40,9 @@ impl ConsensusConfig {
     /// `DEFAULT_BETA2` is the default consensus parameter beta2.
     /// See the Avalanche Consensus paper.
     pub const DEFAULT_BETA2: u32 = 1; // TODO
+
+    /// `DEFAULT_MAX_THREADS` is the default consensus parameter max_threads.
+    pub const DEFAULT_MAX_THREADS: u32 = 8;
 
     /// `DEFAULT_MAX_RETRIES` is the default consensus parameter max_retries.
     pub const DEFAULT_MAX_RETRIES: u32 = 3;
@@ -65,6 +69,7 @@ impl ConsensusConfig {
         s_cost: Option<u32>,
         t_cost: Option<u32>,
         delta: Option<u32>,
+        max_threads: Option<u32>,
         max_retries: Option<u32>,
         timeout: Option<u64>,
     ) -> Result<ConsensusConfig> {
@@ -84,6 +89,8 @@ impl ConsensusConfig {
 
         let _ = BalloonParams::new(s_cost, t_cost, delta)?;
 
+        let max_threads = Some(max_threads.unwrap_or(Self::DEFAULT_MAX_THREADS));
+
         let max_retries = Some(max_retries.unwrap_or(Self::DEFAULT_MAX_RETRIES));
 
         let timeout = Some(timeout.unwrap_or(Self::DEFAULT_TIMEOUT));
@@ -96,6 +103,7 @@ impl ConsensusConfig {
             s_cost: Some(s_cost),
             t_cost: Some(t_cost),
             delta: Some(delta),
+            max_threads,
             max_retries,
             timeout,
         };
@@ -132,6 +140,10 @@ impl ConsensusConfig {
 
         if self.delta.is_none() {
             self.delta = Some(Self::DEFAULT_DELTA);
+        }
+
+        if self.max_threads.is_none() {
+            self.max_threads = Some(Self::DEFAULT_MAX_THREADS);
         }
 
         if self.max_retries.is_none() {
@@ -194,6 +206,7 @@ impl Default for ConsensusConfig {
         let s_cost = Some(ConsensusConfig::DEFAULT_S_COST);
         let t_cost = Some(ConsensusConfig::DEFAULT_T_COST);
         let delta = Some(ConsensusConfig::DEFAULT_DELTA);
+        let max_threads = Some(ConsensusConfig::DEFAULT_MAX_THREADS);
         let max_retries = Some(ConsensusConfig::DEFAULT_MAX_RETRIES);
         let timeout = Some(ConsensusConfig::DEFAULT_TIMEOUT);
 
@@ -205,6 +218,7 @@ impl Default for ConsensusConfig {
             s_cost,
             t_cost,
             delta,
+            max_threads,
             max_retries,
             timeout,
         }
@@ -230,6 +244,7 @@ fn test_consensus_config_new() {
         None,
         None,
         None,
+        None,
     );
     assert!(res.is_err());
 
@@ -240,6 +255,7 @@ fn test_consensus_config_new() {
         None,
         None,
         Some(invalid_t_cost),
+        None,
         None,
         None,
         None,
@@ -256,6 +272,7 @@ fn test_consensus_config_new() {
         Some(invalid_delta),
         None,
         None,
+        None,
     );
     assert!(res.is_err());
 
@@ -269,6 +286,7 @@ fn test_consensus_config_new() {
         Some(valid_delta),
         None,
         None,
+        None,
     );
     assert!(res.is_ok());
 }
@@ -280,7 +298,7 @@ fn test_consensus_config_validate() {
     let invalid_delta = 0;
 
     let mut config =
-        ConsensusConfig::new(None, None, None, None, None, None, None, None, None).unwrap();
+        ConsensusConfig::new(None, None, None, None, None, None, None, None, None, None).unwrap();
 
     let res = config.validate();
     assert!(res.is_ok());

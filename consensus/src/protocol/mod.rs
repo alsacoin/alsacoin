@@ -1,7 +1,3 @@
-#[allow(clippy::module_inception)]
-mod protocol;
-pub use self::protocol::*;
-
 pub mod state;
 pub use self::state::*;
 

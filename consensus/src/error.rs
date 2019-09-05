@@ -6,6 +6,7 @@ use crypto::error::Error as CryptoError;
 use mining::error::Error as MiningError;
 use models::error::Error as ModelError;
 use network::error::Error as NetworkError;
+use config::error::Error as ConfigError;
 use serde_cbor;
 use serde_json;
 use std::convert::From;
@@ -26,6 +27,8 @@ pub enum Error {
     Model { msg: String },
     #[fail(display = "Network: {}", msg)]
     Network { msg: String },
+    #[fail(display = "Config: {}", msg)]
+    Config { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
     #[fail(display = "Invalid id")]
@@ -111,5 +114,12 @@ impl From<NetworkError> for Error {
     fn from(error: NetworkError) -> Error {
         let msg = format!("{}", error);
         Error::Network { msg }
+    }
+}
+
+impl From<ConfigError> for Error {
+    fn from(error: ConfigError) -> Error {
+        let msg = format!("{}", error);
+        Error::Config { msg }
     }
 }
