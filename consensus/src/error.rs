@@ -2,11 +2,11 @@
 //!
 //! `error` contains the `consensus` crate `Error` type.
 
+use config::error::Error as ConfigError;
 use crypto::error::Error as CryptoError;
 use mining::error::Error as MiningError;
 use models::error::Error as ModelError;
 use network::error::Error as NetworkError;
-use config::error::Error as ConfigError;
 use serde_cbor;
 use serde_json;
 use std::convert::From;

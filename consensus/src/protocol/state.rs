@@ -4,10 +4,10 @@
 
 use crate::error::Error;
 use crate::result::Result;
+use config::consensus_config::ConsensusConfig;
 use crypto::hash::Digest;
 use models::account::Account;
 use models::conflict_set::ConflictSet;
-use config::consensus_config::ConsensusConfig;
 use models::consensus_state::ConsensusState;
 use models::error::Error as ModelsError;
 use models::node::Node;
