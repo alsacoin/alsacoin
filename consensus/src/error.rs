@@ -50,6 +50,10 @@ pub enum Error {
     InvalidTransaction,
     #[fail(display = "Invalid address")]
     InvalidAddress,
+    #[fail(display = "Already mined")]
+    AlreadyMined,
+    #[fail(display = "Not mined")]
+    NotMined,
     #[fail(display = "Invalid message")]
     InvalidMessage,
 }

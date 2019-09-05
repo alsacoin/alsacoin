@@ -473,8 +473,12 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         transactions: &BTreeSet<Transaction>,
     ) -> Result<()> {
         let node = Node::new(self.stage, address);
-        let cons_msg =
-            ConsensusMessage::new_push_transactions(&self.address, fetch_id, &node, transactions)?;
+        let cons_msg = ConsensusMessage::new_push_transactions(
+            &self.address,
+            fetch_id + 1,
+            &node,
+            transactions,
+        )?;
         self.send_message(&cons_msg)
     }
 
@@ -509,7 +513,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
                 let cons_msg = ConsensusMessage::new_push_transactions(
                     &self.address,
-                    id,
+                    id + 1,
                     &node,
                     &transactions,
                 )?;
@@ -545,7 +549,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
                 let cons_msg = ConsensusMessage::new_push_transactions(
                     &self.address,
-                    id,
+                    id + 1,
                     &node,
                     &transactions,
                 )?;
@@ -562,7 +566,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
     pub fn handle_push_transactions(
         &mut self,
         msg: &ConsensusMessage,
-        fetch_id: u64,
+        prev_id: u64,
         ids: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Transaction>> {
         msg.validate()?;
@@ -570,7 +574,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
         if msg.is_push_transactions()?
             && msg.node().address == self.address
-            && msg.id() == fetch_id + 1
+            && msg.id() == prev_id + 1
         {
             match msg.to_owned() {
                 ConsensusMessage::PushTransactions {
@@ -791,7 +795,7 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         nodes: &BTreeSet<Node>,
     ) -> Result<()> {
         let node = Node::new(self.stage, address);
-        let cons_msg = ConsensusMessage::new_push_nodes(&self.address, fetch_id, &node, nodes)?;
+        let cons_msg = ConsensusMessage::new_push_nodes(&self.address, fetch_id + 1, &node, nodes)?;
         self.send_message(&cons_msg)
     }
 
@@ -824,7 +828,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
                     }
                 }
 
-                let cons_msg = ConsensusMessage::new_push_nodes(&self.address, id, &node, &nodes)?;
+                let cons_msg =
+                    ConsensusMessage::new_push_nodes(&self.address, id + 1, &node, &nodes)?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -855,7 +860,8 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
 
                 let nodes = Node::sample(&self.store, self.stage, None, None, count)?;
 
-                let cons_msg = ConsensusMessage::new_push_nodes(&self.address, id, &node, &nodes)?;
+                let cons_msg =
+                    ConsensusMessage::new_push_nodes(&self.address, id + 1, &node, &nodes)?;
                 self.send_message(&cons_msg)
             }
             _ => {
@@ -1130,6 +1136,91 @@ impl<S: Store, P: Store, T: Transport> Protocol<S, P, T> {
         }
 
         Ok(res)
+    }
+
+    /// `mine` mines a set of `Transaction`s.
+    pub fn mine(&mut self, address: &[u8], transactions: &BTreeSet<Transaction>) -> Result<()> {
+        for transaction in transactions {
+            transaction.validate()?;
+
+            if transaction.is_mined() {
+                let err = Error::AlreadyMined;
+                return Err(err);
+            }
+        }
+
+        let node = Node::new(self.stage, address);
+        let cons_msg = ConsensusMessage::new_mine(&self.address, &node, transactions)?;
+        self.send_message(&cons_msg)
+    }
+
+    /// `handle_mine` handles a `Mine` `ConsensusMessage` request.
+    pub fn handle_mine(&mut self, msg: &ConsensusMessage) -> Result<()> {
+        msg.validate()?;
+
+        match msg.to_owned() {
+            ConsensusMessage::Mine {
+                id,
+                address,
+                node,
+                transactions,
+                ..
+            } => {
+                if node.address != self.address {
+                    let err = Error::InvalidAddress;
+                    return Err(err);
+                }
+
+                let node = Node::new(self.stage, &address);
+                self.handle_node(&node)?;
+
+                for transaction in &transactions {
+                    transaction.validate()?;
+
+                    if transaction.is_mined() {
+                        let err = Error::AlreadyMined;
+                        return Err(err);
+                    }
+                }
+
+                let mut mined = BTreeSet::new();
+
+                for transaction in &transactions {
+                    let mut tx = transaction.clone();
+                    tx.mine()?;
+                    mined.insert(tx);
+                }
+
+                for transaction in &mined {
+                    self.handle_transaction(&transaction)?;
+                }
+
+                let cons_msg =
+                    ConsensusMessage::new_push_transactions(&self.address, id + 1, &node, &mined)?;
+                self.send_message(&cons_msg)
+            }
+            _ => {
+                let err = Error::InvalidMessage;
+                Err(err)
+            }
+        }
+    }
+
+    /// `serve_mining` serves the mining operations.
+    pub fn serve_mining(&mut self) -> Result<()> {
+        let timeout = self.params.timeout;
+        let mut transport = self.transport.clone();
+
+        transport
+            .serve(timeout, |msg| {
+                let cons_msg = msg.to_consensus_message()?;
+
+                self.handle_mine(&cons_msg)
+                    .map_err(|e| NetworkError::Consensus {
+                        msg: format!("{}", e),
+                    })
+            })
+            .map_err(|e| e.into())
     }
 
     /// `update_ancestors` updates the ancestors set of a `Transaction`.
