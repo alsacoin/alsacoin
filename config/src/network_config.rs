@@ -13,7 +13,8 @@ use toml;
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
     pub kind: Option<String>,
-    pub address: Option<String>,
+    pub server_address: Option<String>,
+    pub miner_address: Option<String>,
 }
 
 impl NetworkConfig {
@@ -23,8 +24,18 @@ impl NetworkConfig {
     /// `DEFAULT_KIND` is the default network kind.
     pub const DEFAULT_KIND: &'static str = "tcp";
 
+    /// `DEFAULT_SERVER_ADDRESS` is the default server address.
+    pub const DEFAULT_SERVER_ADDRESS: &'static str = "127.0.0.1:2019";
+
+    /// `DEFAULT_MINER_ADDRESS` is the default miner address.
+    pub const DEFAULT_MINER_ADDRESS: &'static str = "127.0.0.1:2020";
+
     /// `new` creates a new `NetworkConfig`.
-    pub fn new(kind: Option<String>, address: Option<String>) -> Result<NetworkConfig> {
+    pub fn new(
+        kind: Option<String>,
+        server_address: Option<String>,
+        miner_address: Option<String>,
+    ) -> Result<NetworkConfig> {
         let kind = if let Some(kind) = kind {
             if !Self::VALID_KINDS.contains(&kind.as_str()) {
                 let err = Error::InvalidKind;
@@ -36,9 +47,31 @@ impl NetworkConfig {
             Self::DEFAULT_KIND.into()
         };
 
+        if let Some(ref saddress) = server_address {
+            if let Some(ref maddress) = miner_address {
+                if saddress == maddress {
+                    let err = Error::InvalidAddress;
+                    return Err(err);
+                }
+            }
+        }
+
+        let server_address = if server_address.is_none() {
+            Some(Self::DEFAULT_SERVER_ADDRESS.into())
+        } else {
+            None
+        };
+
+        let miner_address = if miner_address.is_none() {
+            Some(Self::DEFAULT_MINER_ADDRESS.into())
+        } else {
+            None
+        };
+
         let config = NetworkConfig {
             kind: Some(kind),
-            address,
+            server_address,
+            miner_address,
         };
 
         Ok(config)
@@ -50,6 +83,14 @@ impl NetworkConfig {
         if self.kind.is_none() {
             self.kind = Some(Self::DEFAULT_KIND.into());
         }
+
+        if self.server_address.is_none() {
+            self.server_address = Some(Self::DEFAULT_SERVER_ADDRESS.into());
+        }
+
+        if self.miner_address.is_none() {
+            self.miner_address = Some(Self::DEFAULT_MINER_ADDRESS.into());
+        }
     }
 
     /// `validate` validates the `NetworkConfig`.
@@ -59,6 +100,14 @@ impl NetworkConfig {
                 let err = Error::InvalidKind;
                 return Err(err);
             }
+        }
+
+        if self.server_address.is_some()
+            && self.miner_address.is_some()
+            && self.server_address == self.miner_address
+        {
+            let err = Error::InvalidAddress;
+            return Err(err);
         }
 
         Ok(())
@@ -98,21 +147,30 @@ impl NetworkConfig {
 impl Default for NetworkConfig {
     fn default() -> NetworkConfig {
         let kind = Some(NetworkConfig::DEFAULT_KIND.into());
-        let address = None;
+        let server_address = Some(NetworkConfig::DEFAULT_SERVER_ADDRESS.into());
+        let miner_address = Some(NetworkConfig::DEFAULT_MINER_ADDRESS.into());
 
-        NetworkConfig { kind, address }
+        NetworkConfig {
+            kind,
+            server_address,
+            miner_address,
+        }
     }
 }
 
 #[test]
 fn test_network_config_new() {
     let invalid_kind: String = "kind".into();
+    let address = "address";
 
-    let res = NetworkConfig::new(Some(invalid_kind.into()), None);
+    let res = NetworkConfig::new(Some(invalid_kind.into()), None, None);
+    assert!(res.is_err());
+
+    let res = NetworkConfig::new(None, Some(address.into()), Some(address.into()));
     assert!(res.is_err());
 
     for kind in NetworkConfig::VALID_KINDS.iter().copied() {
-        let res = NetworkConfig::new(Some(kind.into()), None);
+        let res = NetworkConfig::new(Some(kind.into()), None, None);
         assert!(res.is_ok());
     }
 }
