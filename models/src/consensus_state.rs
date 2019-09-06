@@ -21,6 +21,9 @@ use store::traits::Store;
 pub struct ConsensusState {
     pub id: u64,
     pub stage: Stage,
+    pub eve_account_address: Address,
+    pub eve_transaction_id: Digest,
+    pub seed: BTreeSet<Vec<u8>>,
     pub known_transactions: BTreeSet<Digest>,
     pub successors: BTreeMap<Digest, BTreeSet<Digest>>,
     pub queried_transactions: BTreeSet<Digest>,
@@ -32,11 +35,20 @@ pub struct ConsensusState {
 
 impl ConsensusState {
     /// `new` creates a new `ConsensusState`.
-    pub fn new(id: u64, stage: Stage) -> ConsensusState {
-        let mut set = ConsensusState::default();
-        set.id = id;
-        set.stage = stage;
-        set
+    pub fn new(
+        id: u64,
+        stage: Stage,
+        eve_account_address: &Address,
+        eve_transaction_id: &Digest,
+        seed: &BTreeSet<Vec<u8>>,
+    ) -> ConsensusState {
+        let mut state = ConsensusState::default();
+        state.id = id;
+        state.stage = stage;
+        state.eve_account_address = eve_account_address.to_owned();
+        state.eve_transaction_id = eve_transaction_id.to_owned();
+        state.seed = seed.to_owned();
+        state
     }
 
     /// `lookup_known_transaction` looks up a `Transaction` id in the known transactions set of the `ConsensusState`.
@@ -560,7 +572,19 @@ fn test_consensus_state_known_transactions_ops() {
 
     let id = Random::u64().unwrap();
     let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
+
+    let eve_account_address = Address::random().unwrap();
+    let eve_transaction_id = Digest::random().unwrap();
+
+    let address_len = 100;
+    let mut seed = BTreeSet::new();
+    for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
+        seed.insert(address);
+    }
+
+    let mut state =
+        ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -597,7 +621,19 @@ fn test_consensus_state_queried_transactions_ops() {
 
     let id = Random::u64().unwrap();
     let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
+
+    let eve_account_address = Address::random().unwrap();
+    let eve_transaction_id = Digest::random().unwrap();
+
+    let address_len = 100;
+    let mut seed = BTreeSet::new();
+    for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
+        seed.insert(address);
+    }
+
+    let mut state =
+        ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -647,7 +683,19 @@ fn test_consensus_state_transaction_conflict_sets_ops() {
 
     let id = Random::u64().unwrap();
     let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
+
+    let eve_account_address = Address::random().unwrap();
+    let eve_transaction_id = Digest::random().unwrap();
+
+    let address_len = 100;
+    let mut seed = BTreeSet::new();
+    for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
+        seed.insert(address);
+    }
+
+    let mut state =
+        ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -692,7 +740,19 @@ fn test_consensus_state_transaction_chit_ops() {
 
     let id = Random::u64().unwrap();
     let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
+
+    let eve_account_address = Address::random().unwrap();
+    let eve_transaction_id = Digest::random().unwrap();
+
+    let address_len = 100;
+    let mut seed = BTreeSet::new();
+    for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
+        seed.insert(address);
+    }
+
+    let mut state =
+        ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -737,7 +797,19 @@ fn test_consensus_state_transaction_confidence_ops() {
 
     let id = Random::u64().unwrap();
     let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
+
+    let eve_account_address = Address::random().unwrap();
+    let eve_transaction_id = Digest::random().unwrap();
+
+    let address_len = 100;
+    let mut seed = BTreeSet::new();
+    for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
+        seed.insert(address);
+    }
+
+    let mut state =
+        ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -782,7 +854,19 @@ fn test_consensus_state_known_nodes_ops() {
 
     let id = Random::u64().unwrap();
     let stage = Stage::random().unwrap();
-    let mut state = ConsensusState::new(id, stage);
+
+    let eve_account_address = Address::random().unwrap();
+    let eve_transaction_id = Digest::random().unwrap();
+
+    let address_len = 100;
+    let mut seed = BTreeSet::new();
+    for _ in 0..10 {
+        let address = Random::bytes(address_len).unwrap();
+        seed.insert(address);
+    }
+
+    let mut state =
+        ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
 
     let res = state.validate();
     assert!(res.is_ok());
@@ -845,18 +929,34 @@ fn test_consensus_state_serialize_json() {
 
 #[test]
 fn test_consensus_state_storable() {
+    use crypto::random::Random;
     use store::backend::BTreeStore;
     use store::memory::MemoryStoreFactory;
 
-    let max_value_size = 1 << 10;
+    let max_value_size = 1 << 12;
     let max_size = 1 << 30;
 
     let mut store = MemoryStoreFactory::new_btree(max_value_size, max_size).unwrap();
 
     let stage = Stage::random().unwrap();
+    let address_len = 100;
 
     let items: Vec<(u64, ConsensusState)> = (0..10)
-        .map(|id| (id, ConsensusState::new(id, stage)))
+        .map(|id| {
+            let eve_account_address = Address::random().unwrap();
+            let eve_transaction_id = Digest::random().unwrap();
+
+            let mut seed = BTreeSet::new();
+            for _ in 0..10 {
+                let address = Random::bytes(address_len).unwrap();
+                seed.insert(address);
+            }
+
+            let state =
+                ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
+
+            (id, state)
+        })
         .collect();
 
     for (key, value) in &items {

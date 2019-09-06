@@ -26,7 +26,7 @@ impl StoreConfig {
     pub const DEFAULT_KIND: &'static str = "persistent";
 
     /// `DEFAULT_MAX_VALUE_SIZE` is the default store max_value_size.
-    pub const DEFAULT_MAX_VALUE_SIZE: u32 = 1 << 10;
+    pub const DEFAULT_MAX_VALUE_SIZE: u32 = 1 << 30;
 
     /// `DEFAULT_MAX_SIZE` is the default store max_size.
     pub const DEFAULT_MAX_SIZE: u32 = 1 << 30;

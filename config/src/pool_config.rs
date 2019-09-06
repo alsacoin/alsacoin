@@ -25,7 +25,7 @@ impl PoolConfig {
     pub const DEFAULT_KIND: &'static str = "unqlite";
 
     /// `DEFAULT_MAX_VALUE_SIZE` is the default pool max_value_size.
-    pub const DEFAULT_MAX_VALUE_SIZE: u32 = 1 << 10;
+    pub const DEFAULT_MAX_VALUE_SIZE: u32 = 1 << 30;
 
     /// `DEFAULT_MAX_SIZE` is the default pool max_size.
     pub const DEFAULT_MAX_SIZE: u32 = 1 << 30;
