@@ -2,9 +2,9 @@
 //!
 //! `miner` is the module containing the protocol miner type and functions.
 
-use crate::protocol::network::serve_mining;
-use crate::protocol::ProtocolState;
+use crate::network::serve_mining;
 use crate::result::Result;
+use crate::state::ProtocolState;
 use network::traits::Transport;
 use std::sync::{Arc, Mutex};
 use store::traits::Store;

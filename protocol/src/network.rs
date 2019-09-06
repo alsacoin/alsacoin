@@ -3,8 +3,8 @@
 //! `network` contains the network functionalities used in the module.
 
 use crate::error::Error;
-use crate::protocol::ProtocolState;
 use crate::result::Result;
+use crate::state::ProtocolState;
 use crypto::hash::Digest;
 use models::conflict_set::ConflictSet;
 use models::consensus_message::ConsensusMessage;

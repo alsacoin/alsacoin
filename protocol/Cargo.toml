@@ -1,5 +1,5 @@
 [package]
-name = "consensus"
+name = "protocol"
 version = "0.1.0"
 authors = ["chritchens <chritchens@gmail.com>"]
 edition = "2018"

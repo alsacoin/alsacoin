@@ -3,9 +3,9 @@
 //! `server` is the module containing the protocol server type and functions.
 
 use crate::error::Error;
-use crate::protocol::network::{serve_avalanche, serve_incoming};
-use crate::protocol::ProtocolState;
+use crate::network::{serve_avalanche, serve_incoming};
 use crate::result::Result;
+use crate::state::ProtocolState;
 use network::traits::Transport;
 use std::sync::{Arc, Mutex};
 use std::thread;
