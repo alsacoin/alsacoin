@@ -14,12 +14,18 @@ use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
 /// `ProtocolClient` is the protocol client type.
-pub struct ProtocolClient<S: Store, P: Store, T: Transport> {
+pub struct ProtocolClient<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+> {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
     pub transport: Arc<Mutex<T>>,
 }
 
-impl<S: Store, P: Store, T: Transport> ProtocolClient<S, P, T> {
+impl<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport + Send + 'static>
+    ProtocolClient<S, P, T>
+{
     /// `new` creates a new `ProtocolClient`.
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,

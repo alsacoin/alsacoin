@@ -20,7 +20,7 @@ use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
 /// `handle_message` handles a `ConsensusMessage`.
-pub fn handle_message<S: Store, P: Store>(
+pub fn handle_message<S: Store + Send + 'static, P: Store + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     cons_msg: &ConsensusMessage,
 ) -> Result<()> {
@@ -47,7 +47,11 @@ pub fn handle_message<S: Store, P: Store>(
 }
 
 /// `send_message` sends a `ConsensusMessage` to a `Node`.
-pub fn send_message<S: Store, P: Store, T: Transport>(
+pub fn send_message<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     cons_msg: &ConsensusMessage,
@@ -68,7 +72,11 @@ pub fn send_message<S: Store, P: Store, T: Transport>(
 }
 
 /// `recv_message` receives a `ConsensusMessage` from a `Node`.
-pub fn recv_message<S: Store, P: Store, T: Transport>(
+pub fn recv_message<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
 ) -> Result<ConsensusMessage> {
@@ -85,7 +93,7 @@ pub fn recv_message<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_node` elaborates an incoming `Node`.
-pub fn handle_node<S: Store, P: Store>(
+pub fn handle_node<S: Store + Send + 'static, P: Store + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     node: &Node,
 ) -> Result<()> {
@@ -132,7 +140,11 @@ pub fn handle_node<S: Store, P: Store>(
 }
 
 /// `push_transactions` sends `Transaction`s to a remote node.
-pub fn push_transactions<S: Store, P: Store, T: Transport>(
+pub fn push_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -153,7 +165,11 @@ pub fn push_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_fetch_transactions` handles a `FetchTransactions` request.
-pub fn handle_fetch_transactions<S: Store, P: Store, T: Transport>(
+pub fn handle_fetch_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -179,6 +195,8 @@ pub fn handle_fetch_transactions<S: Store, P: Store, T: Transport>(
             let mut transactions = BTreeSet::new();
 
             for id in ids {
+                // TODO: THREADS?
+
                 if Transaction::lookup(
                     &*state.lock().unwrap().store.lock().unwrap(),
                     state.lock().unwrap().stage,
@@ -209,7 +227,11 @@ pub fn handle_fetch_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_fetch_random_transactions` handles a `FetchRandomTransactions` request.
-pub fn handle_fetch_random_transactions<S: Store, P: Store, T: Transport>(
+pub fn handle_fetch_random_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -256,7 +278,11 @@ pub fn handle_fetch_random_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_push_transactions` handles a `PushTransactions`.
-pub fn handle_push_transactions<S: Store, P: Store, T: Transport>(
+pub fn handle_push_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -280,6 +306,8 @@ pub fn handle_push_transactions<S: Store, P: Store, T: Transport>(
                 }
 
                 for transaction in &transactions {
+                    // TODO: THREADS?
+
                     handle_transaction(state.clone(), transport.clone(), &transaction)?;
                 }
 
@@ -298,7 +326,11 @@ pub fn handle_push_transactions<S: Store, P: Store, T: Transport>(
 
 /// `handle_push_random_transactions` handles a `PushTransactions` following a
 /// `FetchRandomTransactions`.
-pub fn handle_push_random_transactions<S: Store, P: Store, T: Transport>(
+pub fn handle_push_random_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -324,6 +356,8 @@ pub fn handle_push_random_transactions<S: Store, P: Store, T: Transport>(
                 }
 
                 for transaction in &transactions {
+                    // TODO: THREADS?
+
                     handle_transaction(state.clone(), transport.clone(), &transaction)?;
                 }
 
@@ -341,7 +375,11 @@ pub fn handle_push_random_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_node_transactions` fetches transactions from a remote node.
-pub fn fetch_node_transactions<S: Store, P: Store, T: Transport>(
+pub fn fetch_node_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -370,6 +408,8 @@ pub fn fetch_node_transactions<S: Store, P: Store, T: Transport>(
             )?;
 
             for transaction in transactions {
+                // TODO: THREADS?
+
                 handle_transaction(state.clone(), transport.clone(), &transaction)?;
                 res.insert(transaction);
             }
@@ -384,7 +424,11 @@ pub fn fetch_node_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_transactions` fetches transactions from remote.
-pub fn fetch_transactions<S: Store, P: Store, T: Transport>(
+pub fn fetch_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     ids: &BTreeSet<Digest>,
@@ -393,6 +437,8 @@ pub fn fetch_transactions<S: Store, P: Store, T: Transport>(
     let mut res = BTreeSet::new();
 
     for node in nodes {
+        // TODO: THREADS?
+
         let cons_msg =
             ConsensusMessage::new_fetch_transactions(&*state.lock().unwrap().address, &node, ids)?;
         send_message(state.clone(), transport.clone(), &cons_msg)?;
@@ -413,6 +459,8 @@ pub fn fetch_transactions<S: Store, P: Store, T: Transport>(
                 )?;
 
                 for transaction in transactions {
+                    // TODO: THREADS?
+
                     handle_transaction(state.clone(), transport.clone(), &transaction)?;
                     res.insert(transaction);
                 }
@@ -428,7 +476,11 @@ pub fn fetch_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_node_random_transactions` fetches random transactions from a remote node.
-pub fn fetch_node_random_transactions<S: Store, P: Store, T: Transport>(
+pub fn fetch_node_random_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -460,6 +512,8 @@ pub fn fetch_node_random_transactions<S: Store, P: Store, T: Transport>(
             )?;
 
             for transaction in transactions {
+                // TODO: THREADS?
+
                 handle_transaction(state.clone(), transport.clone(), &transaction)?;
                 res.insert(transaction);
             }
@@ -474,7 +528,11 @@ pub fn fetch_node_random_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_random_transactions` fetches random transactions from remote.
-pub fn fetch_random_transactions<S: Store, P: Store, T: Transport>(
+pub fn fetch_random_transactions<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     count: u32,
@@ -483,6 +541,8 @@ pub fn fetch_random_transactions<S: Store, P: Store, T: Transport>(
     let mut res = BTreeSet::new();
 
     for node in nodes {
+        // TODO: THREADS?
+
         let cons_msg = ConsensusMessage::new_fetch_random_transactions(
             &*state.lock().unwrap().address,
             &node,
@@ -506,6 +566,8 @@ pub fn fetch_random_transactions<S: Store, P: Store, T: Transport>(
                 )?;
 
                 for transaction in transactions {
+                    // TODO: THREADS?
+
                     handle_transaction(state.clone(), transport.clone(), &transaction)?;
                     res.insert(transaction);
                 }
@@ -521,7 +583,11 @@ pub fn fetch_random_transactions<S: Store, P: Store, T: Transport>(
 }
 
 /// `push_nodes` sends `Node`s to a remote node.
-pub fn push_nodes<S: Store, P: Store, T: Transport>(
+pub fn push_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -539,7 +605,11 @@ pub fn push_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_fetch_nodes` handles a `FetchNodes` request.
-pub fn handle_fetch_nodes<S: Store, P: Store, T: Transport>(
+pub fn handle_fetch_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -565,6 +635,8 @@ pub fn handle_fetch_nodes<S: Store, P: Store, T: Transport>(
             let mut nodes = BTreeSet::new();
 
             for id in ids {
+                // TODO: THREADS?
+
                 if Node::lookup(
                     &*state.lock().unwrap().store.lock().unwrap(),
                     state.lock().unwrap().stage,
@@ -595,7 +667,11 @@ pub fn handle_fetch_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_fetch_random_nodes` handles a `FetchRandomNodes` request.
-pub fn handle_fetch_random_nodes<S: Store, P: Store, T: Transport>(
+pub fn handle_fetch_random_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -642,7 +718,7 @@ pub fn handle_fetch_random_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_push_nodes` handles a `PushNodes`.
-pub fn handle_push_nodes<S: Store, P: Store>(
+pub fn handle_push_nodes<S: Store + Send + 'static, P: Store + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     msg: &ConsensusMessage,
     fetch_id: u64,
@@ -663,6 +739,8 @@ pub fn handle_push_nodes<S: Store, P: Store>(
                 }
 
                 for node in &nodes {
+                    // TODO: THREADS?
+
                     handle_node(state.clone(), &node)?;
                 }
 
@@ -681,7 +759,7 @@ pub fn handle_push_nodes<S: Store, P: Store>(
 
 /// `handle_push_random_nodes` handles a `PushNodes` following a
 /// `FetchRandomNodes`.
-pub fn handle_push_random_nodes<S: Store, P: Store>(
+pub fn handle_push_random_nodes<S: Store + Send + 'static, P: Store + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     msg: &ConsensusMessage,
     fetch_id: u64,
@@ -702,6 +780,8 @@ pub fn handle_push_random_nodes<S: Store, P: Store>(
                 }
 
                 for node in &nodes {
+                    // TODO: THREADS?
+
                     handle_node(state.clone(), &node)?;
                 }
 
@@ -719,7 +799,11 @@ pub fn handle_push_random_nodes<S: Store, P: Store>(
 }
 
 /// `fetch_node_nodes` fetches nodes from a remote node.
-pub fn fetch_node_nodes<S: Store, P: Store, T: Transport>(
+pub fn fetch_node_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -741,6 +825,8 @@ pub fn fetch_node_nodes<S: Store, P: Store, T: Transport>(
             let nodes = handle_push_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), ids)?;
 
             for node in nodes {
+                // TODO: THREADS?
+
                 handle_node(state.clone(), &node)?;
                 res.insert(node);
             }
@@ -755,7 +841,11 @@ pub fn fetch_node_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_nodes` fetches nodes from remote.
-pub fn fetch_nodes<S: Store, P: Store, T: Transport>(
+pub fn fetch_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     ids: &BTreeSet<Digest>,
@@ -764,6 +854,8 @@ pub fn fetch_nodes<S: Store, P: Store, T: Transport>(
     let mut res = BTreeSet::new();
 
     for node in nodes {
+        // TODO: THREADS?
+
         let cons_msg =
             ConsensusMessage::new_fetch_nodes(&*state.lock().unwrap().address, &node, ids)?;
         send_message(state.clone(), transport.clone(), &cons_msg)?;
@@ -779,6 +871,8 @@ pub fn fetch_nodes<S: Store, P: Store, T: Transport>(
                 let nodes = handle_push_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), ids)?;
 
                 for node in nodes {
+                    // TODO: THREADS?
+
                     handle_node(state.clone(), &node)?;
                     res.insert(node);
                 }
@@ -794,7 +888,11 @@ pub fn fetch_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_node_random_nodes` fetches random nodes from a remote node.
-pub fn fetch_node_random_nodes<S: Store, P: Store, T: Transport>(
+pub fn fetch_node_random_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -818,6 +916,8 @@ pub fn fetch_node_random_nodes<S: Store, P: Store, T: Transport>(
                 handle_push_random_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), count)?;
 
             for node in nodes {
+                // TODO: THREADS?
+
                 handle_node(state.clone(), &node)?;
                 res.insert(node);
             }
@@ -832,7 +932,11 @@ pub fn fetch_node_random_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_random_nodes` fetches random nodes from remote.
-pub fn fetch_random_nodes<S: Store, P: Store, T: Transport>(
+pub fn fetch_random_nodes<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     count: u32,
@@ -841,6 +945,8 @@ pub fn fetch_random_nodes<S: Store, P: Store, T: Transport>(
     let mut res = BTreeSet::new();
 
     for node in nodes {
+        // TODO: THREADS?
+
         let cons_msg = ConsensusMessage::new_fetch_random_nodes(
             &*state.lock().unwrap().address,
             &node,
@@ -861,6 +967,8 @@ pub fn fetch_random_nodes<S: Store, P: Store, T: Transport>(
                     handle_push_random_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), count)?;
 
                 for node in nodes {
+                    // TODO: THREADS?
+
                     handle_node(state.clone(), &node)?;
                     res.insert(node);
                 }
@@ -876,7 +984,11 @@ pub fn fetch_random_nodes<S: Store, P: Store, T: Transport>(
 }
 
 /// `fetch_missing_ancestors` fetches a `Transaction` ancestors from remote if missing.
-pub fn fetch_missing_ancestors<S: Store, P: Store, T: Transport>(
+pub fn fetch_missing_ancestors<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     transaction: &Transaction,
@@ -898,6 +1010,8 @@ pub fn fetch_missing_ancestors<S: Store, P: Store, T: Transport>(
     let mut res = BTreeSet::new();
 
     for node in &nodes {
+        // TODO: THREADS?
+
         let result =
             fetch_node_transactions(state.clone(), transport.clone(), &node.address, &to_fetch);
 
@@ -921,7 +1035,7 @@ pub fn fetch_missing_ancestors<S: Store, P: Store, T: Transport>(
 }
 
 /// `mine` mines a set of `Transaction`s.
-pub fn mine<S: Store, P: Store, T: Transport>(
+pub fn mine<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -943,7 +1057,11 @@ pub fn mine<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_mine` handles a `Mine` `ConsensusMessage` request.
-pub fn handle_mine<S: Store, P: Store, T: Transport>(
+pub fn handle_mine<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -978,12 +1096,16 @@ pub fn handle_mine<S: Store, P: Store, T: Transport>(
             let mut mined = BTreeSet::new();
 
             for transaction in &transactions {
+                // TODO: THREADS?
+
                 let mut tx = transaction.clone();
                 tx.mine()?;
                 mined.insert(tx);
             }
 
             for transaction in &mined {
+                // TODO: THREADS?
+
                 handle_transaction(state.clone(), transport.clone(), &transaction)?;
             }
 
@@ -1003,7 +1125,11 @@ pub fn handle_mine<S: Store, P: Store, T: Transport>(
 }
 
 /// `serve_mining` serves the mining operations.
-pub fn serve_mining<S: Store, P: Store, T: Transport>(
+pub fn serve_mining<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
 ) -> Result<()> {
@@ -1025,12 +1151,18 @@ pub fn serve_mining<S: Store, P: Store, T: Transport>(
 }
 
 /// `update_ancestors` updates the ancestors set of a `Transaction`.
-pub fn update_ancestors<S: Store, P: Store, T: Transport>(
+pub fn update_ancestors<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     transaction: &Transaction,
 ) -> Result<()> {
     for ancestor in fetch_missing_ancestors(state.clone(), transport.clone(), transaction)? {
+        // TODO: THREADS?
+
         handle_transaction(state.clone(), transport.clone(), &ancestor)?;
     }
 
@@ -1039,7 +1171,11 @@ pub fn update_ancestors<S: Store, P: Store, T: Transport>(
 
 /// `handle_transaction` elaborates an incoming `Node`.
 /// It is equivalent to the `OnReceiveTx` function in the Avalanche paper.
-pub fn handle_transaction<S: Store, P: Store, T: Transport>(
+pub fn handle_transaction<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     transaction: &Transaction,
@@ -1089,7 +1225,7 @@ pub fn handle_transaction<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle_reply` handles a `Reply` request.
-pub fn handle_reply<S: Store, P: Store>(
+pub fn handle_reply<S: Store + Send + 'static, P: Store + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     msg: &ConsensusMessage,
     query_id: u64,
@@ -1130,7 +1266,11 @@ pub fn handle_reply<S: Store, P: Store>(
 }
 
 /// `query_node` queries a single remote node.
-pub fn query_node<S: Store, P: Store, T: Transport>(
+pub fn query_node<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     address: &[u8],
@@ -1166,7 +1306,11 @@ pub fn query_node<S: Store, P: Store, T: Transport>(
 }
 
 /// `query` queries remote nodes.
-pub fn query<S: Store, P: Store, T: Transport>(
+pub fn query<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     transaction: &Transaction,
@@ -1175,6 +1319,8 @@ pub fn query<S: Store, P: Store, T: Transport>(
     let mut res = 0u32;
 
     for node in nodes {
+        // TODO: THREADS?
+
         let chit = query_node(state.clone(), transport.clone(), &node.address, transaction)? as u32;
         res += chit;
     }
@@ -1184,7 +1330,11 @@ pub fn query<S: Store, P: Store, T: Transport>(
 
 /// `reply` replies to a `Query` request.
 /// In the Avalanche paper the function is called "OnQuery".
-pub fn reply<S: Store, P: Store, T: Transport>(
+pub fn reply<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -1228,7 +1378,11 @@ pub fn reply<S: Store, P: Store, T: Transport>(
 }
 
 /// `handle` handles incoming `ConsensusMessage`s.
-pub fn handle<S: Store, P: Store, T: Transport>(
+pub fn handle<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
     msg: &ConsensusMessage,
@@ -1257,7 +1411,11 @@ pub fn handle<S: Store, P: Store, T: Transport>(
 }
 
 /// `serve_incoming` serves incoming `ConsensusMessage`s.
-pub fn serve_incoming<S: Store, P: Store, T: Transport>(
+pub fn serve_incoming<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
 ) -> Result<()> {
@@ -1279,7 +1437,11 @@ pub fn serve_incoming<S: Store, P: Store, T: Transport>(
 }
 
 /// `avalanche_step` is a single execution of the main Avalanche Consensus procedure.
-pub fn avalanche_step<S: Store, P: Store, T: Transport>(
+pub fn avalanche_step<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
 ) -> Result<()> {
@@ -1294,6 +1456,8 @@ pub fn avalanche_step<S: Store, P: Store, T: Transport>(
         .collect();
 
     for tx_id in tx_ids {
+        // TODO: THREADS?
+
         let tx = match Transaction::get(
             &*state.lock().unwrap().pool.lock().unwrap(),
             state.lock().unwrap().stage,
@@ -1318,6 +1482,8 @@ pub fn avalanche_step<S: Store, P: Store, T: Transport>(
         let missing_txs = fetch_missing_ancestors(state.clone(), transport.clone(), &tx)?;
 
         for missing_tx in missing_txs.iter() {
+            // TODO: THREADS?
+
             handle_transaction(state.clone(), transport.clone(), &missing_tx)?;
         }
 
@@ -1408,6 +1574,8 @@ pub fn avalanche_step<S: Store, P: Store, T: Transport>(
                 .collect();
 
             for tx_id in ancestors {
+                // TODO: THREADS?
+
                 if let Some(cs_id) = state
                     .lock()
                     .unwrap()
@@ -1443,7 +1611,11 @@ pub fn avalanche_step<S: Store, P: Store, T: Transport>(
 
 /// `serve_avalanche` serves the main loop of the `Protocol`.
 /// The name of the function in the Avalanche paper is "AvalancheLoop".
-pub fn serve_avalanche<S: Store, P: Store, T: Transport>(
+pub fn serve_avalanche<
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
 ) -> Result<()> {
