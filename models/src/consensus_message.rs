@@ -27,6 +27,7 @@ pub enum ConsensusMessage {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         count: u32,
         ids: BTreeSet<Digest>,
     },
@@ -34,6 +35,7 @@ pub enum ConsensusMessage {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         count: u32,
     },
     PushNodes {
@@ -41,6 +43,7 @@ pub enum ConsensusMessage {
         address: Vec<u8>,
         node: Node,
         count: u32,
+        time: Timestamp,
         ids: BTreeSet<Digest>,
         nodes: BTreeSet<Node>,
     },
@@ -48,6 +51,7 @@ pub enum ConsensusMessage {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         count: u32,
         ids: BTreeSet<Digest>,
     },
@@ -55,12 +59,14 @@ pub enum ConsensusMessage {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         count: u32,
     },
     PushTransactions {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         count: u32,
         ids: BTreeSet<Digest>,
         transactions: BTreeSet<Transaction>,
@@ -69,6 +75,7 @@ pub enum ConsensusMessage {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         count: u32,
         ids: BTreeSet<Digest>,
         transactions: BTreeSet<Transaction>,
@@ -77,12 +84,14 @@ pub enum ConsensusMessage {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         transaction: Transaction,
     },
     Reply {
         id: u64,
         address: Vec<u8>,
         node: Node,
+        time: Timestamp,
         tx_id: Digest,
         chit: bool,
     },
@@ -106,6 +115,7 @@ impl ConsensusMessage {
             id: Random::u64()?,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count: ids.len() as u32,
             ids: ids.to_owned(),
         };
@@ -125,6 +135,7 @@ impl ConsensusMessage {
             id: Random::u64()?,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count,
         };
 
@@ -152,6 +163,7 @@ impl ConsensusMessage {
             id: fetch_id + 1,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count,
             ids: ids.to_owned(),
             nodes: nodes.to_owned(),
@@ -177,6 +189,7 @@ impl ConsensusMessage {
             id: Random::u64()?,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count: ids.len() as u32,
             ids: ids.to_owned(),
         };
@@ -196,6 +209,7 @@ impl ConsensusMessage {
             id: Random::u64()?,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count,
         };
 
@@ -223,6 +237,7 @@ impl ConsensusMessage {
             id: fetch_id + 1,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count,
             ids: ids.to_owned(),
             transactions: transactions.to_owned(),
@@ -256,6 +271,7 @@ impl ConsensusMessage {
             id: Random::u64()?,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             count,
             ids: ids.to_owned(),
             transactions: transactions.to_owned(),
@@ -277,6 +293,7 @@ impl ConsensusMessage {
             id: Random::u64()?,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             transaction: transaction.to_owned(),
         };
 
@@ -302,6 +319,7 @@ impl ConsensusMessage {
             id: query_id + 1,
             address: address.to_owned(),
             node: node.to_owned(),
+            time: Timestamp::now(),
             tx_id,
             chit,
         };
@@ -321,6 +339,21 @@ impl ConsensusMessage {
             ConsensusMessage::Mine { id, .. } => *id,
             ConsensusMessage::Query { id, .. } => *id,
             ConsensusMessage::Reply { id, .. } => *id,
+        }
+    }
+
+    /// `time` returns the `ConsensusMessage` time.
+    pub fn time(&self) -> Timestamp {
+        match self {
+            ConsensusMessage::FetchNodes { time, .. } => *time,
+            ConsensusMessage::FetchRandomNodes { time, .. } => *time,
+            ConsensusMessage::PushNodes { time, .. } => *time,
+            ConsensusMessage::FetchTransactions { time, .. } => *time,
+            ConsensusMessage::FetchRandomTransactions { time, .. } => *time,
+            ConsensusMessage::PushTransactions { time, .. } => *time,
+            ConsensusMessage::Mine { time, .. } => *time,
+            ConsensusMessage::Query { time, .. } => *time,
+            ConsensusMessage::Reply { time, .. } => *time,
         }
     }
 
@@ -344,9 +377,14 @@ impl ConsensusMessage {
     pub fn validate_fetch_nodes(&self) -> Result<()> {
         match self {
             ConsensusMessage::FetchNodes {
-                node, count, ids, ..
+                node,
+                time,
+                count,
+                ids,
+                ..
             } => {
                 node.validate()?;
+                time.validate()?;
 
                 if ids.len() as u32 != *count {
                     let err = Error::InvalidLength;
@@ -368,7 +406,10 @@ impl ConsensusMessage {
     /// `ConsensusMessage`.
     pub fn validate_fetch_random_nodes(&self) -> Result<()> {
         match self {
-            ConsensusMessage::FetchRandomNodes { node, .. } => node.validate(),
+            ConsensusMessage::FetchRandomNodes { node, time, .. } => {
+                node.validate()?;
+                time.validate()
+            }
             _ => Err(Error::InvalidMessage),
         }
     }
@@ -379,12 +420,14 @@ impl ConsensusMessage {
         match self {
             ConsensusMessage::PushNodes {
                 node,
+                time,
                 count,
                 ids,
                 nodes,
                 ..
             } => {
                 node.validate()?;
+                time.validate()?;
 
                 for node in nodes.iter() {
                     node.validate()?;
@@ -423,9 +466,14 @@ impl ConsensusMessage {
     pub fn validate_fetch_transactions(&self) -> Result<()> {
         match self {
             ConsensusMessage::FetchTransactions {
-                node, count, ids, ..
+                node,
+                time,
+                count,
+                ids,
+                ..
             } => {
                 node.validate()?;
+                time.validate()?;
 
                 if ids.len() as u32 != *count {
                     let err = Error::InvalidLength;
@@ -447,7 +495,10 @@ impl ConsensusMessage {
     /// `ConsensusMessage`.
     pub fn validate_fetch_random_transactions(&self) -> Result<()> {
         match self {
-            ConsensusMessage::FetchRandomTransactions { node, .. } => node.validate(),
+            ConsensusMessage::FetchRandomTransactions { node, time, .. } => {
+                node.validate()?;
+                time.validate()
+            }
             _ => Err(Error::InvalidMessage),
         }
     }
@@ -458,12 +509,14 @@ impl ConsensusMessage {
         match self {
             ConsensusMessage::PushTransactions {
                 node,
+                time,
                 count,
                 ids,
                 transactions,
                 ..
             } => {
                 node.validate()?;
+                time.validate()?;
 
                 for transaction in transactions.iter() {
                     transaction.validate()?;
@@ -502,12 +555,14 @@ impl ConsensusMessage {
         match self {
             ConsensusMessage::Mine {
                 node,
+                time,
                 count,
                 ids,
                 transactions,
                 ..
             } => {
                 node.validate()?;
+                time.validate()?;
 
                 for transaction in transactions.iter() {
                     transaction.validate()?;
@@ -550,9 +605,13 @@ impl ConsensusMessage {
     pub fn validate_query(&self) -> Result<()> {
         match self {
             ConsensusMessage::Query {
-                node, transaction, ..
+                node,
+                time,
+                transaction,
+                ..
             } => {
                 node.validate()?;
+                time.validate()?;
                 transaction.validate()
             }
             _ => Err(Error::InvalidMessage),
@@ -562,8 +621,11 @@ impl ConsensusMessage {
     /// `validate_reply` validates a `Reply` `ConsensusMessage`.
     pub fn validate_reply(&self) -> Result<()> {
         match self {
-            ConsensusMessage::Reply { node, tx_id, .. } => {
+            ConsensusMessage::Reply {
+                node, time, tx_id, ..
+            } => {
                 node.validate()?;
+                time.validate()?;
 
                 if tx_id == &node.id {
                     let err = Error::InvalidId;
@@ -896,8 +958,32 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S, _stage: Stage, _min_time: Option<Timestamp>) -> Result<()> {
-        Err(Error::NotImplemented)
+    fn cleanup(store: &mut S, stage: Stage, min_time: Option<Timestamp>) -> Result<()> {
+        let min_time = min_time.unwrap_or_default();
+
+        let mut _from = Vec::new();
+        _from.push(stage as u8);
+        _from.push(<Self as Storable<S>>::KEY_PREFIX);
+        _from.write_u64::<BigEndian>(0)?;
+        let from = Some(_from);
+        let from = from.as_ref().map(|from| from.as_slice());
+
+        let mut _to = Vec::new();
+        _to.push(stage as u8);
+        _to.push(<Self as Storable<S>>::KEY_PREFIX + 1);
+        _to.write_u64::<BigEndian>(0)?;
+        let to = Some(_to);
+        let to = to.as_ref().map(|to| to.as_slice());
+
+        for value in store.query(from, to, None, None)? {
+            let msg = ConsensusMessage::from_bytes(&value)?;
+            if msg.time() < min_time {
+                let key = <Self as Storable<S>>::key_to_bytes(stage, &msg.id())?;
+                store.remove(&key)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn clear(store: &mut S, stage: Stage) -> Result<()> {
@@ -947,6 +1033,7 @@ fn test_consensus_message() {
         address,
         id: query_id,
         node: invalid_node.clone(),
+        time: Timestamp::now(),
         tx_id,
         chit,
     };

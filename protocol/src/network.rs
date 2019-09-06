@@ -189,6 +189,7 @@ pub fn handle_fetch_random_transactions<S: Store, P: Store, T: Transport>(
             id,
             node,
             count,
+            ..
         } => {
             if node.address != state.lock().unwrap().address {
                 let err = Error::InvalidAddress;
@@ -574,6 +575,7 @@ pub fn handle_fetch_random_nodes<S: Store, P: Store, T: Transport>(
             id,
             node,
             count,
+            ..
         } => {
             if node.address != state.lock().unwrap().address {
                 let err = Error::InvalidAddress;
@@ -1162,6 +1164,7 @@ pub fn reply<S: Store, P: Store, T: Transport>(
             id,
             node,
             transaction,
+            ..
         } => {
             if node.address != state.lock().unwrap().address {
                 let err = Error::InvalidAddress;
