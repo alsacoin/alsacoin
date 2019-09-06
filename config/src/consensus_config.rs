@@ -22,6 +22,7 @@ pub struct ConsensusConfig {
     pub max_threads: Option<u32>,
     pub max_retries: Option<u32>,
     pub timeout: Option<u64>,
+    pub store_messages: Option<bool>,
 }
 
 impl ConsensusConfig {
@@ -59,6 +60,9 @@ impl ConsensusConfig {
     /// `DEFAULT_DELTA` is the default delta parameter value.
     pub const DEFAULT_DELTA: u32 = BalloonParams::DEFAULT_DELTA;
 
+    /// `DEFAULT_STORE_MESSAGES` is the default store_messages value.
+    pub const DEFAULT_STORE_MESSAGES: bool = false;
+
     /// `new` creates a new `ConsensusConfig`.
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -72,6 +76,7 @@ impl ConsensusConfig {
         max_threads: Option<u32>,
         max_retries: Option<u32>,
         timeout: Option<u64>,
+        store_messages: Option<bool>,
     ) -> Result<ConsensusConfig> {
         let k = Some(k.unwrap_or(Self::DEFAULT_K));
 
@@ -95,6 +100,8 @@ impl ConsensusConfig {
 
         let timeout = Some(timeout.unwrap_or(Self::DEFAULT_TIMEOUT));
 
+        let store_messages = Some(store_messages.unwrap_or(Self::DEFAULT_STORE_MESSAGES));
+
         let config = ConsensusConfig {
             k,
             alpha,
@@ -106,6 +113,7 @@ impl ConsensusConfig {
             max_threads,
             max_retries,
             timeout,
+            store_messages,
         };
 
         Ok(config)
@@ -152,6 +160,10 @@ impl ConsensusConfig {
 
         if self.timeout.is_none() {
             self.timeout = Some(Self::DEFAULT_TIMEOUT);
+        }
+
+        if self.store_messages.is_none() {
+            self.store_messages = Some(Self::DEFAULT_STORE_MESSAGES);
         }
     }
 
@@ -209,6 +221,7 @@ impl Default for ConsensusConfig {
         let max_threads = Some(ConsensusConfig::DEFAULT_MAX_THREADS);
         let max_retries = Some(ConsensusConfig::DEFAULT_MAX_RETRIES);
         let timeout = Some(ConsensusConfig::DEFAULT_TIMEOUT);
+        let store_messages = Some(ConsensusConfig::DEFAULT_STORE_MESSAGES);
 
         ConsensusConfig {
             k,
@@ -221,6 +234,7 @@ impl Default for ConsensusConfig {
             max_threads,
             max_retries,
             timeout,
+            store_messages,
         }
     }
 }
@@ -245,6 +259,7 @@ fn test_consensus_config_new() {
         None,
         None,
         None,
+        None,
     );
     assert!(res.is_err());
 
@@ -255,6 +270,7 @@ fn test_consensus_config_new() {
         None,
         None,
         Some(invalid_t_cost),
+        None,
         None,
         None,
         None,
@@ -273,6 +289,7 @@ fn test_consensus_config_new() {
         None,
         None,
         None,
+        None,
     );
     assert!(res.is_err());
 
@@ -287,6 +304,7 @@ fn test_consensus_config_new() {
         None,
         None,
         None,
+        None,
     );
     assert!(res.is_ok());
 }
@@ -297,8 +315,10 @@ fn test_consensus_config_validate() {
     let invalid_t_cost = 0;
     let invalid_delta = 0;
 
-    let mut config =
-        ConsensusConfig::new(None, None, None, None, None, None, None, None, None, None).unwrap();
+    let mut config = ConsensusConfig::new(
+        None, None, None, None, None, None, None, None, None, None, None,
+    )
+    .unwrap();
 
     let res = config.validate();
     assert!(res.is_ok());

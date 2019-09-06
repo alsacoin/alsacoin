@@ -19,6 +19,33 @@ use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
+/// `handle_message` handles a `ConsensusMessage`.
+pub fn handle_message<S: Store, P: Store>(
+    state: Arc<Mutex<ProtocolState<S, P>>>,
+    cons_msg: &ConsensusMessage,
+) -> Result<()> {
+    cons_msg.validate()?;
+
+    if !state.lock().unwrap().config.store_messages.unwrap_or(false) {
+        return Ok(());
+    }
+
+    if !ConsensusMessage::lookup(
+        &*state.lock().unwrap().store.lock().unwrap(),
+        state.lock().unwrap().stage,
+        &cons_msg.id(),
+    )? {
+        ConsensusMessage::create(
+            &mut *state.lock().unwrap().store.lock().unwrap(),
+            state.lock().unwrap().stage,
+            &cons_msg.id(),
+            &cons_msg,
+        )?;
+    }
+
+    Ok(())
+}
+
 /// `send_message` sends a `ConsensusMessage` to a `Node`.
 pub fn send_message<S: Store, P: Store, T: Transport>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
@@ -26,6 +53,8 @@ pub fn send_message<S: Store, P: Store, T: Transport>(
     cons_msg: &ConsensusMessage,
 ) -> Result<()> {
     cons_msg.validate()?;
+
+    handle_message(state.clone(), cons_msg)?;
 
     let address = cons_msg.node().address;
     let msg = Message::from_consensus_message(cons_msg)?;
@@ -48,7 +77,11 @@ pub fn recv_message<S: Store, P: Store, T: Transport>(
         .unwrap()
         .recv(state.lock().unwrap().config.timeout)?;
 
-    msg.to_consensus_message().map_err(|e| e.into())
+    let cons_msg = msg.to_consensus_message()?;
+
+    handle_message(state, &cons_msg)?;
+
+    Ok(cons_msg)
 }
 
 /// `handle_node` elaborates an incoming `Node`.
