@@ -47,7 +47,7 @@ impl<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport + Send +
             let state = self.state.clone();
             let transport = self.transport.clone();
 
-            let res = thread::spawn(move || serve_incoming(state.clone(), transport.clone()))
+            let res = thread::spawn(move || serve_incoming(state, transport))
                 .join()
                 .map_err(|e| Error::Thread {
                     msg: format!("{:?}", e),
@@ -62,7 +62,7 @@ impl<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport + Send +
             let state = self.state.clone();
             let transport = self.transport.clone();
 
-            let res = thread::spawn(move || serve_avalanche(state.clone(), transport.clone()))
+            let res = thread::spawn(move || serve_avalanche(state, transport))
                 .join()
                 .map_err(|e| Error::Thread {
                     msg: format!("{:?}", e),
