@@ -17,6 +17,7 @@ use network::message::Message;
 use network::traits::Transport;
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
+use std::thread;
 use store::traits::Store;
 
 /// `handle_message` handles a `ConsensusMessage`.
@@ -192,24 +193,49 @@ pub fn handle_fetch_transactions<
             let node = Node::new(state.lock().unwrap().stage, &address);
             handle_node(state.clone(), &node)?;
 
-            let mut transactions = BTreeSet::new();
+            let txs_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
             for id in ids {
-                // TODO: THREADS?
+                let state = state.clone();
+                let txs_arc = txs_arc.clone();
 
-                if Transaction::lookup(
-                    &*state.lock().unwrap().store.lock().unwrap(),
-                    state.lock().unwrap().stage,
-                    &id,
-                )? {
-                    let transaction = Transaction::get(
+                thread::spawn(move || {
+                    let res = Transaction::lookup(
                         &*state.lock().unwrap().store.lock().unwrap(),
                         state.lock().unwrap().stage,
                         &id,
-                    )?;
-                    transactions.insert(transaction);
-                }
+                    );
+
+                    if res.is_err() {
+                        let res: Result<()> = res.map(|_| ()).map_err(|e| e.into());
+                        return res;
+                    }
+
+                    if res.unwrap() {
+                        let res = Transaction::get(
+                            &*state.lock().unwrap().store.lock().unwrap(),
+                            state.lock().unwrap().stage,
+                            &id,
+                        );
+
+                        if res.is_err() {
+                            let res: Result<()> = res.map(|_| ()).map_err(|e| e.into());
+                            return res;
+                        }
+
+                        let transaction = res.unwrap();
+                        txs_arc.lock().unwrap().insert(transaction);
+                    }
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
+
+            let transactions = txs_arc.lock().unwrap();
 
             let cons_msg = ConsensusMessage::new_push_transactions(
                 &*state.lock().unwrap().address,
@@ -306,9 +332,15 @@ pub fn handle_push_transactions<
                 }
 
                 for transaction in &transactions {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let transport = transport.clone();
+                    let transaction = transaction.clone();
 
-                    handle_transaction(state.clone(), transport.clone(), &transaction)?;
+                    thread::spawn(move || handle_transaction(state, transport, &transaction))
+                        .join()
+                        .map_err(|e| Error::Thread {
+                            msg: format!("{:?}", e),
+                        })??;
                 }
 
                 Ok(transactions)
@@ -356,9 +388,15 @@ pub fn handle_push_random_transactions<
                 }
 
                 for transaction in &transactions {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let transport = transport.clone();
+                    let transaction = transaction.clone();
 
-                    handle_transaction(state.clone(), transport.clone(), &transaction)?;
+                    thread::spawn(move || handle_transaction(state, transport, &transaction))
+                        .join()
+                        .map_err(|e| Error::Thread {
+                            msg: format!("{:?}", e),
+                        })??;
                 }
 
                 Ok(transactions)
@@ -386,7 +424,7 @@ pub fn fetch_node_transactions<
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Transaction>> {
     let node = Node::new(state.lock().unwrap().stage, address);
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     let cons_msg =
         ConsensusMessage::new_fetch_transactions(&*state.lock().unwrap().address, &node, ids)?;
@@ -407,11 +445,28 @@ pub fn fetch_node_transactions<
                 ids,
             )?;
 
-            for transaction in transactions {
-                // TODO: THREADS?
+            for transaction in &transactions {
+                let state = state.clone();
+                let transport = transport.clone();
+                let transaction = transaction.clone();
+                let res_arc = res_arc.clone();
 
-                handle_transaction(state.clone(), transport.clone(), &transaction)?;
-                res.insert(transaction);
+                thread::spawn(move || {
+                    let res: Result<()> =
+                        handle_transaction(state.clone(), transport.clone(), &transaction);
+
+                    if res.is_err() {
+                        return res;
+                    }
+
+                    res_arc.lock().unwrap().insert(transaction);
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
 
             break;
@@ -420,6 +475,7 @@ pub fn fetch_node_transactions<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -434,11 +490,9 @@ pub fn fetch_transactions<
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Transaction>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     for node in nodes {
-        // TODO: THREADS?
-
         let cons_msg =
             ConsensusMessage::new_fetch_transactions(&*state.lock().unwrap().address, &node, ids)?;
         send_message(state.clone(), transport.clone(), &cons_msg)?;
@@ -459,10 +513,27 @@ pub fn fetch_transactions<
                 )?;
 
                 for transaction in transactions {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let transport = transport.clone();
+                    let transaction = transaction.clone();
+                    let res_arc = res_arc.clone();
 
-                    handle_transaction(state.clone(), transport.clone(), &transaction)?;
-                    res.insert(transaction);
+                    thread::spawn(move || {
+                        let res: Result<()> =
+                            handle_transaction(state.clone(), transport.clone(), &transaction);
+
+                        if res.is_err() {
+                            return res;
+                        }
+
+                        res_arc.lock().unwrap().insert(transaction);
+
+                        Ok(())
+                    })
+                    .join()
+                    .map_err(|e| Error::Thread {
+                        msg: format!("{:?}", e),
+                    })??;
                 }
 
                 break;
@@ -472,6 +543,7 @@ pub fn fetch_transactions<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -541,8 +613,6 @@ pub fn fetch_random_transactions<
     let mut res = BTreeSet::new();
 
     for node in nodes {
-        // TODO: THREADS?
-
         let cons_msg = ConsensusMessage::new_fetch_random_transactions(
             &*state.lock().unwrap().address,
             &node,
@@ -854,8 +924,6 @@ pub fn fetch_nodes<
     let mut res = BTreeSet::new();
 
     for node in nodes {
-        // TODO: THREADS?
-
         let cons_msg =
             ConsensusMessage::new_fetch_nodes(&*state.lock().unwrap().address, &node, ids)?;
         send_message(state.clone(), transport.clone(), &cons_msg)?;
@@ -945,8 +1013,6 @@ pub fn fetch_random_nodes<
     let mut res = BTreeSet::new();
 
     for node in nodes {
-        // TODO: THREADS?
-
         let cons_msg = ConsensusMessage::new_fetch_random_nodes(
             &*state.lock().unwrap().address,
             &node,
