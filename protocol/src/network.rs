@@ -1211,30 +1211,61 @@ pub fn fetch_missing_ancestors<
     }
 
     let nodes = state.lock().unwrap().sample_nodes()?;
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     for node in &nodes {
-        // TODO: THREADS
+        let state = state.clone();
+        let transport = transport.clone();
+        let node = node.clone();
+        let nodes = nodes.clone();
+        let to_fetch = to_fetch.clone();
+        let res_arc = res_arc.clone();
 
-        let result =
-            fetch_node_transactions(state.clone(), transport.clone(), &node.address, &to_fetch);
+        thread::spawn(move || {
+            let result =
+                fetch_node_transactions(state.clone(), transport.clone(), &node.address, &to_fetch);
 
-        let txs = if let Ok(txs) = result {
-            txs
-        } else {
-            let mut node = state.lock().unwrap().random_node()?;
-            while node.address == state.lock().unwrap().address || nodes.contains(&node) {
-                node = state.lock().unwrap().random_node()?;
-            }
+            if let Ok(txs) = result {
+                for tx in txs {
+                    res_arc.lock().unwrap().insert(tx);
+                }
+            } else {
+                let res = state.lock().unwrap().random_node();
 
-            fetch_node_transactions(state.clone(), transport.clone(), &node.address, &to_fetch)?
-        };
+                if res.is_err() {
+                    let res = res.map(|_| ());
+                    return res;
+                }
 
-        for tx in txs {
-            res.insert(tx);
-        }
+                let mut node = res.unwrap();
+
+                while node.address == state.lock().unwrap().address || nodes.contains(&node) {
+                    node = state.lock().unwrap().random_node()?;
+                }
+
+                let res = fetch_node_transactions(state, transport, &node.address, &to_fetch);
+
+                if res.is_err() {
+                    let res = res.map(|_| ());
+                    return res;
+                }
+
+                let txs = res.unwrap();
+
+                for tx in txs {
+                    res_arc.lock().unwrap().insert(tx);
+                }
+            };
+
+            Ok(())
+        })
+        .join()
+        .map_err(|e| Error::Thread {
+            msg: format!("{:?}", e),
+        })??;
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -1719,8 +1750,6 @@ pub fn avalanche_step<
         .collect();
 
     for tx_id in tx_ids {
-        // TODO: THREADS
-
         let tx = match Transaction::get(
             &*state.lock().unwrap().pool.lock().unwrap(),
             state.lock().unwrap().stage,
@@ -1845,32 +1874,54 @@ pub fn avalanche_step<
                 .collect();
 
             for tx_id in ancestors {
-                // TODO: THREADS
+                let state = state.clone();
 
-                if let Some(cs_id) = state
-                    .lock()
-                    .unwrap()
-                    .state
-                    .get_transaction_conflict_set(&tx_id)
-                {
-                    let mut cs = ConflictSet::get(
-                        &*state.lock().unwrap().pool.lock().unwrap(),
-                        state.lock().unwrap().stage,
-                        &cs_id,
-                    )?;
-                    cs.validate()?;
-                    cs.count = 0;
+                thread::spawn(move || {
+                    if let Some(cs_id) = state
+                        .lock()
+                        .unwrap()
+                        .state
+                        .get_transaction_conflict_set(&tx_id)
+                    {
+                        let res = ConflictSet::get(
+                            &*state.lock().unwrap().pool.lock().unwrap(),
+                            state.lock().unwrap().stage,
+                            &cs_id,
+                        );
 
-                    ConflictSet::update(
-                        &mut *state.lock().unwrap().pool.lock().unwrap(),
-                        state.lock().unwrap().stage,
-                        &cs_id,
-                        &cs,
-                    )?;
-                } else {
-                    let err = Error::NotFound;
-                    return Err(err);
-                }
+                        let mut cs = res.unwrap();
+
+                        let res = cs.validate();
+
+                        if res.is_err() {
+                            let res = res.map_err(|e| e.into());
+                            return res;
+                        }
+
+                        cs.count = 0;
+
+                        let res = ConflictSet::update(
+                            &mut *state.lock().unwrap().pool.lock().unwrap(),
+                            state.lock().unwrap().stage,
+                            &cs_id,
+                            &cs,
+                        );
+
+                        if res.is_err() {
+                            let res = res.map_err(|e| e.into());
+                            return res;
+                        }
+
+                        Ok(())
+                    } else {
+                        let err = Error::NotFound;
+                        Err(err)
+                    }
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
         }
 
