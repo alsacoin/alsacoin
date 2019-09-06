@@ -559,14 +559,16 @@ pub fn fetch_node_random_transactions<
     count: u32,
 ) -> Result<BTreeSet<Transaction>> {
     let node = Node::new(state.lock().unwrap().stage, address);
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     let cons_msg = ConsensusMessage::new_fetch_random_transactions(
         &*state.lock().unwrap().address,
         &node,
         count,
     )?;
+
     send_message(state.clone(), transport.clone(), &cons_msg)?;
+
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
@@ -584,10 +586,27 @@ pub fn fetch_node_random_transactions<
             )?;
 
             for transaction in transactions {
-                // TODO: THREADS?
+                let state = state.clone();
+                let transport = transport.clone();
+                let transaction = transaction.clone();
+                let res_arc = res_arc.clone();
 
-                handle_transaction(state.clone(), transport.clone(), &transaction)?;
-                res.insert(transaction);
+                thread::spawn(move || {
+                    let res: Result<()> =
+                        handle_transaction(state.clone(), transport.clone(), &transaction);
+
+                    if res.is_err() {
+                        return res;
+                    }
+
+                    res_arc.lock().unwrap().insert(transaction);
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
 
             break;
@@ -596,6 +615,7 @@ pub fn fetch_node_random_transactions<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -610,7 +630,7 @@ pub fn fetch_random_transactions<
     count: u32,
 ) -> Result<BTreeSet<Transaction>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     for node in nodes {
         let cons_msg = ConsensusMessage::new_fetch_random_transactions(
@@ -636,10 +656,27 @@ pub fn fetch_random_transactions<
                 )?;
 
                 for transaction in transactions {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let transport = transport.clone();
+                    let transaction = transaction.clone();
+                    let res_arc = res_arc.clone();
 
-                    handle_transaction(state.clone(), transport.clone(), &transaction)?;
-                    res.insert(transaction);
+                    thread::spawn(move || {
+                        let res: Result<()> =
+                            handle_transaction(state.clone(), transport.clone(), &transaction);
+
+                        if res.is_err() {
+                            return res;
+                        }
+
+                        res_arc.lock().unwrap().insert(transaction);
+
+                        Ok(())
+                    })
+                    .join()
+                    .map_err(|e| Error::Thread {
+                        msg: format!("{:?}", e),
+                    })??;
                 }
 
                 break;
@@ -649,6 +686,7 @@ pub fn fetch_random_transactions<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -702,24 +740,50 @@ pub fn handle_fetch_nodes<
             let node = Node::new(state.lock().unwrap().stage, &address);
             handle_node(state.clone(), &node)?;
 
-            let mut nodes = BTreeSet::new();
+            let nodes_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
             for id in ids {
-                // TODO: THREADS?
+                let state = state.clone();
+                let nodes_arc = nodes_arc.clone();
 
-                if Node::lookup(
-                    &*state.lock().unwrap().store.lock().unwrap(),
-                    state.lock().unwrap().stage,
-                    &id,
-                )? {
-                    let node = Node::get(
+                thread::spawn(move || {
+                    let res = Node::lookup(
                         &*state.lock().unwrap().store.lock().unwrap(),
                         state.lock().unwrap().stage,
                         &id,
-                    )?;
-                    nodes.insert(node);
-                }
+                    );
+
+                    if res.is_err() {
+                        let res = res.map(|_| ());
+                        return res;
+                    }
+
+                    if res.unwrap() {
+                        let res = Node::get(
+                            &*state.lock().unwrap().store.lock().unwrap(),
+                            state.lock().unwrap().stage,
+                            &id,
+                        );
+
+                        if res.is_err() {
+                            let res = res.map(|_| ());
+                            return res;
+                        }
+
+                        let node = res.unwrap();
+
+                        nodes_arc.lock().unwrap().insert(node);
+                    }
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
+
+            let nodes = nodes_arc.lock().unwrap().clone();
 
             let cons_msg = ConsensusMessage::new_push_nodes(
                 &*state.lock().unwrap().address,
@@ -809,9 +873,14 @@ pub fn handle_push_nodes<S: Store + Send + 'static, P: Store + Send + 'static>(
                 }
 
                 for node in &nodes {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let node = node.clone();
 
-                    handle_node(state.clone(), &node)?;
+                    thread::spawn(move || handle_node(state, &node))
+                        .join()
+                        .map_err(|e| Error::Thread {
+                            msg: format!("{:?}", e),
+                        })??;
                 }
 
                 Ok(nodes)
@@ -850,9 +919,14 @@ pub fn handle_push_random_nodes<S: Store + Send + 'static, P: Store + Send + 'st
                 }
 
                 for node in &nodes {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let node = node.clone();
 
-                    handle_node(state.clone(), &node)?;
+                    thread::spawn(move || handle_node(state, &node))
+                        .join()
+                        .map_err(|e| Error::Thread {
+                            msg: format!("{:?}", e),
+                        })??;
                 }
 
                 Ok(nodes)
@@ -883,7 +957,7 @@ pub fn fetch_node_nodes<
     let cons_msg = ConsensusMessage::new_fetch_nodes(&*state.lock().unwrap().address, &node, ids)?;
     send_message(state.clone(), transport.clone(), &cons_msg)?;
 
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
@@ -895,10 +969,25 @@ pub fn fetch_node_nodes<
             let nodes = handle_push_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), ids)?;
 
             for node in nodes {
-                // TODO: THREADS?
+                let state = state.clone();
+                let node = node.clone();
+                let res_arc = res_arc.clone();
 
-                handle_node(state.clone(), &node)?;
-                res.insert(node);
+                thread::spawn(move || {
+                    let res: Result<()> = handle_node(state.clone(), &node);
+
+                    if res.is_err() {
+                        return res;
+                    }
+
+                    res_arc.lock().unwrap().insert(node);
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
 
             break;
@@ -907,6 +996,7 @@ pub fn fetch_node_nodes<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -921,7 +1011,7 @@ pub fn fetch_nodes<
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Node>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     for node in nodes {
         let cons_msg =
@@ -939,10 +1029,25 @@ pub fn fetch_nodes<
                 let nodes = handle_push_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), ids)?;
 
                 for node in nodes {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let node = node.clone();
+                    let res_arc = res_arc.clone();
 
-                    handle_node(state.clone(), &node)?;
-                    res.insert(node);
+                    thread::spawn(move || {
+                        let res: Result<()> = handle_node(state.clone(), &node);
+
+                        if res.is_err() {
+                            return res;
+                        }
+
+                        res_arc.lock().unwrap().insert(node);
+
+                        Ok(())
+                    })
+                    .join()
+                    .map_err(|e| Error::Thread {
+                        msg: format!("{:?}", e),
+                    })??;
                 }
 
                 break;
@@ -952,6 +1057,7 @@ pub fn fetch_nodes<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -971,8 +1077,8 @@ pub fn fetch_node_random_nodes<
         ConsensusMessage::new_fetch_random_nodes(&*state.lock().unwrap().address, &node, count)?;
     send_message(state.clone(), transport.clone(), &cons_msg)?;
 
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
-    let mut res = BTreeSet::new();
 
     while max_retries > 0 {
         let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
@@ -984,10 +1090,25 @@ pub fn fetch_node_random_nodes<
                 handle_push_random_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), count)?;
 
             for node in nodes {
-                // TODO: THREADS?
+                let state = state.clone();
+                let node = node.clone();
+                let res_arc = res_arc.clone();
 
-                handle_node(state.clone(), &node)?;
-                res.insert(node);
+                thread::spawn(move || {
+                    let res: Result<()> = handle_node(state.clone(), &node);
+
+                    if res.is_err() {
+                        return res;
+                    }
+
+                    res_arc.lock().unwrap().insert(node);
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
 
             break;
@@ -996,6 +1117,7 @@ pub fn fetch_node_random_nodes<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -1010,7 +1132,7 @@ pub fn fetch_random_nodes<
     count: u32,
 ) -> Result<BTreeSet<Node>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
-    let mut res = BTreeSet::new();
+    let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
     for node in nodes {
         let cons_msg = ConsensusMessage::new_fetch_random_nodes(
@@ -1033,10 +1155,25 @@ pub fn fetch_random_nodes<
                     handle_push_random_nodes(state.clone(), &recv_cons_msg, cons_msg.id(), count)?;
 
                 for node in nodes {
-                    // TODO: THREADS?
+                    let state = state.clone();
+                    let node = node.clone();
+                    let res_arc = res_arc.clone();
 
-                    handle_node(state.clone(), &node)?;
-                    res.insert(node);
+                    thread::spawn(move || {
+                        let res: Result<()> = handle_node(state.clone(), &node);
+
+                        if res.is_err() {
+                            return res;
+                        }
+
+                        res_arc.lock().unwrap().insert(node);
+
+                        Ok(())
+                    })
+                    .join()
+                    .map_err(|e| Error::Thread {
+                        msg: format!("{:?}", e),
+                    })??;
                 }
 
                 break;
@@ -1046,6 +1183,7 @@ pub fn fetch_random_nodes<
         }
     }
 
+    let res = res_arc.lock().unwrap().clone();
     Ok(res)
 }
 
@@ -1076,7 +1214,7 @@ pub fn fetch_missing_ancestors<
     let mut res = BTreeSet::new();
 
     for node in &nodes {
-        // TODO: THREADS?
+        // TODO: THREADS
 
         let result =
             fetch_node_transactions(state.clone(), transport.clone(), &node.address, &to_fetch);
@@ -1159,21 +1297,44 @@ pub fn handle_mine<
                 }
             }
 
-            let mut mined = BTreeSet::new();
+            let mined_arc = Arc::new(Mutex::new(BTreeSet::new()));
 
             for transaction in &transactions {
-                // TODO: THREADS?
+                let mut transaction = transaction.clone();
+                let mined_arc = mined_arc.clone();
 
-                let mut tx = transaction.clone();
-                tx.mine()?;
-                mined.insert(tx);
+                thread::spawn(move || {
+                    let res = transaction.mine();
+
+                    if res.is_err() {
+                        return res;
+                    }
+
+                    mined_arc.lock().unwrap().insert(transaction);
+
+                    Ok(())
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
 
-            for transaction in &mined {
-                // TODO: THREADS?
+            for transaction in &*mined_arc.lock().unwrap() {
+                let state = state.clone();
+                let transport = transport.clone();
+                let transaction = transaction.clone();
 
-                handle_transaction(state.clone(), transport.clone(), &transaction)?;
+                thread::spawn(move || {
+                    handle_transaction(state.clone(), transport.clone(), &transaction)
+                })
+                .join()
+                .map_err(|e| Error::Thread {
+                    msg: format!("{:?}", e),
+                })??;
             }
+
+            let mined = mined_arc.lock().unwrap().clone();
 
             let cons_msg = ConsensusMessage::new_push_transactions(
                 &*state.lock().unwrap().address,
@@ -1226,13 +1387,24 @@ pub fn update_ancestors<
     transport: Arc<Mutex<T>>,
     transaction: &Transaction,
 ) -> Result<()> {
-    for ancestor in fetch_missing_ancestors(state.clone(), transport.clone(), transaction)? {
-        // TODO: THREADS?
+    let mut res = Ok(());
 
-        handle_transaction(state.clone(), transport.clone(), &ancestor)?;
+    for ancestor in fetch_missing_ancestors(state.clone(), transport.clone(), transaction)? {
+        let state = state.clone();
+        let transport = transport.clone();
+
+        res = thread::spawn(move || handle_transaction(state, transport, &ancestor))
+            .join()
+            .map_err(|e| Error::Thread {
+                msg: format!("{:?}", e),
+            })?;
+
+        if res.is_err() {
+            return res;
+        }
     }
 
-    Ok(())
+    res
 }
 
 /// `handle_transaction` elaborates an incoming `Node`.
@@ -1382,15 +1554,40 @@ pub fn query<
     transaction: &Transaction,
 ) -> Result<u32> {
     let nodes = state.lock().unwrap().sample_nodes()?;
-    let mut res = 0u32;
+    let res_arc = Arc::new(Mutex::new(0));
 
     for node in nodes {
-        // TODO: THREADS?
+        let state = state.clone();
+        let transport = transport.clone();
+        let node = node.clone();
+        let transaction = transaction.clone();
+        let res_arc = res_arc.clone();
 
-        let chit = query_node(state.clone(), transport.clone(), &node.address, transaction)? as u32;
-        res += chit;
+        thread::spawn(move || {
+            let res = query_node(
+                state.clone(),
+                transport.clone(),
+                &node.address,
+                &transaction,
+            );
+
+            if res.is_err() {
+                let res: Result<()> = res.map(|_| ());
+                return res;
+            }
+
+            let chit = res.unwrap() as u32;
+            *res_arc.lock().unwrap() += chit;
+
+            Ok(())
+        })
+        .join()
+        .map_err(|e| Error::Thread {
+            msg: format!("{:?}", e),
+        })??;
     }
 
+    let res = *res_arc.lock().unwrap();
     Ok(res)
 }
 
@@ -1522,7 +1719,7 @@ pub fn avalanche_step<
         .collect();
 
     for tx_id in tx_ids {
-        // TODO: THREADS?
+        // TODO: THREADS
 
         let tx = match Transaction::get(
             &*state.lock().unwrap().pool.lock().unwrap(),
@@ -1548,9 +1745,17 @@ pub fn avalanche_step<
         let missing_txs = fetch_missing_ancestors(state.clone(), transport.clone(), &tx)?;
 
         for missing_tx in missing_txs.iter() {
-            // TODO: THREADS?
+            let state = state.clone();
+            let transport = transport.clone();
+            let missing_tx = missing_tx.clone();
 
-            handle_transaction(state.clone(), transport.clone(), &missing_tx)?;
+            thread::spawn(move || {
+                handle_transaction(state.clone(), transport.clone(), &missing_tx)
+            })
+            .join()
+            .map_err(|e| Error::Thread {
+                msg: format!("{:?}", e),
+            })??;
         }
 
         let chit_sum = query(state.clone(), transport.clone(), &tx)?;
@@ -1640,7 +1845,7 @@ pub fn avalanche_step<
                 .collect();
 
             for tx_id in ancestors {
-                // TODO: THREADS?
+                // TODO: THREADS
 
                 if let Some(cs_id) = state
                     .lock()
@@ -1688,7 +1893,18 @@ pub fn serve_avalanche<
     let mut res = Ok(());
 
     while res.is_ok() {
-        res = avalanche_step(state.clone(), transport.clone());
+        let state = state.clone();
+        let transport = transport.clone();
+
+        res = thread::spawn(|| avalanche_step(state, transport))
+            .join()
+            .map_err(|e| Error::Thread {
+                msg: format!("{:?}", e),
+            })?;
+
+        if res.is_err() {
+            return res;
+        }
     }
 
     res
