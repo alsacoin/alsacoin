@@ -10,7 +10,7 @@ rust:
 cache: cargo
 
 before_cache:
-  # - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
+  - RUSTFLAGS="--cfg procmacro2_semver_exempt" cargo install cargo-tarpaulin --force
 
 before_install:
   - set -e
@@ -31,7 +31,7 @@ after_script:
   - set +e
 
 after_success:
-  # - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
+  - cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID
 
 notifications:
   email:
