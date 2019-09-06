@@ -9,7 +9,7 @@ pub use self::client::*;
 
 pub mod server;
 pub use self::server::*;
+*/
 
 pub mod miner;
 pub use self::miner::*;
-*/
