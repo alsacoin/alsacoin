@@ -31,6 +31,8 @@ pub enum Error {
     Config { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
+    #[fail(display = "Thread: {}", msg)]
+    Thread { msg: String },
     #[fail(display = "Invalid id")]
     InvalidId,
     #[fail(display = "Invalid length")]
