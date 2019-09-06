@@ -73,7 +73,7 @@ pub trait Storable<S: Store>: Sized {
     fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()>;
 
     /// `cleanup` clean ups the `Store` model instances.
-    fn cleanup(store: &mut S, stage: Stage, min_time: Timestamp) -> Result<()>;
+    fn cleanup(store: &mut S, stage: Stage, min_time: Option<Timestamp>) -> Result<()>;
 
     /// `clear` clears the `Store` from the model instances.
     fn clear(store: &mut S, stage: Stage) -> Result<()>;

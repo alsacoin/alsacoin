@@ -896,7 +896,7 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S, _stage: Stage, _min_time: Timestamp) -> Result<()> {
+    fn cleanup(_store: &mut S, _stage: Stage, _min_time: Option<Timestamp>) -> Result<()> {
         Err(Error::NotImplemented)
     }
 

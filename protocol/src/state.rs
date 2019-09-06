@@ -26,36 +26,31 @@ pub struct ProtocolState<S: Store, P: Store> {
     pub address: Vec<u8>,
     pub config: ConsensusConfig,
     pub state: ConsensusState,
-    pub eve_account: Account,
-    pub eve_transaction: Transaction,
-    pub seed: BTreeSet<Node>,
     pub store: Arc<Mutex<S>>,
     pub pool: Arc<Mutex<P>>,
 }
 
 impl<S: Store, P: Store> ProtocolState<S, P> {
-    /// `new` creates a new `ProtocolState` instance.
+    /// `create` creates a new `ProtocolState` instance, erasing
+    /// the previous content of the stores.
     /// The method is equivalent to the "Init" procedure in
     /// the Avalanche paper.
-    pub fn new(
+    pub fn create(
+        stage: Stage,
         address: &[u8],
         config: &mut ConsensusConfig,
-        state: &ConsensusState,
         eve_account: &Account,
-        seed: &BTreeSet<&[u8]>,
+        seed: &BTreeSet<Vec<u8>>,
         store: Arc<Mutex<S>>,
         pool: Arc<Mutex<P>>,
     ) -> Result<ProtocolState<S, P>> {
         config.validate()?;
-        state.validate()?;
         eve_account.validate()?;
 
         if !eve_account.is_eve()? {
             let err = Error::InvalidAccount;
             return Err(err);
         }
-
-        let stage = state.stage;
 
         if eve_account.stage != stage {
             let err = Error::InvalidStage;
@@ -66,6 +61,9 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
 
         let mut eve_transaction = Transaction::new_eve(stage, &eve_account.address)?;
         eve_transaction.mine()?;
+
+        store.lock().unwrap().clear()?;
+        pool.lock().unwrap().clear()?;
 
         Account::create(
             &mut *store.lock().unwrap(),
@@ -89,19 +87,79 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
             seed_nodes.insert(node);
         }
 
+        let state = ConsensusState::new(0, stage, &eve_account.address, &eve_transaction.id, seed);
+        ConsensusState::create(&mut *store.lock().unwrap(), stage, &state.id, &state)?;
+
         let state = ProtocolState {
             stage,
             address: address.to_owned(),
             config: config.to_owned(),
-            state: state.to_owned(),
-            eve_account: eve_account.to_owned(),
-            eve_transaction: eve_transaction.to_owned(),
-            seed: seed_nodes,
+            state,
             store,
             pool,
         };
 
         Ok(state)
+    }
+
+    /// `open` creates a new `ProtocolState` instance from a
+    /// populated store.
+    pub fn open(
+        stage: Stage,
+        address: &[u8],
+        config: &mut ConsensusConfig,
+        store: Arc<Mutex<S>>,
+        pool: Arc<Mutex<P>>,
+    ) -> Result<ProtocolState<S, P>> {
+        config.validate()?;
+        config.populate();
+
+        ConsensusState::cleanup(&mut *store.lock().unwrap(), stage, None)?;
+
+        let states = ConsensusState::query(&*store.lock().unwrap(), stage, None, None, None, None)?;
+
+        let max_id: u64 = states.iter().map(|state| state.id).max().unwrap_or(0);
+
+        let mut last_state = ConsensusState::default();
+
+        if states.len() > 1 {
+            for state in states {
+                if state.id != max_id {
+                    ConsensusState::remove(&mut *store.lock().unwrap(), stage, &state.id)?;
+                } else {
+                    last_state = state;
+                }
+            }
+        } else if states.len() == 1 {
+            last_state = states.iter().next().cloned().unwrap();
+        } else {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        let state = ProtocolState {
+            stage,
+            address: address.to_owned(),
+            config: config.to_owned(),
+            state: last_state,
+            store,
+            pool,
+        };
+
+        Ok(state)
+    }
+
+    /// `save` saves the `ProtocolState` state in the store.
+    pub fn save(&mut self) -> Result<()> {
+        ConsensusState::cleanup(&mut *self.store.lock().unwrap(), self.stage, None)?;
+
+        ConsensusState::create(
+            &mut *self.store.lock().unwrap(),
+            self.stage,
+            &self.state.id,
+            &self.state,
+        )
+        .map_err(|e| e.into())
     }
 
     /// `set_consensus_config` sets a new `ConsensusConfig` in the `ProtocolState`.

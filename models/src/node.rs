@@ -260,7 +260,9 @@ impl<S: Store> Storable<S> for Node {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(store: &mut S, stage: Stage, min_time: Timestamp) -> Result<()> {
+    fn cleanup(store: &mut S, stage: Stage, min_time: Option<Timestamp>) -> Result<()> {
+        let min_time = min_time.unwrap_or_default();
+
         let mut _from = Digest::default();
         _from[0] = stage as u8;
         _from[1] = <Self as Storable<S>>::KEY_PREFIX;

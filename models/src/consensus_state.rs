@@ -551,8 +551,20 @@ impl<S: Store> Storable<S> for ConsensusState {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S, _stage: Stage, _min_time: Timestamp) -> Result<()> {
-        Err(Error::NotImplemented)
+    fn cleanup(store: &mut S, stage: Stage, _min_time: Option<Timestamp>) -> Result<()> {
+        let states = ConsensusState::query(store, stage, None, None, None, None)?;
+
+        let max_id: u64 = states.iter().map(|state| state.id).max().unwrap_or(0);
+
+        if states.len() > 1 {
+            for state in states {
+                if state.id != max_id {
+                    ConsensusState::remove(store, stage, &state.id)?;
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn clear(store: &mut S, stage: Stage) -> Result<()> {
