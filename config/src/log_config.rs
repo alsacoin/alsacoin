@@ -15,6 +15,7 @@ pub struct LogConfig {
     pub level: Option<String>,
     pub format: Option<String>,
     pub file: Option<String>,
+    pub color: Option<bool>,
 }
 
 impl LogConfig {
@@ -30,11 +31,18 @@ impl LogConfig {
     /// `DEFAULT_FORMAT` is the default log format.
     pub const DEFAULT_FORMAT: &'static str = "raw";
 
+    /// `DEFAULT_FILE` is the default log file.
+    pub const DEFAULT_FILE: &'static str = "stderr";
+
+    /// `DEFAULT_COLOR` is the default color option.
+    pub const DEFAULT_COLOR: bool = false;
+
     /// `new` creates a new `LogConfig`.
     pub fn new(
         level: Option<String>,
         format: Option<String>,
         file: Option<String>,
+        color: Option<bool>,
     ) -> Result<LogConfig> {
         let level = if let Some(level) = level {
             if !Self::VALID_LEVELS.contains(&level.as_str()) {
@@ -58,10 +66,15 @@ impl LogConfig {
             Self::DEFAULT_FORMAT.into()
         };
 
+        let file = Some(file.unwrap_or(Self::DEFAULT_FILE.into()));
+
+        let color = Some(color.unwrap_or(Self::DEFAULT_COLOR.into()));
+
         let config = LogConfig {
             level: Some(level),
             format: Some(format),
             file,
+            color,
         };
 
         Ok(config)
@@ -76,6 +89,14 @@ impl LogConfig {
 
         if self.format.is_none() {
             self.format = Some(Self::DEFAULT_FORMAT.into());
+        }
+
+        if self.file.is_none() {
+            self.file = Some(Self::DEFAULT_FILE.into());
+        }
+
+        if self.color.is_none() {
+            self.color = Some(Self::DEFAULT_COLOR.into());
         }
     }
 
@@ -133,12 +154,14 @@ impl Default for LogConfig {
     fn default() -> LogConfig {
         let level = Some(LogConfig::DEFAULT_LEVEL.into());
         let format = Some(LogConfig::DEFAULT_FORMAT.into());
-        let file = None;
+        let file = Some(LogConfig::DEFAULT_FILE.into());
+        let color = Some(LogConfig::DEFAULT_COLOR.into());
 
         LogConfig {
             level,
             format,
             file,
+            color,
         }
     }
 }
@@ -148,15 +171,15 @@ fn test_log_config_new() {
     let invalid_level: String = "level".into();
     let invalid_format: String = "format".into();
 
-    let res = LogConfig::new(Some(invalid_level.into()), None, None);
+    let res = LogConfig::new(Some(invalid_level.into()), None, None, None);
     assert!(res.is_err());
 
-    let res = LogConfig::new(None, Some(invalid_format.into()), None);
+    let res = LogConfig::new(None, Some(invalid_format.into()), None, None);
     assert!(res.is_err());
 
     for level in LogConfig::VALID_LEVELS.iter().copied() {
         for format in LogConfig::VALID_FORMATS.iter().copied() {
-            let res = LogConfig::new(Some(level.into()), Some(format.into()), None);
+            let res = LogConfig::new(Some(level.into()), Some(format.into()), None, None);
             assert!(res.is_ok());
         }
     }
