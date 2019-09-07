@@ -44,3 +44,19 @@ impl Default for LogLevel {
         LogLevel::Critical
     }
 }
+
+#[test]
+fn test_level_parse() {
+    let valid_level_a = "debug";
+
+    let res = LogLevel::parse(valid_level_a);
+    assert!(res.is_ok());
+
+    let valid_level_b = res.unwrap();
+    assert_eq!(valid_level_a, format!("{}", valid_level_b));
+
+    let invalid_level = "level";
+
+    let res = LogLevel::parse(invalid_level);
+    assert!(res.is_err());
+}

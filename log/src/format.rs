@@ -47,3 +47,19 @@ impl Default for LogFormat {
         LogFormat::Raw
     }
 }
+
+#[test]
+fn test_format_parse() {
+    let valid_format_a = "cbor";
+
+    let res = LogFormat::parse(valid_format_a);
+    assert!(res.is_ok());
+
+    let valid_format_b = res.unwrap();
+    assert_eq!(valid_format_a, format!("{}", valid_format_b));
+
+    let invalid_format = "format";
+
+    let res = LogFormat::parse(invalid_format);
+    assert!(res.is_err());
+}
