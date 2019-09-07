@@ -13,3 +13,6 @@ pub mod result;
 
 /// `file` contains the log file type and functions.
 pub mod file;
+
+/// `format` contains the log format type and functions.
+pub mod format;
