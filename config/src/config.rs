@@ -4,6 +4,7 @@
 
 use crate::consensus_config::ConsensusConfig;
 use crate::error::Error;
+use crate::log_config::LogConfig;
 use crate::network_config::NetworkConfig;
 use crate::pool_config::PoolConfig;
 use crate::result::Result;
@@ -20,6 +21,7 @@ pub struct Config {
     pub store_config: StoreConfig,
     pub pool_config: PoolConfig,
     pub network_config: NetworkConfig,
+    pub log_config: LogConfig,
     pub consensus_config: ConsensusConfig,
 }
 
@@ -36,6 +38,7 @@ impl Config {
         store_conf: &StoreConfig,
         pool_conf: &PoolConfig,
         net_conf: &NetworkConfig,
+        log_conf: &LogConfig,
         cons_conf: &ConsensusConfig,
     ) -> Result<Config> {
         let stage = if let Some(stage) = stage {
@@ -52,12 +55,15 @@ impl Config {
         store_conf.validate()?;
         pool_conf.validate()?;
         net_conf.validate()?;
+        log_conf.validate()?;
+        cons_conf.validate()?;
 
         let conf = Config {
             stage,
             store_config: store_conf.to_owned(),
             pool_config: pool_conf.to_owned(),
             network_config: net_conf.to_owned(),
+            log_config: log_conf.to_owned(),
             consensus_config: cons_conf.to_owned(),
         };
 
@@ -70,6 +76,12 @@ impl Config {
         if self.stage.is_none() {
             self.stage = Some(Self::DEFAULT_STAGE.into());
         }
+
+        self.store_config.populate();
+        self.pool_config.populate();
+        self.network_config.populate();
+        self.log_config.populate();
+        self.consensus_config.populate();
     }
 
     /// `validate` validates the `Config`.
@@ -84,6 +96,8 @@ impl Config {
         self.store_config.validate()?;
         self.pool_config.validate()?;
         self.network_config.validate()?;
+        self.log_config.validate()?;
+        self.consensus_config.validate()?;
 
         Ok(())
     }
@@ -125,6 +139,7 @@ impl Default for Config {
         let store_config = StoreConfig::default();
         let pool_config = PoolConfig::default();
         let network_config = NetworkConfig::default();
+        let log_config = LogConfig::default();
         let consensus_config = ConsensusConfig::default();
 
         Config {
@@ -132,6 +147,7 @@ impl Default for Config {
             store_config,
             pool_config,
             network_config,
+            log_config,
             consensus_config,
         }
     }
@@ -141,10 +157,13 @@ impl Default for Config {
 fn test_config_new() {
     let invalid_kind = "kind";
     let invalid_stage = "stage";
+    let invalid_level = "level";
+    let invalid_s_cost = 0;
 
     let store_conf = StoreConfig::default();
     let pool_conf = PoolConfig::default();
     let net_conf = NetworkConfig::default();
+    let log_conf = LogConfig::default();
     let cons_conf = ConsensusConfig::default();
 
     let mut invalid_store_conf = store_conf.clone();
@@ -156,11 +175,18 @@ fn test_config_new() {
     let mut invalid_net_conf = net_conf.clone();
     invalid_net_conf.kind = Some(invalid_kind.into());
 
+    let mut invalid_log_conf = log_conf.clone();
+    invalid_log_conf.level = Some(invalid_level.into());
+
+    let mut invalid_cons_conf = cons_conf.clone();
+    invalid_cons_conf.s_cost = Some(invalid_s_cost);
+
     let res = Config::new(
         Some(invalid_stage.into()),
         &store_conf,
         &pool_conf,
         &net_conf,
+        &log_conf,
         &cons_conf,
     );
     assert!(res.is_err());
@@ -171,6 +197,7 @@ fn test_config_new() {
             &invalid_store_conf,
             &pool_conf,
             &net_conf,
+            &log_conf,
             &cons_conf,
         );
         assert!(res.is_err());
@@ -180,6 +207,7 @@ fn test_config_new() {
             &store_conf,
             &invalid_pool_conf,
             &net_conf,
+            &log_conf,
             &cons_conf,
         );
         assert!(res.is_err());
@@ -189,6 +217,7 @@ fn test_config_new() {
             &store_conf,
             &pool_conf,
             &invalid_net_conf,
+            &log_conf,
             &cons_conf,
         );
         assert!(res.is_err());
@@ -198,6 +227,27 @@ fn test_config_new() {
             &store_conf,
             &pool_conf,
             &net_conf,
+            &invalid_log_conf,
+            &cons_conf,
+        );
+        assert!(res.is_err());
+
+        let res = Config::new(
+            Some(stage.into()),
+            &store_conf,
+            &pool_conf,
+            &net_conf,
+            &log_conf,
+            &invalid_cons_conf,
+        );
+        assert!(res.is_err());
+
+        let res = Config::new(
+            Some(stage.into()),
+            &store_conf,
+            &pool_conf,
+            &net_conf,
+            &log_conf,
             &cons_conf,
         );
         assert!(res.is_ok());
@@ -208,6 +258,13 @@ fn test_config_new() {
 fn test_config_validate() {
     let invalid_kind = "kind";
     let invalid_stage = "stage";
+    let invalid_level = "level";
+    let invalid_s_cost = 0;
+
+    let store_conf = StoreConfig::default();
+    let pool_conf = PoolConfig::default();
+    let net_conf = NetworkConfig::default();
+    let log_conf = LogConfig::default();
 
     let mut invalid_store_conf = StoreConfig::default();
     invalid_store_conf.kind = Some(invalid_kind.into());
@@ -217,6 +274,12 @@ fn test_config_validate() {
 
     let mut invalid_net_conf = NetworkConfig::default();
     invalid_net_conf.kind = Some(invalid_kind.into());
+
+    let mut invalid_log_conf = LogConfig::default();
+    invalid_log_conf.level = Some(invalid_level.into());
+
+    let mut invalid_cons_conf = ConsensusConfig::default();
+    invalid_cons_conf.s_cost = Some(invalid_s_cost);
 
     let mut config = Config::default();
 
@@ -241,15 +304,27 @@ fn test_config_validate() {
     let res = config.validate();
     assert!(res.is_err());
 
-    config.store_config = StoreConfig::default();
+    config.store_config = store_conf;
 
     config.pool_config = invalid_pool_conf;
     let res = config.validate();
     assert!(res.is_err());
 
-    config.pool_config = PoolConfig::default();
+    config.pool_config = pool_conf;
 
     config.network_config = invalid_net_conf;
+    let res = config.validate();
+    assert!(res.is_err());
+
+    config.network_config = net_conf;
+
+    config.log_config = invalid_log_conf;
+    let res = config.validate();
+    assert!(res.is_err());
+
+    config.log_config = log_conf;
+
+    config.consensus_config = invalid_cons_conf;
     let res = config.validate();
     assert!(res.is_err());
 }
