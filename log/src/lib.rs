@@ -19,3 +19,6 @@ pub mod format;
 
 /// `file` contains the log file type and functions.
 pub mod file;
+
+/// `logger` contains the logger type and functions.
+pub mod logger;

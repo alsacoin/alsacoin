@@ -25,7 +25,7 @@ impl LogConfig {
     pub const DEFAULT_LEVEL: &'static str = "critical";
 
     /// `VALID_FORMATS` sets the valid log formats.
-    pub const VALID_FORMATS: &'static [&'static str] = &["raw", "json", "binary"];
+    pub const VALID_FORMATS: &'static [&'static str] = &["raw", "json", "cbor"];
 
     /// `DEFAULT_FORMAT` is the default log format.
     pub const DEFAULT_FORMAT: &'static str = "raw";

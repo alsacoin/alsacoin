@@ -1,6 +1,6 @@
 //! # LogFormat
 //!
-//! `file` is the module containing the log format type and functions.
+//! `format` is the module containing the log format type and functions.
 
 use crate::error::Error;
 use crate::result::Result;

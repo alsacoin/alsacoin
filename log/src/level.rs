@@ -1,6 +1,6 @@
 //! # LogLevel
 //!
-//! `file` is the module containing the log level type and functions.
+//! `level` is the module containing the log level type and functions.
 
 use crate::error::Error;
 use crate::result::Result;
