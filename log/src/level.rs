@@ -1,4 +1,4 @@
-//! # LogLevel
+//! # Log Level
 //!
 //! `level` is the module containing the log level type and functions.
 

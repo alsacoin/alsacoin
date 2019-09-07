@@ -1,4 +1,4 @@
-//! # LogFormat
+//! # Log Format
 //!
 //! `format` is the module containing the log format type and functions.
 

@@ -1,4 +1,4 @@
-//! # LogFile
+//! # Log File
 //!
 //! `file` is the module containing the log file type and functions.
 
