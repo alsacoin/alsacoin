@@ -25,8 +25,9 @@ clap = { version = "~2", features = ["suggestions", "color", "vec_map", "yaml", 
 
 crypto = { path = "crypto" }
 mining = { path = "mining" }
+config = { path = "config" }
 store = { path = "store" }
 models = { path = "models" }
+log = { path = "log" }
 protocol = { path = "protocol" }
-config = { path = "config" }
 cli = { path = "cli" }

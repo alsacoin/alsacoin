@@ -24,8 +24,9 @@ psutil = "~1.7"
 
 crypto = { path = "../crypto" }
 mining = { path = "../mining" }
+config = { path = "../config" }
 store = { path = "../store" }
 models = { path = "../models" }
 network = { path = "../network" }
 protocol = { path = "../protocol" }
-config = { path = "../config" }
+log = { path = "../log" }
