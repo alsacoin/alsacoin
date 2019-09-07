@@ -11,8 +11,11 @@ pub mod error;
 /// `result` contains the result type used in the crate.
 pub mod result;
 
-/// `file` contains the log file type and functions.
-pub mod file;
+/// `level` contains the log level type and functions.
+pub mod level;
 
 /// `format` contains the log format type and functions.
 pub mod format;
+
+/// `file` contains the log file type and functions.
+pub mod file;
