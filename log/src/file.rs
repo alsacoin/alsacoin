@@ -22,6 +22,30 @@ impl LogFile {
             path => LogFile::Path(path.into()),
         }
     }
+
+    /// `is_stdout` returns if it is a `StdOut` `LogFile`.
+    pub fn is_stdout(&self) -> bool {
+        match self {
+            LogFile::StdOut => true,
+            _ => false,
+        }
+    }
+
+    /// `is_stderr` returns if it is a `StdErr` `LogFile`.
+    pub fn is_stderr(&self) -> bool {
+        match self {
+            LogFile::StdErr => true,
+            _ => false,
+        }
+    }
+
+    /// `is_path` returns if it is a `Path` `LogFile`.
+    pub fn is_path(&self) -> bool {
+        match self {
+            LogFile::Path(_) => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for LogFile {

@@ -22,7 +22,7 @@ pub struct LogRecord {
 impl LogRecord {
     /// `new` creates a new `LogRecord`.
     pub fn new(level: LogLevel, content: &str) -> Result<LogRecord> {
-        if !content.is_ascii() || content.contains("\n") {
+        if !content.is_ascii() || content.contains('\n') {
             let err = Error::InvalidFormat;
             return Err(err);
         }
@@ -40,7 +40,7 @@ impl LogRecord {
     pub fn validate(&self) -> Result<()> {
         self.timestamp.validate()?;
 
-        if !self.content.is_ascii() || self.content.contains("\n") {
+        if !self.content.is_ascii() || self.content.contains('\n') {
             let err = Error::InvalidFormat;
             return Err(err);
         }

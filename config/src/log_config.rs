@@ -66,14 +66,19 @@ impl LogConfig {
             Self::DEFAULT_FORMAT.into()
         };
 
-        let file = Some(file.unwrap_or(Self::DEFAULT_FILE.into()));
+        let file = file.unwrap_or(Self::DEFAULT_FILE.into());
+
+        if &file != "stdout" && &file != "stderr" && &format == "string" {
+            let err = Error::InvalidFormat;
+            return Err(err);
+        }
 
         let color = Some(color.unwrap_or(Self::DEFAULT_COLOR.into()));
 
         let config = LogConfig {
             level: Some(level),
             format: Some(format),
-            file,
+            file: Some(file),
             color,
         };
 
@@ -113,6 +118,13 @@ impl LogConfig {
             if !Self::VALID_FORMATS.contains(&format.as_str()) {
                 let err = Error::InvalidKind;
                 return Err(err);
+            }
+
+            if let Some(ref file) = self.file {
+                if file != "stdout" && file != "stderr" && format == "string" {
+                    let err = Error::InvalidFormat;
+                    return Err(err);
+                }
             }
         }
 
@@ -179,8 +191,20 @@ fn test_log_config_new() {
 
     for level in LogConfig::VALID_LEVELS.iter().copied() {
         for format in LogConfig::VALID_FORMATS.iter().copied() {
-            let res = LogConfig::new(Some(level.into()), Some(format.into()), None, None);
-            assert!(res.is_ok());
+            for file in ["stdout", "stderr", "path"].iter().copied() {
+                let res = LogConfig::new(
+                    Some(level.into()),
+                    Some(format.into()),
+                    Some(file.into()),
+                    None,
+                );
+
+                if file != "stdout" && file != "stderr" && format == "string" {
+                    assert!(res.is_err());
+                } else {
+                    assert!(res.is_ok());
+                }
+            }
         }
     }
 }
@@ -211,6 +235,11 @@ fn test_log_config_validate() {
     config.level = None;
 
     config.format = Some("".into());
+    let res = config.validate();
+    assert!(res.is_err());
+
+    config.format = Some("string".into());
+    config.file = Some("path".into());
     let res = config.validate();
     assert!(res.is_err());
 }

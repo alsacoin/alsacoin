@@ -31,6 +31,8 @@ pub enum Error {
     InvalidStage,
     #[fail(display = "Invalid address")]
     InvalidAddress,
+    #[fail(display = "Invalid format")]
+    InvalidFormat,
 }
 
 impl From<io::Error> for Error {

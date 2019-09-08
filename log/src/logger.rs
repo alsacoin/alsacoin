@@ -2,9 +2,11 @@
 //!
 //! `logger` is the module containing the logger type and functions.
 
+use crate::error::Error;
 use crate::file::LogFile;
 use crate::format::LogFormat;
 use crate::level::LogLevel;
+use crate::record::LogRecord;
 use crate::result::Result;
 use config::log_config::LogConfig;
 use serde::{Deserialize, Serialize};
@@ -48,13 +50,22 @@ pub struct Logger {
 }
 
 impl Logger {
-    /// `new` creates a new `Logger`.
-    pub fn new(level: LogLevel, format: LogFormat, file: &LogFile) -> Logger {
-        Logger {
+    /// `new` creates a new `Logger`. The logger logs
+    /// in json or binary or string on stderr and stdout,
+    /// but only in json and binary on file.
+    pub fn new(level: LogLevel, format: LogFormat, file: &LogFile) -> Result<Logger> {
+        if file.is_path() && format.is_string() {
+            let err = Error::InvalidFormat;
+            return Err(err);
+        }
+
+        let logger = Logger {
             level,
             format,
             file: file.to_owned(),
-        }
+        };
+
+        Ok(logger)
     }
 
     /// `from_config` creates a new `Logger` from a `LogConfig`.
@@ -76,6 +87,63 @@ impl Logger {
 
         Ok(logger)
     }
+
+    /// `validate` validates the `Logger`.
+    pub fn validate(&self) -> Result<()> {
+        if self.file.is_path() && self.format.is_string() {
+            let err = Error::InvalidFormat;
+            return Err(err);
+        }
+
+        Ok(())
+    }
+
+    /// `log_record` returns a `LogRecord` from a log message.
+    pub fn log_record(&self, msg: &str) -> Result<LogRecord> {
+        self.validate()?;
+
+        LogRecord::new(self.level, msg)
+    }
+
+    /// `log_message` returns the binary log message from a string message.
+    pub fn log_message(&self, msg: &str) -> Result<Vec<u8>> {
+        self.validate()?;
+
+        let record = self.log_record(msg)?;
+
+        let msg = match self.format {
+            LogFormat::String => record.to_string().into_bytes(),
+            LogFormat::JSON => record.to_json()?.into_bytes(),
+            LogFormat::Binary => record.to_bytes()?,
+        };
+
+        Ok(msg)
+    }
+
+    /// `log` logs a string message.
+    pub fn log(&self, msg: &str) -> Result<()> {
+        self.validate()?;
+
+        let msg = self.log_message(msg)?;
+
+        write_with_log_file(&self.file, &msg)
+    }
+}
+
+#[test]
+fn test_logger_new() {
+    let level = LogLevel::default();
+    let format = LogFormat::default();
+    let file = LogFile::default();
+
+    let res = Logger::new(level, format, &file);
+    assert!(res.is_ok());
+
+    let format = LogFormat::String;
+    let file = LogFile::Path("path".into());
+
+    let res = Logger::new(level, format, &file);
+    assert!(res.is_err());
 }
 
 #[test]
@@ -88,5 +156,54 @@ fn test_logger_from_config() {
     assert!(res.is_err());
 
     let res = Logger::from_config(&valid_config);
+    if res.is_err() {
+        println!("{:?}", &res);
+        println!("valid_config: {:?}", valid_config);
+        panic!();
+    }
     assert!(res.is_ok());
 }
+
+#[test]
+fn test_logger_validate() {
+    let mut logger = Logger::default();
+
+    let res = logger.validate();
+    assert!(res.is_ok());
+
+    logger.file = LogFile::Path("path".into());
+    logger.format = LogFormat::String;
+
+    let res = logger.validate();
+    assert!(res.is_err());
+}
+
+#[test]
+fn test_logger_log_record() {
+    let valid_msg = "abcd";
+    let invalid_msg = "\n";
+
+    let logger = Logger::default();
+
+    let res = logger.log_record(invalid_msg);
+    assert!(res.is_err());
+
+    let res = logger.log_record(valid_msg);
+    assert!(res.is_ok());
+}
+
+/*
+#[test]
+fn test_logger_log_message() {
+    let valid_msg = "abcd";
+    let invalid_msg = "\n";
+
+    let logger = Logger::default();
+
+    let res = logger.log_message(invalid_msg);
+    assert!(res.is_err());
+
+    let res = logger.log_message(valid_msg);
+    assert!(res.is_ok());
+}
+*/

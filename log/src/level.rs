@@ -28,6 +28,22 @@ impl LogLevel {
             }
         }
     }
+
+    /// `is_debug` returns if the record is a `Debug` `LogLevel`.
+    pub fn is_debug(self) -> bool {
+        match self {
+            LogLevel::Debug => true,
+            _ => false,
+        }
+    }
+
+    /// `is_critical` returns if the record is a `Critical` `LogLevel`.
+    pub fn is_critical(self) -> bool {
+        match self {
+            LogLevel::Critical => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for LogLevel {
