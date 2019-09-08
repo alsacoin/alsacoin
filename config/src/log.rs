@@ -68,7 +68,7 @@ impl LogConfig {
 
         let file = file.unwrap_or_else(|| Self::DEFAULT_FILE.into());
 
-        if &file != "stdout" && &file != "stderr" && &format == "string" {
+        if &file != "stdout" && &file != "stderr" && &format == "raw" {
             let err = Error::InvalidFormat;
             return Err(err);
         }
@@ -121,7 +121,7 @@ impl LogConfig {
             }
 
             if let Some(ref file) = self.file {
-                if file != "stdout" && file != "stderr" && format == "string" {
+                if file != "stdout" && file != "stderr" && format == "raw" {
                     let err = Error::InvalidFormat;
                     return Err(err);
                 }
@@ -141,22 +141,22 @@ impl LogConfig {
         serde_cbor::from_slice(b).map_err(|e| e.into())
     }
 
-    /// `to_json` converts the `LogConfig` into a JSON string.
+    /// `to_json` converts the `LogConfig` into a JSON raw.
     pub fn to_json(&self) -> Result<String> {
         serde_json::to_string(self).map_err(|e| e.into())
     }
 
-    /// `from_json` converts a JSON string into an `LogConfig`.
+    /// `from_json` converts a JSON raw into an `LogConfig`.
     pub fn from_json(s: &str) -> Result<LogConfig> {
         serde_json::from_str(s).map_err(|e| e.into())
     }
 
-    /// `to_toml` converts the `LogConfig` into a TOML string.
+    /// `to_toml` converts the `LogConfig` into a TOML raw.
     pub fn to_toml(&self) -> Result<String> {
         toml::to_string(self).map_err(|e| e.into())
     }
 
-    /// `from_toml` converts a TOML string into an `LogConfig`.
+    /// `from_toml` converts a TOML raw into an `LogConfig`.
     pub fn from_toml(s: &str) -> Result<LogConfig> {
         toml::from_str(s).map_err(|e| e.into())
     }
@@ -199,7 +199,7 @@ fn test_log_new() {
                     None,
                 );
 
-                if file != "stdout" && file != "stderr" && format == "string" {
+                if file != "stdout" && file != "stderr" && format == "raw" {
                     assert!(res.is_err());
                 } else {
                     assert!(res.is_ok());
@@ -238,7 +238,7 @@ fn test_log_validate() {
     let res = config.validate();
     assert!(res.is_err());
 
-    config.format = Some("string".into());
+    config.format = Some("raw".into());
     config.file = Some("path".into());
     let res = config.validate();
     assert!(res.is_err());

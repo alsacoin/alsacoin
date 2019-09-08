@@ -5,6 +5,7 @@
 use crate::network::serve_mining;
 use crate::result::Result;
 use crate::state::ProtocolState;
+use log::logger::Logger;
 use network::traits::Transport;
 use std::sync::{Arc, Mutex};
 use store::traits::Store;
@@ -18,6 +19,7 @@ where
 {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
     pub transport: Arc<Mutex<T>>,
+    pub logger: Arc<Logger>,
 }
 
 impl<S, P, T> ProtocolMiner<S, P, T>
@@ -30,17 +32,24 @@ where
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,
         transport: Arc<Mutex<T>>,
+        logger: Arc<Logger>,
     ) -> Result<ProtocolMiner<S, P, T>> {
         state.lock().unwrap().validate()?;
+        logger.validate()?;
 
-        let miner = ProtocolMiner { state, transport };
+        let miner = ProtocolMiner {
+            state,
+            transport,
+            logger,
+        };
 
         Ok(miner)
     }
 
     /// `validate` validates the `ProtocolMiner`.
     pub fn validate(&self) -> Result<()> {
-        self.state.lock().unwrap().validate()
+        self.state.lock().unwrap().validate()?;
+        self.logger.validate().map_err(|e| e.into())
     }
 
     /// `serve` serves the mining operations.

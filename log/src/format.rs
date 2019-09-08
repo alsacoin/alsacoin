@@ -10,7 +10,7 @@ use std::fmt;
 /// `LogFormat` represents the format of the output of a log operation.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
 pub enum LogFormat {
-    String,
+    Raw,
     JSON,
     Binary,
 }
@@ -19,7 +19,7 @@ impl LogFormat {
     /// Parses a `LogFormat` from a `&str`.
     pub fn parse(s: &str) -> Result<LogFormat> {
         match s {
-            "raw" => Ok(LogFormat::String),
+            "raw" => Ok(LogFormat::Raw),
             "json" => Ok(LogFormat::JSON),
             "binary" => Ok(LogFormat::Binary),
             _ => {
@@ -31,10 +31,10 @@ impl LogFormat {
         }
     }
 
-    /// `is_string` returns if it is a `String` `LogFormat`.
-    pub fn is_string(self) -> bool {
+    /// `is_raw` returns if it is a `Raw` `LogFormat`.
+    pub fn is_raw(self) -> bool {
         match self {
-            LogFormat::String => true,
+            LogFormat::Raw => true,
             _ => false,
         }
     }
@@ -59,7 +59,7 @@ impl LogFormat {
 impl fmt::Display for LogFormat {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LogFormat::String => write!(f, "raw"),
+            LogFormat::Raw => write!(f, "raw"),
             LogFormat::JSON => write!(f, "json"),
             LogFormat::Binary => write!(f, "binary"),
         }
@@ -68,7 +68,7 @@ impl fmt::Display for LogFormat {
 
 impl Default for LogFormat {
     fn default() -> LogFormat {
-        LogFormat::String
+        LogFormat::Raw
     }
 }
 

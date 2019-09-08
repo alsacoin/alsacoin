@@ -10,30 +10,24 @@ use std::fmt;
 /// `LogLevel` represents the level of the output of a log operation.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
 pub enum LogLevel {
-    Debug,
     Critical,
+    Info,
+    Debug,
 }
 
 impl LogLevel {
     /// Parses a `LogLevel` from a `&str`.
     pub fn parse(s: &str) -> Result<LogLevel> {
         match s {
-            "debug" => Ok(LogLevel::Debug),
             "critical" => Ok(LogLevel::Critical),
+            "info" => Ok(LogLevel::Info),
+            "debug" => Ok(LogLevel::Debug),
             _ => {
                 let err = Error::Parse {
                     msg: "invalid level".into(),
                 };
                 Err(err)
             }
-        }
-    }
-
-    /// `is_debug` returns if the record is a `Debug` `LogLevel`.
-    pub fn is_debug(self) -> bool {
-        match self {
-            LogLevel::Debug => true,
-            _ => false,
         }
     }
 
@@ -44,13 +38,30 @@ impl LogLevel {
             _ => false,
         }
     }
+
+    /// `is_info` returns if the record is a `Info` `LogLevel`.
+    pub fn is_info(self) -> bool {
+        match self {
+            LogLevel::Info => true,
+            _ => false,
+        }
+    }
+
+    /// `is_debug` returns if the record is a `Debug` `LogLevel`.
+    pub fn is_debug(self) -> bool {
+        match self {
+            LogLevel::Debug => true,
+            _ => false,
+        }
+    }
 }
 
 impl fmt::Display for LogLevel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            LogLevel::Debug => write!(f, "debug"),
             LogLevel::Critical => write!(f, "critical"),
+            LogLevel::Info => write!(f, "info"),
+            LogLevel::Debug => write!(f, "debug"),
         }
     }
 }

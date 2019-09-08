@@ -6,6 +6,7 @@ use crate::network as protocol_network;
 use crate::result::Result;
 use crate::state::ProtocolState;
 use crypto::hash::Digest;
+use log::logger::Logger;
 use models::node::Node;
 use models::transaction::Transaction;
 use network::traits::Transport;
@@ -22,6 +23,7 @@ where
 {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
     pub transport: Arc<Mutex<T>>,
+    pub logger: Arc<Logger>,
 }
 
 impl<S, P, T> ProtocolClient<S, P, T>
@@ -34,17 +36,24 @@ where
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,
         transport: Arc<Mutex<T>>,
+        logger: Arc<Logger>,
     ) -> Result<ProtocolClient<S, P, T>> {
         state.lock().unwrap().validate()?;
+        logger.validate()?;
 
-        let client = ProtocolClient { state, transport };
+        let client = ProtocolClient {
+            state,
+            transport,
+            logger,
+        };
 
         Ok(client)
     }
 
     /// `validate` validates the `ProtocolClient`.
     pub fn validate(&self) -> Result<()> {
-        self.state.lock().unwrap().validate()
+        self.state.lock().unwrap().validate()?;
+        self.logger.validate().map_err(|e| e.into())
     }
 
     /// `fetch_node_transactions` fetches transactions from a remote node.

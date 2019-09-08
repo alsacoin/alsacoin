@@ -14,6 +14,9 @@ pub mod result;
 /// `level` contains the log level type and functions.
 pub mod level;
 
+/// `color` contains the log color type and functions.
+pub mod color;
+
 /// `format` contains the log format type and functions.
 pub mod format;
 

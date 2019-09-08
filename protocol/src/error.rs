@@ -4,6 +4,7 @@
 
 use config::error::Error as ConfigError;
 use crypto::error::Error as CryptoError;
+use log::error::Error as LogError;
 use mining::error::Error as MiningError;
 use models::error::Error as ModelError;
 use network::error::Error as NetworkError;
@@ -29,6 +30,8 @@ pub enum Error {
     Network { msg: String },
     #[fail(display = "Config: {}", msg)]
     Config { msg: String },
+    #[fail(display = "Log: {}", msg)]
+    Log { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
     #[fail(display = "Thread: {}", msg)]
@@ -123,5 +126,12 @@ impl From<ConfigError> for Error {
     fn from(error: ConfigError) -> Error {
         let msg = format!("{}", error);
         Error::Config { msg }
+    }
+}
+
+impl From<LogError> for Error {
+    fn from(error: LogError) -> Error {
+        let msg = format!("{}", error);
+        Error::Log { msg }
     }
 }

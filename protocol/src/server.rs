@@ -6,6 +6,7 @@ use crate::error::Error;
 use crate::network::{serve_avalanche, serve_incoming};
 use crate::result::Result;
 use crate::state::ProtocolState;
+use log::logger::Logger;
 use network::traits::Transport;
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -20,6 +21,7 @@ where
 {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
     pub transport: Arc<Mutex<T>>,
+    pub logger: Arc<Logger>,
 }
 
 impl<S, P, T> ProtocolServer<S, P, T>
@@ -32,17 +34,24 @@ where
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,
         transport: Arc<Mutex<T>>,
+        logger: Arc<Logger>,
     ) -> Result<ProtocolServer<S, P, T>> {
         state.lock().unwrap().validate()?;
+        logger.validate()?;
 
-        let server = ProtocolServer { state, transport };
+        let server = ProtocolServer {
+            state,
+            transport,
+            logger,
+        };
 
         Ok(server)
     }
 
     /// `validate` validates the `ProtocolServer`.
     pub fn validate(&self) -> Result<()> {
-        self.state.lock().unwrap().validate()
+        self.state.lock().unwrap().validate()?;
+        self.logger.validate().map_err(|e| e.into())
     }
 
     /// `serve` serves the main server operations.

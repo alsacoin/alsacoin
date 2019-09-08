@@ -54,7 +54,7 @@ impl Logger {
     /// in json or binary or string on stderr and stdout,
     /// but only in json and binary on file.
     pub fn new(level: LogLevel, format: LogFormat, file: &LogFile) -> Result<Logger> {
-        if file.is_path() && format.is_string() {
+        if file.is_path() && format.is_raw() {
             let err = Error::InvalidFormat;
             return Err(err);
         }
@@ -90,7 +90,7 @@ impl Logger {
 
     /// `validate` validates the `Logger`.
     pub fn validate(&self) -> Result<()> {
-        if self.file.is_path() && self.format.is_string() {
+        if self.file.is_path() && self.format.is_raw() {
             let err = Error::InvalidFormat;
             return Err(err);
         }
@@ -112,7 +112,7 @@ impl Logger {
         let record = self.log_record(msg)?;
 
         let msg = match self.format {
-            LogFormat::String => record.to_string().into_bytes(),
+            LogFormat::Raw => record.to_string().into_bytes(),
             LogFormat::JSON => record.to_json()?.into_bytes(),
             LogFormat::Binary => record.to_bytes()?,
         };
@@ -120,13 +120,50 @@ impl Logger {
         Ok(msg)
     }
 
-    /// `log` logs a string message.
-    pub fn log(&self, msg: &str) -> Result<()> {
+    /// `log` logs a message at a specific level. If the given
+    /// level is greater than the logger level, the logger does
+    /// nothing.
+    pub fn log(&self, level: LogLevel, msg: &str) -> Result<()> {
         self.validate()?;
+
+        if self.level < level {
+            return Ok(());
+        }
+
+        // let is_terminal = self.file.is_path();
+
+        // TODO: change the terminal color
+        // if is_terminal
 
         let msg = self.log_message(msg)?;
 
-        write_with_log_file(&self.file, &msg)
+        write_with_log_file(&self.file, &msg)?;
+
+        // TODO: clear the color
+        // if is_terminal
+
+        Ok(())
+    }
+
+    /// `log_critical` logs a message with a critical level.
+    pub fn log_critical(&self, msg: &str) -> Result<()> {
+        let level = LogLevel::Critical;
+
+        self.log(level, msg)
+    }
+
+    /// `log_info` logs a message with a info level.
+    pub fn log_info(&self, msg: &str) -> Result<()> {
+        let level = LogLevel::Info;
+
+        self.log(level, msg)
+    }
+
+    /// `log_debug` logs a message with a debug level.
+    pub fn log_debug(&self, msg: &str) -> Result<()> {
+        let level = LogLevel::Debug;
+
+        self.log(level, msg)
     }
 }
 
@@ -139,7 +176,7 @@ fn test_logger_new() {
     let res = Logger::new(level, format, &file);
     assert!(res.is_ok());
 
-    let format = LogFormat::String;
+    let format = LogFormat::Raw;
     let file = LogFile::Path("path".into());
 
     let res = Logger::new(level, format, &file);
@@ -172,7 +209,7 @@ fn test_logger_validate() {
     assert!(res.is_ok());
 
     logger.file = LogFile::Path("path".into());
-    logger.format = LogFormat::String;
+    logger.format = LogFormat::Raw;
 
     let res = logger.validate();
     assert!(res.is_err());
@@ -192,18 +229,16 @@ fn test_logger_log_record() {
     assert!(res.is_ok());
 }
 
-/*
 #[test]
 fn test_logger_log_message() {
-    let valid_msg = "abcd";
-    let invalid_msg = "\n";
-
     let logger = Logger::default();
 
-    let res = logger.log_message(invalid_msg);
+    let res = logger.log_message("\n");
     assert!(res.is_err());
 
-    let res = logger.log_message(valid_msg);
+    /* // fatal runtime error: stack overflow
+    // TODO: try changing the nightly version
+    let res = logger.log_message("abcd");
     assert!(res.is_ok());
+    */
 }
-*/
