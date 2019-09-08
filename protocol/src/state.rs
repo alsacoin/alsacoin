@@ -4,7 +4,7 @@
 
 use crate::error::Error;
 use crate::result::Result;
-use config::consensus_config::ConsensusConfig;
+use config::consensus::ConsensusConfig;
 use crypto::hash::Digest;
 use models::account::Account;
 use models::address::Address;
@@ -162,8 +162,8 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         .map_err(|e| e.into())
     }
 
-    /// `set_consensus_config` sets a new `ConsensusConfig` in the `ProtocolState`.
-    pub fn set_consensus_config(&mut self, config: &ConsensusConfig) -> Result<()> {
+    /// `set_config` sets a new `ConsensusConfig` in the `ProtocolState`.
+    pub fn set_config(&mut self, config: &ConsensusConfig) -> Result<()> {
         config.validate()?;
 
         self.config = config.to_owned();
@@ -171,8 +171,8 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         Ok(())
     }
 
-    /// `set_consensus_state` sets a new `ConsensusState` in the `ProtocolState`.
-    pub fn set_consensus_state(&mut self, state: &ConsensusState) -> Result<()> {
+    /// `set_state` sets a new `ConsensusState` in the `ProtocolState`.
+    pub fn set_state(&mut self, state: &ConsensusState) -> Result<()> {
         state.validate()?;
 
         self.state = state.to_owned();

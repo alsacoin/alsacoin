@@ -1,6 +1,6 @@
 //! # Consensus Config
 //!
-//! `consensus_config` is the module containing the consensus configuration type and functions.
+//! `consensus` is the module containing the consensus configuration type and functions.
 
 use crate::result::Result;
 use crypto::hash::balloon::BalloonParams;
@@ -240,7 +240,7 @@ impl Default for ConsensusConfig {
 }
 
 #[test]
-fn test_consensus_config_new() {
+fn test_consensus_new() {
     let invalid_s_cost = 0;
     let valid_s_cost = 1;
     let invalid_t_cost = 0;
@@ -310,7 +310,7 @@ fn test_consensus_config_new() {
 }
 
 #[test]
-fn test_consensus_config_validate() {
+fn test_consensus_validate() {
     let invalid_s_cost = 0;
     let invalid_t_cost = 0;
     let invalid_delta = 0;
@@ -351,7 +351,7 @@ fn test_consensus_config_validate() {
 }
 
 #[test]
-fn test_consensus_config_serialize_bytes() {
+fn test_consensus_serialize_bytes() {
     let config_a = ConsensusConfig::default();
 
     let res = config_a.to_bytes();
@@ -366,7 +366,7 @@ fn test_consensus_config_serialize_bytes() {
 }
 
 #[test]
-fn test_consensus_config_serialize_json() {
+fn test_consensus_serialize_json() {
     let config_a = ConsensusConfig::default();
 
     let res = config_a.to_json();
@@ -381,7 +381,7 @@ fn test_consensus_config_serialize_json() {
 }
 
 #[test]
-fn test_consensus_config_serialize_toml() {
+fn test_consensus_serialize_toml() {
     let config_a = ConsensusConfig::default();
 
     let res = config_a.to_toml();

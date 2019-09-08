@@ -11,20 +11,20 @@ pub mod error;
 /// `result` contains the result type used in the crate.
 pub mod result;
 
-/// `store_config` contains the store configuration type and functions.
-pub mod store_config;
+/// `store` contains the store configuration type and functions.
+pub mod store;
 
-/// `pool_config` contains the pool configuration type and functions.
-pub mod pool_config;
+/// `pool` contains the pool configuration type and functions.
+pub mod pool;
 
-/// `network_config` contains the network configuration type and functions.
-pub mod network_config;
+/// `network` contains the network configuration type and functions.
+pub mod network;
 
-/// `log_config` contains the logging configuration
-pub mod log_config;
+/// `log` contains the logging configuration
+pub mod log;
 
-/// `consensus_config` contains the consensus configuration type and functions.
-pub mod consensus_config;
+/// `consensus` contains the consensus configuration type and functions.
+pub mod consensus;
 
 /// `config` contains the  configuration type and functions.
 pub mod config;

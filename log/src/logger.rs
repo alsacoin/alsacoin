@@ -8,7 +8,7 @@ use crate::format::LogFormat;
 use crate::level::LogLevel;
 use crate::record::LogRecord;
 use crate::result::Result;
-use config::log_config::LogConfig;
+use config::log::LogConfig;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::{stderr, stdout, Write};

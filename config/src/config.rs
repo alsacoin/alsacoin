@@ -2,13 +2,13 @@
 //!
 //! `config` is the module containing the configuration type and functions.
 
-use crate::consensus_config::ConsensusConfig;
+use crate::consensus::ConsensusConfig;
 use crate::error::Error;
-use crate::log_config::LogConfig;
-use crate::network_config::NetworkConfig;
-use crate::pool_config::PoolConfig;
+use crate::log::LogConfig;
+use crate::network::NetworkConfig;
+use crate::pool::PoolConfig;
 use crate::result::Result;
-use crate::store_config::StoreConfig;
+use crate::store::StoreConfig;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
 use serde_json;
@@ -18,11 +18,11 @@ use toml;
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Config {
     pub stage: Option<String>,
-    pub store_config: StoreConfig,
-    pub pool_config: PoolConfig,
-    pub network_config: NetworkConfig,
-    pub log_config: LogConfig,
-    pub consensus_config: ConsensusConfig,
+    pub store: StoreConfig,
+    pub pool: PoolConfig,
+    pub network: NetworkConfig,
+    pub log: LogConfig,
+    pub consensus: ConsensusConfig,
 }
 
 impl Config {
@@ -60,11 +60,11 @@ impl Config {
 
         let conf = Config {
             stage,
-            store_config: store_conf.to_owned(),
-            pool_config: pool_conf.to_owned(),
-            network_config: net_conf.to_owned(),
-            log_config: log_conf.to_owned(),
-            consensus_config: cons_conf.to_owned(),
+            store: store_conf.to_owned(),
+            pool: pool_conf.to_owned(),
+            network: net_conf.to_owned(),
+            log: log_conf.to_owned(),
+            consensus: cons_conf.to_owned(),
         };
 
         Ok(conf)
@@ -77,11 +77,11 @@ impl Config {
             self.stage = Some(Self::DEFAULT_STAGE.into());
         }
 
-        self.store_config.populate();
-        self.pool_config.populate();
-        self.network_config.populate();
-        self.log_config.populate();
-        self.consensus_config.populate();
+        self.store.populate();
+        self.pool.populate();
+        self.network.populate();
+        self.log.populate();
+        self.consensus.populate();
     }
 
     /// `validate` validates the `Config`.
@@ -93,11 +93,11 @@ impl Config {
             }
         };
 
-        self.store_config.validate()?;
-        self.pool_config.validate()?;
-        self.network_config.validate()?;
-        self.log_config.validate()?;
-        self.consensus_config.validate()?;
+        self.store.validate()?;
+        self.pool.validate()?;
+        self.network.validate()?;
+        self.log.validate()?;
+        self.consensus.validate()?;
 
         Ok(())
     }
@@ -136,19 +136,19 @@ impl Config {
 impl Default for Config {
     fn default() -> Config {
         let stage = Some(Config::DEFAULT_STAGE.into());
-        let store_config = StoreConfig::default();
-        let pool_config = PoolConfig::default();
-        let network_config = NetworkConfig::default();
-        let log_config = LogConfig::default();
-        let consensus_config = ConsensusConfig::default();
+        let store = StoreConfig::default();
+        let pool = PoolConfig::default();
+        let network = NetworkConfig::default();
+        let log = LogConfig::default();
+        let consensus = ConsensusConfig::default();
 
         Config {
             stage,
-            store_config,
-            pool_config,
-            network_config,
-            log_config,
-            consensus_config,
+            store,
+            pool,
+            network,
+            log,
+            consensus,
         }
     }
 }
@@ -300,31 +300,31 @@ fn test_config_validate() {
 
     config.stage = None;
 
-    config.store_config = invalid_store_conf;
+    config.store = invalid_store_conf;
     let res = config.validate();
     assert!(res.is_err());
 
-    config.store_config = store_conf;
+    config.store = store_conf;
 
-    config.pool_config = invalid_pool_conf;
+    config.pool = invalid_pool_conf;
     let res = config.validate();
     assert!(res.is_err());
 
-    config.pool_config = pool_conf;
+    config.pool = pool_conf;
 
-    config.network_config = invalid_net_conf;
+    config.network = invalid_net_conf;
     let res = config.validate();
     assert!(res.is_err());
 
-    config.network_config = net_conf;
+    config.network = net_conf;
 
-    config.log_config = invalid_log_conf;
+    config.log = invalid_log_conf;
     let res = config.validate();
     assert!(res.is_err());
 
-    config.log_config = log_conf;
+    config.log = log_conf;
 
-    config.consensus_config = invalid_cons_conf;
+    config.consensus = invalid_cons_conf;
     let res = config.validate();
     assert!(res.is_err());
 }

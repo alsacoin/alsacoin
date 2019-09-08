@@ -1,6 +1,6 @@
 //! # Store Config
 //!
-//! `store_config` is the module containing the store configuration type and functions.
+//! `store` is the module containing the store configuration type and functions.
 
 use crate::error::Error;
 use crate::result::Result;
@@ -139,7 +139,7 @@ impl Default for StoreConfig {
 }
 
 #[test]
-fn test_store_config_new() {
+fn test_store_new() {
     let invalid_kind: String = "kind".into();
 
     let res = StoreConfig::new(Some(invalid_kind.into()), None, None, None);
@@ -152,7 +152,7 @@ fn test_store_config_new() {
 }
 
 #[test]
-fn test_store_config_validate() {
+fn test_store_validate() {
     let mut config = StoreConfig::default();
 
     let res = config.validate();
@@ -172,7 +172,7 @@ fn test_store_config_validate() {
 }
 
 #[test]
-fn test_store_config_serialize_bytes() {
+fn test_store_serialize_bytes() {
     let config_a = StoreConfig::default();
 
     let res = config_a.to_bytes();
@@ -187,7 +187,7 @@ fn test_store_config_serialize_bytes() {
 }
 
 #[test]
-fn test_store_config_serialize_json() {
+fn test_store_serialize_json() {
     let config_a = StoreConfig::default();
 
     let res = config_a.to_json();
@@ -202,7 +202,7 @@ fn test_store_config_serialize_json() {
 }
 
 #[test]
-fn test_store_config_serialize_toml() {
+fn test_store_serialize_toml() {
     let config_a = StoreConfig::default();
 
     let res = config_a.to_toml();

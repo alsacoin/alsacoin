@@ -1,6 +1,6 @@
 //! # Log Config
 //!
-//! `log_config` is the module containing the log configuration type and functions.
+//! `log` is the module containing the log configuration type and functions.
 
 use crate::error::Error;
 use crate::result::Result;
@@ -66,14 +66,14 @@ impl LogConfig {
             Self::DEFAULT_FORMAT.into()
         };
 
-        let file = file.unwrap_or(Self::DEFAULT_FILE.into());
+        let file = file.unwrap_or_else(|| Self::DEFAULT_FILE.into());
 
         if &file != "stdout" && &file != "stderr" && &format == "string" {
             let err = Error::InvalidFormat;
             return Err(err);
         }
 
-        let color = Some(color.unwrap_or(Self::DEFAULT_COLOR.into()));
+        let color = Some(color.unwrap_or_else(|| Self::DEFAULT_COLOR));
 
         let config = LogConfig {
             level: Some(level),
@@ -101,7 +101,7 @@ impl LogConfig {
         }
 
         if self.color.is_none() {
-            self.color = Some(Self::DEFAULT_COLOR.into());
+            self.color = Some(Self::DEFAULT_COLOR);
         }
     }
 
@@ -167,7 +167,7 @@ impl Default for LogConfig {
         let level = Some(LogConfig::DEFAULT_LEVEL.into());
         let format = Some(LogConfig::DEFAULT_FORMAT.into());
         let file = Some(LogConfig::DEFAULT_FILE.into());
-        let color = Some(LogConfig::DEFAULT_COLOR.into());
+        let color = Some(LogConfig::DEFAULT_COLOR);
 
         LogConfig {
             level,
@@ -179,7 +179,7 @@ impl Default for LogConfig {
 }
 
 #[test]
-fn test_log_config_new() {
+fn test_log_new() {
     let invalid_level: String = "level".into();
     let invalid_format: String = "format".into();
 
@@ -210,7 +210,7 @@ fn test_log_config_new() {
 }
 
 #[test]
-fn test_log_config_validate() {
+fn test_log_validate() {
     let mut config = LogConfig::default();
 
     let res = config.validate();
@@ -245,7 +245,7 @@ fn test_log_config_validate() {
 }
 
 #[test]
-fn test_log_config_serialize_bytes() {
+fn test_log_serialize_bytes() {
     let config_a = LogConfig::default();
 
     let res = config_a.to_bytes();
@@ -260,7 +260,7 @@ fn test_log_config_serialize_bytes() {
 }
 
 #[test]
-fn test_log_config_serialize_json() {
+fn test_log_serialize_json() {
     let config_a = LogConfig::default();
 
     let res = config_a.to_json();
@@ -275,7 +275,7 @@ fn test_log_config_serialize_json() {
 }
 
 #[test]
-fn test_log_config_serialize_toml() {
+fn test_log_serialize_toml() {
     let config_a = LogConfig::default();
 
     let res = config_a.to_toml();

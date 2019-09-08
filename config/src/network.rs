@@ -1,6 +1,6 @@
 //! # Network Config
 //!
-//! `network_config` is the module containing the network configuration type and functions.
+//! `network` is the module containing the network configuration type and functions.
 
 use crate::error::Error;
 use crate::result::Result;
@@ -159,7 +159,7 @@ impl Default for NetworkConfig {
 }
 
 #[test]
-fn test_network_config_new() {
+fn test_network_new() {
     let invalid_kind: String = "kind".into();
     let address = "address";
 
@@ -176,7 +176,7 @@ fn test_network_config_new() {
 }
 
 #[test]
-fn test_network_config_validate() {
+fn test_network_validate() {
     let mut config = NetworkConfig::default();
 
     let res = config.validate();
@@ -196,7 +196,7 @@ fn test_network_config_validate() {
 }
 
 #[test]
-fn test_network_config_serialize_bytes() {
+fn test_network_serialize_bytes() {
     let config_a = NetworkConfig::default();
 
     let res = config_a.to_bytes();
@@ -211,7 +211,7 @@ fn test_network_config_serialize_bytes() {
 }
 
 #[test]
-fn test_network_config_serialize_json() {
+fn test_network_serialize_json() {
     let config_a = NetworkConfig::default();
 
     let res = config_a.to_json();
@@ -226,7 +226,7 @@ fn test_network_config_serialize_json() {
 }
 
 #[test]
-fn test_network_config_serialize_toml() {
+fn test_network_serialize_toml() {
     let config_a = NetworkConfig::default();
 
     let res = config_a.to_toml();
