@@ -12,20 +12,21 @@ use std::thread;
 use store::traits::Store;
 
 /// `ProtocolServer` is the protocol main server type.
-pub struct ProtocolServer<
-    S: Store + Send + 'static + Send + 'static,
-    P: Store + Send + 'static + Send + 'static,
-    T: Transport + Send + 'static + Send + 'static,
-> {
+pub struct ProtocolServer<S, P, T>
+where
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
+{
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
     pub transport: Arc<Mutex<T>>,
 }
 
-impl<
-        S: Store + Send + 'static + Send + 'static,
-        P: Store + Send + 'static + Send + 'static,
-        T: Transport + Send + 'static + Send + 'static,
-    > ProtocolServer<S, P, T>
+impl<S, P, T> ProtocolServer<S, P, T>
+where
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
 {
     /// `new` creates a new `ProtocolServer`.
     pub fn new(

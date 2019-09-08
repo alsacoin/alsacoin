@@ -10,17 +10,21 @@ use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
 /// `ProtocolMiner` is the protocol miner type.
-pub struct ProtocolMiner<
+pub struct ProtocolMiner<S, P, T>
+where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
     T: Transport + Send + 'static,
-> {
+{
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
     pub transport: Arc<Mutex<T>>,
 }
 
-impl<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport + Send + 'static>
-    ProtocolMiner<S, P, T>
+impl<S, P, T> ProtocolMiner<S, P, T>
+where
+    S: Store + Send + 'static,
+    P: Store + Send + 'static,
+    T: Transport + Send + 'static,
 {
     /// `new` creates a new `ProtocolMiner`.
     pub fn new(
