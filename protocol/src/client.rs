@@ -38,7 +38,6 @@ where
         transport: Arc<Mutex<T>>,
         logger: Arc<Logger>,
     ) -> Result<ProtocolClient<S, P, T>> {
-        logger.validate()?;
         let res = state.lock().unwrap().validate();
 
         match res {
@@ -60,7 +59,6 @@ where
 
     /// `validate` validates the `ProtocolClient`.
     pub fn validate(&self) -> Result<()> {
-        self.logger.validate()?;
         let res = self.state.lock().unwrap().validate();
 
         match res {

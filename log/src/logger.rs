@@ -85,16 +85,6 @@ impl Logger {
         Ok(logger)
     }
 
-    /// `validate` validates the `Logger`.
-    pub fn validate(&self) -> Result<()> {
-        if self.file.is_path() && self.format.is_raw() {
-            let err = Error::InvalidFormat;
-            return Err(err);
-        }
-
-        Ok(())
-    }
-
     /// `log_record` returns a `LogRecord` from a log message.
     pub fn log_record(level: LogLevel, msg: &str) -> Result<LogRecord> {
         LogRecord::new(level, msg)
@@ -107,7 +97,6 @@ impl Logger {
         let msg = match format {
             LogFormat::Raw => record.to_string().into_bytes(),
             LogFormat::JSON => record.to_json()?.into_bytes(),
-            LogFormat::Binary => record.to_bytes()?,
         };
 
         Ok(msg)
@@ -194,8 +183,6 @@ impl Logger {
     /// level is greater than the logger level, the logger does
     /// nothing.
     pub fn log(&self, level: LogLevel, msg: &str) -> Result<()> {
-        self.validate()?;
-
         if self.level < level {
             return Ok(());
         }
@@ -257,20 +244,6 @@ fn test_logger_from_config() {
 
     let res = Logger::from_config(&valid_config);
     assert!(res.is_ok());
-}
-
-#[test]
-fn test_logger_validate() {
-    let mut logger = Logger::default();
-
-    let res = logger.validate();
-    assert!(res.is_ok());
-
-    logger.file = LogFile::Path("path".into());
-    logger.format = LogFormat::Raw;
-
-    let res = logger.validate();
-    assert!(res.is_err());
 }
 
 #[test]

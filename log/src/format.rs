@@ -12,7 +12,6 @@ use std::fmt;
 pub enum LogFormat {
     Raw,
     JSON,
-    Binary,
 }
 
 impl LogFormat {
@@ -21,7 +20,6 @@ impl LogFormat {
         match s {
             "raw" => Ok(LogFormat::Raw),
             "json" => Ok(LogFormat::JSON),
-            "binary" => Ok(LogFormat::Binary),
             _ => {
                 let err = Error::Parse {
                     msg: "invalid format".into(),
@@ -46,14 +44,6 @@ impl LogFormat {
             _ => false,
         }
     }
-
-    /// `is_binary` returns if it is a `Binary` `LogFormat`.
-    pub fn is_binary(self) -> bool {
-        match self {
-            LogFormat::Binary => true,
-            _ => false,
-        }
-    }
 }
 
 impl fmt::Display for LogFormat {
@@ -61,7 +51,6 @@ impl fmt::Display for LogFormat {
         match self {
             LogFormat::Raw => write!(f, "raw"),
             LogFormat::JSON => write!(f, "json"),
-            LogFormat::Binary => write!(f, "binary"),
         }
     }
 }
@@ -74,7 +63,7 @@ impl Default for LogFormat {
 
 #[test]
 fn test_format_parse() {
-    let valid_format_a = "binary";
+    let valid_format_a = "json";
 
     let res = LogFormat::parse(valid_format_a);
     assert!(res.is_ok());

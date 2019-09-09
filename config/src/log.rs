@@ -26,7 +26,7 @@ impl LogConfig {
     pub const DEFAULT_LEVEL: &'static str = "critical";
 
     /// `VALID_FORMATS` sets the valid log formats.
-    pub const VALID_FORMATS: &'static [&'static str] = &["raw", "json", "cbor"];
+    pub const VALID_FORMATS: &'static [&'static str] = &["raw", "json"];
 
     /// `DEFAULT_FORMAT` is the default log format.
     pub const DEFAULT_FORMAT: &'static str = "raw";
@@ -67,11 +67,6 @@ impl LogConfig {
         };
 
         let file = file.unwrap_or_else(|| Self::DEFAULT_FILE.into());
-
-        if &file != "stdout" && &file != "stderr" && &format == "raw" {
-            let err = Error::InvalidFormat;
-            return Err(err);
-        }
 
         let color = Some(color.unwrap_or_else(|| Self::DEFAULT_COLOR));
 
@@ -118,13 +113,6 @@ impl LogConfig {
             if !Self::VALID_FORMATS.contains(&format.as_str()) {
                 let err = Error::InvalidKind;
                 return Err(err);
-            }
-
-            if let Some(ref file) = self.file {
-                if file != "stdout" && file != "stderr" && format == "raw" {
-                    let err = Error::InvalidFormat;
-                    return Err(err);
-                }
             }
         }
 
@@ -199,11 +187,7 @@ fn test_log_new() {
                     None,
                 );
 
-                if file != "stdout" && file != "stderr" && format == "raw" {
-                    assert!(res.is_err());
-                } else {
-                    assert!(res.is_ok());
-                }
+                assert!(res.is_ok());
             }
         }
     }
@@ -235,11 +219,6 @@ fn test_log_validate() {
     config.level = None;
 
     config.format = Some("".into());
-    let res = config.validate();
-    assert!(res.is_err());
-
-    config.format = Some("raw".into());
-    config.file = Some("path".into());
     let res = config.validate();
     assert!(res.is_err());
 }
