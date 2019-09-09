@@ -1704,8 +1704,8 @@ pub fn handle<
     }
 }
 
-/// `serve_incoming` serves incoming `ConsensusMessage`s.
-pub fn serve_incoming<
+/// `serve_client` serves the client `ConsensusMessage`s.
+pub fn serve_client<
     S: Store + Send + 'static,
     P: Store + Send + 'static,
     T: Transport + Send + 'static,
@@ -1931,9 +1931,9 @@ pub fn avalanche_step<
     Ok(())
 }
 
-/// `serve_avalanche` serves the main loop of the `Protocol`.
+/// `serve_consensus` serves the `Protocol` consensus.
 /// The name of the function in the Avalanche paper is "AvalancheLoop".
-pub fn serve_avalanche<
+pub fn serve_consensus<
     S: Store + Send + 'static,
     P: Store + Send + 'static,
     T: Transport + Send + 'static,

@@ -13,8 +13,9 @@ use toml;
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct NetworkConfig {
     pub kind: Option<String>,
-    pub server_address: Option<String>,
+    pub consensus_address: Option<String>,
     pub miner_address: Option<String>,
+    pub client_address: Option<String>,
 }
 
 impl NetworkConfig {
@@ -24,17 +25,21 @@ impl NetworkConfig {
     /// `DEFAULT_KIND` is the default network kind.
     pub const DEFAULT_KIND: &'static str = "tcp";
 
-    /// `DEFAULT_SERVER_ADDRESS` is the default server address.
-    pub const DEFAULT_SERVER_ADDRESS: &'static str = "127.0.0.1:2019";
+    /// `DEFAULT_CONSENSUS_ADDRESS` is the default consensus server address.
+    pub const DEFAULT_CONSENSUS_ADDRESS: &'static str = "127.0.0.1:2019";
 
     /// `DEFAULT_MINER_ADDRESS` is the default miner address.
     pub const DEFAULT_MINER_ADDRESS: &'static str = "127.0.0.1:2020";
 
+    /// `DEFAULT_CLIENT_ADDRESS` is the default client server address.
+    pub const DEFAULT_CLIENT_ADDRESS: &'static str = "127.0.0.1:2021";
+
     /// `new` creates a new `NetworkConfig`.
     pub fn new(
         kind: Option<String>,
-        server_address: Option<String>,
+        consensus_address: Option<String>,
         miner_address: Option<String>,
+        client_address: Option<String>,
     ) -> Result<NetworkConfig> {
         let kind = if let Some(kind) = kind {
             if !Self::VALID_KINDS.contains(&kind.as_str()) {
@@ -47,17 +52,20 @@ impl NetworkConfig {
             Self::DEFAULT_KIND.into()
         };
 
-        if let Some(ref saddress) = server_address {
-            if let Some(ref maddress) = miner_address {
-                if saddress == maddress {
-                    let err = Error::InvalidAddress;
-                    return Err(err);
-                }
-            }
+        let same_addresses = consensus_address == miner_address
+            || consensus_address == client_address
+            || miner_address == client_address;
+
+        let not_all_none =
+            consensus_address.is_some() || miner_address.is_some() || client_address.is_some();
+
+        if same_addresses && not_all_none {
+            let err = Error::InvalidAddress;
+            return Err(err);
         }
 
-        let server_address = if server_address.is_none() {
-            Some(Self::DEFAULT_SERVER_ADDRESS.into())
+        let consensus_address = if consensus_address.is_none() {
+            Some(Self::DEFAULT_CONSENSUS_ADDRESS.into())
         } else {
             None
         };
@@ -68,10 +76,17 @@ impl NetworkConfig {
             None
         };
 
+        let client_address = if client_address.is_none() {
+            Some(Self::DEFAULT_CLIENT_ADDRESS.into())
+        } else {
+            None
+        };
+
         let config = NetworkConfig {
             kind: Some(kind),
-            server_address,
+            consensus_address,
             miner_address,
+            client_address,
         };
 
         Ok(config)
@@ -84,12 +99,16 @@ impl NetworkConfig {
             self.kind = Some(Self::DEFAULT_KIND.into());
         }
 
-        if self.server_address.is_none() {
-            self.server_address = Some(Self::DEFAULT_SERVER_ADDRESS.into());
+        if self.consensus_address.is_none() {
+            self.consensus_address = Some(Self::DEFAULT_CONSENSUS_ADDRESS.into());
         }
 
         if self.miner_address.is_none() {
             self.miner_address = Some(Self::DEFAULT_MINER_ADDRESS.into());
+        }
+
+        if self.client_address.is_none() {
+            self.client_address = Some(Self::DEFAULT_CLIENT_ADDRESS.into());
         }
     }
 
@@ -102,10 +121,15 @@ impl NetworkConfig {
             }
         }
 
-        if self.server_address.is_some()
-            && self.miner_address.is_some()
-            && self.server_address == self.miner_address
-        {
+        let same_addresses = self.consensus_address == self.miner_address
+            || self.consensus_address == self.client_address
+            || self.miner_address == self.client_address;
+
+        let not_all_none = self.consensus_address.is_some()
+            || self.miner_address.is_some()
+            || self.client_address.is_some();
+
+        if same_addresses && not_all_none {
             let err = Error::InvalidAddress;
             return Err(err);
         }
@@ -147,13 +171,15 @@ impl NetworkConfig {
 impl Default for NetworkConfig {
     fn default() -> NetworkConfig {
         let kind = Some(NetworkConfig::DEFAULT_KIND.into());
-        let server_address = Some(NetworkConfig::DEFAULT_SERVER_ADDRESS.into());
+        let consensus_address = Some(NetworkConfig::DEFAULT_CONSENSUS_ADDRESS.into());
         let miner_address = Some(NetworkConfig::DEFAULT_MINER_ADDRESS.into());
+        let client_address = Some(NetworkConfig::DEFAULT_CLIENT_ADDRESS.into());
 
         NetworkConfig {
             kind,
-            server_address,
+            consensus_address,
             miner_address,
+            client_address,
         }
     }
 }
@@ -163,14 +189,20 @@ fn test_network_new() {
     let invalid_kind: String = "kind".into();
     let address = "address";
 
-    let res = NetworkConfig::new(Some(invalid_kind.into()), None, None);
+    let res = NetworkConfig::new(Some(invalid_kind.into()), None, None, None);
     assert!(res.is_err());
 
-    let res = NetworkConfig::new(None, Some(address.into()), Some(address.into()));
+    let res = NetworkConfig::new(None, Some(address.into()), Some(address.into()), None);
+    assert!(res.is_err());
+
+    let res = NetworkConfig::new(None, Some(address.into()), None, Some(address.into()));
+    assert!(res.is_err());
+
+    let res = NetworkConfig::new(None, None, Some(address.into()), Some(address.into()));
     assert!(res.is_err());
 
     for kind in NetworkConfig::VALID_KINDS.iter().copied() {
-        let res = NetworkConfig::new(Some(kind.into()), None, None);
+        let res = NetworkConfig::new(Some(kind.into()), None, None, None);
         assert!(res.is_ok());
     }
 }

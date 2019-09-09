@@ -20,8 +20,11 @@ pub mod state;
 /// `client` contains the protocol client type and functions.
 pub mod client;
 
-/// `server` contains the protocol main server type and functions.
-pub mod server;
+/// `client_server` contains the protocol client server type and functions.
+pub mod client_server;
 
-/// `miner` contains the protocol miner type and functions.
-pub mod miner;
+/// `consensus_server` contains the protocol consensus server type and functions.
+pub mod consensus_server;
+
+/// `miner_server` contains the protocol miner server type and functions.
+pub mod miner_server;
