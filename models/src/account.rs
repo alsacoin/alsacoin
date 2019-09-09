@@ -22,6 +22,7 @@ use store::traits::Store;
 pub struct Account {
     pub address: Address,
     pub stage: Stage,
+    pub timestamp: Timestamp,
     pub signers: Signers,
     pub value: u64, // NB: gonna be confidential
     pub counter: u64,
@@ -41,6 +42,7 @@ impl Account {
         let account = Account {
             address: signers.address,
             stage,
+            timestamp: Timestamp::now(),
             signers: signers.to_owned(),
             value,
             counter: 0,
@@ -75,6 +77,7 @@ impl Account {
 
     /// `validate` validates the `Account`.
     pub fn validate(&self) -> Result<()> {
+        self.timestamp.validate()?;
         self.signers.validate()?;
 
         if self.address != self.signers.address {
@@ -283,8 +286,30 @@ impl<S: Store> Storable<S> for Account {
         store.remove_batch(&keys).map_err(|e| e.into())
     }
 
-    fn cleanup(_store: &mut S, _stage: Stage, _min_time: Option<Timestamp>) -> Result<()> {
-        Err(Error::NotImplemented)
+    fn cleanup(store: &mut S, stage: Stage, min_time: Option<Timestamp>) -> Result<()> {
+        let min_time = min_time.unwrap_or_default();
+
+        let mut _from = Address::default();
+        _from[0] = stage as u8;
+        _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+        let from = Some(_from.to_vec());
+        let from = from.as_ref().map(|from| from.as_slice());
+
+        let mut _to = Address::default();
+        _to[0] = stage as u8;
+        _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+        let to = Some(_to.to_vec());
+        let to = to.as_ref().map(|to| to.as_slice());
+
+        for value in store.query(from, to, None, None)? {
+            let account = Account::from_bytes(&value)?;
+            if account.timestamp < min_time {
+                let key = <Self as Storable<S>>::key_to_bytes(stage, &account.address)?;
+                store.remove(&key)?;
+            }
+        }
+
+        Ok(())
     }
 
     fn clear(store: &mut S, stage: Stage) -> Result<()> {
