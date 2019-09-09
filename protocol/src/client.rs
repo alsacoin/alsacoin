@@ -38,8 +38,16 @@ where
         transport: Arc<Mutex<T>>,
         logger: Arc<Logger>,
     ) -> Result<ProtocolClient<S, P, T>> {
-        state.lock().unwrap().validate()?;
         logger.validate()?;
+        let res = state.lock().unwrap().validate();
+
+        match res {
+            Ok(_) => {}
+            Err(err) => {
+                let msg = format!("{}", err);
+                logger.log_critical(&msg)?;
+            }
+        }
 
         let client = ProtocolClient {
             state,
@@ -52,8 +60,16 @@ where
 
     /// `validate` validates the `ProtocolClient`.
     pub fn validate(&self) -> Result<()> {
-        self.state.lock().unwrap().validate()?;
-        self.logger.validate().map_err(|e| e.into())
+        self.logger.validate()?;
+        let res = self.state.lock().unwrap().validate();
+
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg).map_err(|e| e.into())
+            }
+        }
     }
 
     /// `fetch_node_transactions` fetches transactions from a remote node.
@@ -62,17 +78,38 @@ where
         address: &[u8],
         ids: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Transaction>> {
-        protocol_network::fetch_node_transactions(
+        let res = protocol_network::fetch_node_transactions(
             self.state.clone(),
             self.transport.clone(),
             address,
             ids,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_transactions` fetches transactions from remote.
     pub fn fetch_transactions(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Transaction>> {
-        protocol_network::fetch_transactions(self.state.clone(), self.transport.clone(), ids)
+        let res =
+            protocol_network::fetch_transactions(self.state.clone(), self.transport.clone(), ids);
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_node_random_transactions` fetches random transactions from a remote node.
@@ -81,21 +118,41 @@ where
         address: &[u8],
         count: u32,
     ) -> Result<BTreeSet<Transaction>> {
-        protocol_network::fetch_node_random_transactions(
+        let res = protocol_network::fetch_node_random_transactions(
             self.state.clone(),
             self.transport.clone(),
             address,
             count,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_random_transactions` fetches random transactions from remote.
     pub fn fetch_random_transactions(&mut self, count: u32) -> Result<BTreeSet<Transaction>> {
-        protocol_network::fetch_random_transactions(
+        let res = protocol_network::fetch_random_transactions(
             self.state.clone(),
             self.transport.clone(),
             count,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_node_nodes` fetches nodes from a remote node.
@@ -104,12 +161,37 @@ where
         address: &[u8],
         ids: &BTreeSet<Digest>,
     ) -> Result<BTreeSet<Node>> {
-        protocol_network::fetch_node_nodes(self.state.clone(), self.transport.clone(), address, ids)
+        let res = protocol_network::fetch_node_nodes(
+            self.state.clone(),
+            self.transport.clone(),
+            address,
+            ids,
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_nodes` fetches nodes from remote.
     pub fn fetch_nodes(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Node>> {
-        protocol_network::fetch_nodes(self.state.clone(), self.transport.clone(), ids)
+        let res = protocol_network::fetch_nodes(self.state.clone(), self.transport.clone(), ids);
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_node_random_nodes` fetches random nodes from a remote node.
@@ -118,17 +200,38 @@ where
         address: &[u8],
         count: u32,
     ) -> Result<BTreeSet<Node>> {
-        protocol_network::fetch_node_random_nodes(
+        let res = protocol_network::fetch_node_random_nodes(
             self.state.clone(),
             self.transport.clone(),
             address,
             count,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_random_nodes` fetches random nodes from remote.
     pub fn fetch_random_nodes(&mut self, count: u32) -> Result<BTreeSet<Node>> {
-        protocol_network::fetch_random_nodes(self.state.clone(), self.transport.clone(), count)
+        let res =
+            protocol_network::fetch_random_nodes(self.state.clone(), self.transport.clone(), count);
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `fetch_missing_ancestors` fetches a `Transaction` ancestors from remote if missing.
@@ -136,35 +239,75 @@ where
         &mut self,
         transaction: &Transaction,
     ) -> Result<BTreeSet<Transaction>> {
-        protocol_network::fetch_missing_ancestors(
+        let res = protocol_network::fetch_missing_ancestors(
             self.state.clone(),
             self.transport.clone(),
             transaction,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `query_node` queries a single remote node.
     pub fn query_node(&mut self, address: &[u8], transaction: &Transaction) -> Result<bool> {
-        protocol_network::query_node(
+        let res = protocol_network::query_node(
             self.state.clone(),
             self.transport.clone(),
             address,
             transaction,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `query` queries remote nodes.
     pub fn query(&mut self, transaction: &Transaction) -> Result<u32> {
-        protocol_network::query(self.state.clone(), self.transport.clone(), transaction)
+        let res = protocol_network::query(self.state.clone(), self.transport.clone(), transaction);
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 
     /// `mine` mines a set of `Transaction`s.
     pub fn mine(&mut self, address: &[u8], transactions: &BTreeSet<Transaction>) -> Result<()> {
-        protocol_network::mine(
+        let res = protocol_network::mine(
             self.state.clone(),
             self.transport.clone(),
             address,
             transactions,
-        )
+        );
+
+        match res {
+            Ok(_) => {}
+            Err(ref err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg)?;
+            }
+        }
+
+        res
     }
 }

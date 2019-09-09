@@ -34,8 +34,16 @@ where
         transport: Arc<Mutex<T>>,
         logger: Arc<Logger>,
     ) -> Result<ProtocolMinerServer<S, P, T>> {
-        state.lock().unwrap().validate()?;
         logger.validate()?;
+        let res = state.lock().unwrap().validate();
+
+        match res {
+            Ok(_) => {}
+            Err(err) => {
+                let msg = format!("{}", err);
+                logger.log_critical(&msg)?;
+            }
+        }
 
         let server = ProtocolMinerServer {
             state,
@@ -48,12 +56,28 @@ where
 
     /// `validate` validates the `ProtocolMinerServer`.
     pub fn validate(&self) -> Result<()> {
-        self.state.lock().unwrap().validate()?;
-        self.logger.validate().map_err(|e| e.into())
+        self.logger.validate()?;
+        let res = self.state.lock().unwrap().validate();
+
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg).map_err(|e| e.into())
+            }
+        }
     }
 
     /// `serve` serves the mining operations.
     pub fn serve(&mut self) -> Result<()> {
-        serve_mining(self.state.clone(), self.transport.clone())
+        let res = serve_mining(self.state.clone(), self.transport.clone());
+
+        match res {
+            Ok(_) => Ok(()),
+            Err(err) => {
+                let msg = format!("{}", err);
+                self.logger.log_critical(&msg).map_err(|e| e.into())
+            }
+        }
     }
 }
