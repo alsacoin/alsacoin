@@ -3,6 +3,7 @@
 //! `signer` is the module containing the account signer type and functions.
 
 use crate::result::Result;
+use crate::wallet::Wallet;
 use crypto::ecc::ed25519::PublicKey;
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
@@ -27,6 +28,11 @@ impl Signer {
         Ok(signer)
     }
 
+    /// `from_wallet` creates a `Signer` from a `Wallet`.
+    pub fn from_wallet(wallet: &Wallet, weight: u64) -> Result<Signer> {
+        wallet.to_signer(weight)
+    }
+
     /// `to_bytes` converts the `Signer` into a CBOR binary.
     pub fn to_bytes(&self) -> Result<Vec<u8>> {
         serde_cbor::to_vec(self).map_err(|e| e.into())
@@ -46,6 +52,11 @@ impl Signer {
     pub fn from_json(s: &str) -> Result<Signer> {
         serde_json::from_str(s).map_err(|e| e.into())
     }
+}
+
+#[test]
+fn test_signer_from_wallet() {
+    // TODO
 }
 
 #[test]

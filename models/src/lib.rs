@@ -27,6 +27,9 @@ pub mod version;
 /// `node` contains the node type and functions.
 pub mod node;
 
+/// `wallet` contains the wallet type and functions.
+pub mod wallet;
+
 /// `address` contains the address type and functions.
 pub mod address;
 
