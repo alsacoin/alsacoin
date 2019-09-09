@@ -33,17 +33,17 @@ impl Wallet {
     /// `new` creates a new `Wallet`.
     pub fn new(stage: Stage) -> Result<Wallet> {
         let keypair = KeyPair::new()?;
-        Wallet::from_keypair(stage, keypair)
+        Wallet::from_keypair(stage, &keypair)
     }
 
     /// `from_secret` creates a new `Wallet` from a `SecretKey`.
     pub fn from_secret(stage: Stage, secret_key: SecretKey) -> Result<Wallet> {
         let keypair = KeyPair::from_secret(&secret_key)?;
-        Wallet::from_keypair(stage, keypair)
+        Wallet::from_keypair(stage, &keypair)
     }
 
     /// `from_keypair` creates a new `Wallet` from a `KeyPair`.
-    pub fn from_keypair(stage: Stage, keypair: KeyPair) -> Result<Wallet> {
+    pub fn from_keypair(stage: Stage, keypair: &KeyPair) -> Result<Wallet> {
         keypair.validate()?;
 
         let timestamp = Timestamp::now();
@@ -374,22 +374,94 @@ impl<S: Store> Storable<S> for Wallet {
 
 #[test]
 fn test_wallet_from_keypair() {
-    // TODO
+    let stage = Stage::default();
+
+    let mut keypair = KeyPair::new().unwrap();
+    let valid_secret = keypair.secret_key.clone();
+
+    let res = Wallet::from_keypair(stage, &keypair);
+    assert!(res.is_ok());
+
+    while keypair.secret_key == valid_secret {
+        keypair.secret_key = SecretKey::random().unwrap();
+    }
+
+    let res = Wallet::from_keypair(stage, &keypair);
+    assert!(res.is_err());
 }
 
 #[test]
 fn test_wallet_sign() {
-    // TODO
+    use crypto::random::Random;
+
+    let stage = Stage::default();
+
+    let mut wallet = Wallet::new(stage).unwrap();
+    let valid_secret = wallet.secret_key.clone();
+
+    let msg_len = 1000;
+    let msg = Random::bytes(msg_len).unwrap();
+
+    let res = wallet.sign(&msg);
+    assert!(res.is_ok());
+
+    let sig = res.unwrap();
+
+    let res = wallet.validate_signature(&sig, &msg);
+    assert!(res.is_ok());
+
+    while wallet.secret_key == valid_secret {
+        wallet.secret_key = SecretKey::random().unwrap().to_vec();
+    }
+
+    let res = wallet.sign(&msg);
+    assert!(res.is_err());
+
+    let mut other_wallet = Wallet::new(stage).unwrap();
+
+    while other_wallet == wallet {
+        other_wallet = Wallet::new(stage).unwrap();
+    }
+
+    let res = other_wallet.validate_signature(&sig, &msg);
+    assert!(res.is_err());
 }
 
 #[test]
 fn test_wallet_to_signer() {
-    // TODO
+    let stage = Stage::default();
+    let weight = 10;
+
+    let mut wallet = Wallet::new(stage).unwrap();
+    let valid_secret = wallet.secret_key.clone();
+
+    let res = wallet.to_signer(weight);
+    assert!(res.is_ok());
+
+    while wallet.secret_key == valid_secret {
+        wallet.secret_key = SecretKey::random().unwrap().to_vec();
+    }
+
+    let res = wallet.to_signer(weight);
+    assert!(res.is_err());
 }
 
 #[test]
 fn test_wallet_validate() {
-    // TODO
+    let stage = Stage::default();
+
+    let mut wallet = Wallet::new(stage).unwrap();
+    let valid_secret = wallet.secret_key.clone();
+
+    let res = wallet.validate();
+    assert!(res.is_ok());
+
+    while wallet.secret_key == valid_secret {
+        wallet.secret_key = SecretKey::random().unwrap().to_vec();
+    }
+
+    let res = wallet.validate();
+    assert!(res.is_err());
 }
 
 #[test]

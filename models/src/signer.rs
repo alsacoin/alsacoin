@@ -56,7 +56,23 @@ impl Signer {
 
 #[test]
 fn test_signer_from_wallet() {
-    // TODO
+    use crate::stage::Stage;
+    use crypto::ecc::ed25519::SecretKey;
+
+    let stage = Stage::default();
+    let weight = 10;
+    let mut wallet = Wallet::new(stage).unwrap();
+    let valid_secret = wallet.secret_key.clone();
+
+    let res = Signer::from_wallet(&wallet, weight);
+    assert!(res.is_ok());
+
+    while wallet.secret_key == valid_secret {
+        wallet.secret_key = SecretKey::random().unwrap().to_vec();
+    }
+
+    let res = Signer::from_wallet(&wallet, weight);
+    assert!(res.is_err());
 }
 
 #[test]
