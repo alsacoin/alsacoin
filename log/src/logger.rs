@@ -2,6 +2,7 @@
 //!
 //! `logger` is the module containing the logger type and functions.
 
+use crate::color::LogColor;
 use crate::error::Error;
 use crate::file::LogFile;
 use crate::format::LogFormat;
@@ -12,6 +13,7 @@ use config::log::LogConfig;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::{stderr, stdout, Write};
+use term;
 
 /// `write_to_stdout` writes a binary message to stdout.
 fn write_to_stdout(msg: &[u8]) -> Result<()> {
@@ -32,28 +34,20 @@ fn write_to_file(path: &str, msg: &[u8]) -> Result<()> {
     file.write_all(b"\n").map_err(|e| e.into())
 }
 
-/// `write_with_log_file` writes a binary message using a given `LogFile`.
-fn write_with_log_file(file: &LogFile, msg: &[u8]) -> Result<()> {
-    match file {
-        LogFile::StdOut => write_to_stdout(msg),
-        LogFile::StdErr => write_to_stderr(msg),
-        LogFile::Path(path) => write_to_file(&path, msg),
-    }
-}
-
 /// `Logger` is the logger type used in Alsacoin.
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Hash, Serialize, Deserialize)]
 pub struct Logger {
     level: LogLevel,
     format: LogFormat,
     file: LogFile,
+    color: bool,
 }
 
 impl Logger {
     /// `new` creates a new `Logger`. The logger logs
     /// in json or binary or string on stderr and stdout,
     /// but only in json and binary on file.
-    pub fn new(level: LogLevel, format: LogFormat, file: &LogFile) -> Result<Logger> {
+    pub fn new(level: LogLevel, format: LogFormat, file: &LogFile, color: bool) -> Result<Logger> {
         if file.is_path() && format.is_raw() {
             let err = Error::InvalidFormat;
             return Err(err);
@@ -63,6 +57,7 @@ impl Logger {
             level,
             format,
             file: file.to_owned(),
+            color,
         };
 
         Ok(logger)
@@ -78,11 +73,13 @@ impl Logger {
         let level = LogLevel::parse(&config.level.unwrap())?;
         let format = LogFormat::parse(&config.format.unwrap())?;
         let file = LogFile::parse(&config.file.unwrap());
+        let color = config.color.unwrap();
 
         let logger = Logger {
             level,
             format,
             file,
+            color,
         };
 
         Ok(logger)
@@ -99,25 +96,98 @@ impl Logger {
     }
 
     /// `log_record` returns a `LogRecord` from a log message.
-    pub fn log_record(&self, msg: &str) -> Result<LogRecord> {
-        self.validate()?;
-
-        LogRecord::new(self.level, msg)
+    pub fn log_record(level: LogLevel, msg: &str) -> Result<LogRecord> {
+        LogRecord::new(level, msg)
     }
 
     /// `log_message` returns the binary log message from a string message.
-    pub fn log_message(&self, msg: &str) -> Result<Vec<u8>> {
-        self.validate()?;
+    pub fn log_message(level: LogLevel, format: LogFormat, msg: &str) -> Result<Vec<u8>> {
+        let record = Logger::log_record(level, msg)?;
 
-        let record = self.log_record(msg)?;
-
-        let msg = match self.format {
+        let msg = match format {
             LogFormat::Raw => record.to_string().into_bytes(),
             LogFormat::JSON => record.to_json()?.into_bytes(),
             LogFormat::Binary => record.to_bytes()?,
         };
 
         Ok(msg)
+    }
+
+    /// `log_to_file` logs a message on a file.
+    pub fn log_to_file(path: &str, level: LogLevel, format: LogFormat, msg: &str) -> Result<()> {
+        let msg = Logger::log_message(level, format, msg)?;
+
+        write_to_file(path, &msg)
+    }
+
+    /// `log_to_stdout` logs a message on stdout. It does nothing if it should not.
+    pub fn log_to_stdout(level: LogLevel, format: LogFormat, color: bool, msg: &str) -> Result<()> {
+        let msg = Logger::log_message(level, format, msg)?;
+
+        if color {
+            let mut t = match term::stdout() {
+                Some(t) => t,
+                None => {
+                    let err = Error::NotFound;
+                    return Err(err);
+                }
+            };
+
+            match LogColor::level_color(level) {
+                LogColor::Red => {
+                    t.fg(term::color::RED)?;
+                }
+                LogColor::Blue => {
+                    t.fg(term::color::BLUE)?;
+                }
+                LogColor::Green => {
+                    t.fg(term::color::GREEN)?;
+                }
+            }
+
+            write_to_stdout(&msg)?;
+
+            t.reset()?;
+        } else {
+            write_to_stdout(&msg)?;
+        }
+
+        Ok(())
+    }
+
+    /// `log_to_stderr` logs a message on stderr
+    pub fn log_to_stderr(level: LogLevel, format: LogFormat, color: bool, msg: &str) -> Result<()> {
+        let msg = Logger::log_message(level, format, msg)?;
+
+        if color {
+            let mut t = match term::stdout() {
+                Some(t) => t,
+                None => {
+                    let err = Error::NotFound;
+                    return Err(err);
+                }
+            };
+
+            match LogColor::level_color(level) {
+                LogColor::Red => {
+                    t.fg(term::color::RED)?;
+                }
+                LogColor::Blue => {
+                    t.fg(term::color::BLUE)?;
+                }
+                LogColor::Green => {
+                    t.fg(term::color::GREEN)?;
+                }
+            }
+
+            write_to_stderr(&msg)?;
+
+            t.reset()?;
+        } else {
+            write_to_stderr(&msg)?;
+        }
+
+        Ok(())
     }
 
     /// `log` logs a message at a specific level. If the given
@@ -130,19 +200,11 @@ impl Logger {
             return Ok(());
         }
 
-        // let is_terminal = self.file.is_path();
-
-        // TODO: change the terminal color
-        // if is_terminal
-
-        let msg = self.log_message(msg)?;
-
-        write_with_log_file(&self.file, &msg)?;
-
-        // TODO: clear the color
-        // if is_terminal
-
-        Ok(())
+        match self.file {
+            LogFile::StdOut => Logger::log_to_stdout(level, self.format, self.color, msg),
+            LogFile::StdErr => Logger::log_to_stderr(level, self.format, self.color, msg),
+            LogFile::Path(ref path) => Logger::log_to_file(path, level, self.format, msg),
+        }
     }
 
     /// `log_critical` logs a message with a critical level.
@@ -172,14 +234,15 @@ fn test_logger_new() {
     let level = LogLevel::default();
     let format = LogFormat::default();
     let file = LogFile::default();
+    let color = true;
 
-    let res = Logger::new(level, format, &file);
+    let res = Logger::new(level, format, &file, color);
     assert!(res.is_ok());
 
     let format = LogFormat::Raw;
     let file = LogFile::Path("path".into());
 
-    let res = Logger::new(level, format, &file);
+    let res = Logger::new(level, format, &file, color);
     assert!(res.is_err());
 }
 
@@ -193,11 +256,6 @@ fn test_logger_from_config() {
     assert!(res.is_err());
 
     let res = Logger::from_config(&valid_config);
-    if res.is_err() {
-        println!("{:?}", &res);
-        println!("valid_config: {:?}", valid_config);
-        panic!();
-    }
     assert!(res.is_ok());
 }
 
@@ -220,25 +278,29 @@ fn test_logger_log_record() {
     let valid_msg = "abcd";
     let invalid_msg = "\n";
 
-    let logger = Logger::default();
+    let level = LogLevel::default();
 
-    let res = logger.log_record(invalid_msg);
+    let res = Logger::log_record(level, invalid_msg);
     assert!(res.is_err());
 
-    let res = logger.log_record(valid_msg);
+    let res = Logger::log_record(level, valid_msg);
     assert!(res.is_ok());
 }
 
 #[test]
 fn test_logger_log_message() {
-    let logger = Logger::default();
+    // let valid_msg = "abcd";
+    let invalid_msg = "\n";
 
-    let res = logger.log_message("\n");
+    let level = LogLevel::default();
+    let format = LogFormat::default();
+
+    let res = Logger::log_message(level, format, invalid_msg);
     assert!(res.is_err());
 
-    /* // fatal runtime error: stack overflow
-    // TODO: try changing the nightly version
-    let res = logger.log_message("abcd");
+    /*
+    // TODO: fatal runtime error: stack overflow
+    let res = Logger::log_message(level, format, valid_msg);
     assert!(res.is_ok());
     */
 }

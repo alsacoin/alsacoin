@@ -8,11 +8,14 @@ use serde_cbor;
 use serde_json;
 use std::convert::From;
 use std::io;
+use term;
 
 #[derive(Debug, Fail)]
 pub enum Error {
     #[fail(display = "IO: {}", msg)]
     IO { msg: String },
+    #[fail(display = "Terminal: {}", msg)]
+    Terminal { msg: String },
     #[fail(display = "Model: {}", msg)]
     Model { msg: String },
     #[fail(display = "Config: {}", msg)]
@@ -21,12 +24,23 @@ pub enum Error {
     Parse { msg: String },
     #[fail(display = "Invalid format")]
     InvalidFormat,
+    #[fail(display = "Invalid log file")]
+    InvalidLogFile,
+    #[fail(display = "NotFound")]
+    NotFound,
 }
 
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Error {
         let msg = format!("{}", error);
         Error::IO { msg }
+    }
+}
+
+impl From<term::Error> for Error {
+    fn from(error: term::Error) -> Error {
+        let msg = format!("{}", error);
+        Error::Terminal { msg }
     }
 }
 
