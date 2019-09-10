@@ -41,7 +41,7 @@ where
         match res {
             Ok(_) => {}
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol miner server creation error: {}", err);
                 logger.log_critical(&msg)?;
             }
         }
@@ -72,7 +72,7 @@ where
                 .log_info("Protocol miner server validated")
                 .map_err(|e| e.into()),
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol miner server validation error: {}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
             }
         }
@@ -90,7 +90,7 @@ where
                 .log_info("Protocol miner server closed")
                 .map_err(|e| e.into()),
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol miner server closed with error: {}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
             }
         }

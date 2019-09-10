@@ -41,7 +41,7 @@ where
         match res {
             Ok(_) => {}
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol consensus server creation error: {}", err);
                 logger.log_critical(&msg)?;
             }
         }
@@ -72,7 +72,7 @@ where
                 .log_info("Protocol consensus server validated")
                 .map_err(|e| e.into()),
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol consensus server validation error: {}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
             }
         }
@@ -91,7 +91,7 @@ where
                 .log_info("Protocol consensus server closed")
                 .map_err(|e| e.into()),
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol consensus server closed with error: {}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
             }
         }

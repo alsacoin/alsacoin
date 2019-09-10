@@ -43,7 +43,7 @@ where
         match res {
             Ok(_) => {}
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client creation error: {}", err);
                 logger.log_critical(&msg)?;
             }
         }
@@ -64,7 +64,7 @@ where
         match res {
             Ok(_) => Ok(()),
             Err(err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client validation error: {}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
             }
         }
@@ -86,7 +86,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_node_transactions error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -102,7 +102,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_transactions error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -126,7 +126,10 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!(
+                    "Protocol client fetch_node_random_transactions error: {}",
+                    err
+                );
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -145,7 +148,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_random-transactions error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -169,7 +172,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_node_nodes error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -184,7 +187,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_nodes error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -208,7 +211,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_node_random_nodes error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -224,7 +227,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_random_nodes error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -246,7 +249,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client fetch_missing_ancestors error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -266,7 +269,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client query_node error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -281,7 +284,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client query error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
@@ -301,7 +304,7 @@ where
         match res {
             Ok(_) => {}
             Err(ref err) => {
-                let msg = format!("{}", err);
+                let msg = format!("Protocol client mine error: {}", err);
                 self.logger.log_critical(&msg)?;
             }
         }
