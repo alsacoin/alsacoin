@@ -21,6 +21,7 @@ use store::traits::Store;
 
 /// `ProtocolState` is the protocol state type.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct ProtocolState<S: Store, P: Store> {
     pub stage: Stage,
     pub address: Vec<u8>,

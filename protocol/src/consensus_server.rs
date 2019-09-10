@@ -34,6 +34,8 @@ where
         transport: Arc<Mutex<T>>,
         logger: Arc<Logger>,
     ) -> Result<ProtocolConsensusServer<S, P, T>> {
+        logger.log_info("Creating a new protocol consensus server")?;
+
         let res = state.lock().unwrap().validate();
 
         match res {
@@ -50,15 +52,25 @@ where
             logger,
         };
 
+        server
+            .logger
+            .log_info("New protocol consensus server created")?;
+
         Ok(server)
     }
 
     /// `validate` validates the `ProtocolConsensusServer`.
     pub fn validate(&self) -> Result<()> {
+        self.logger
+            .log_info("Validating the protocol consensus server")?;
+
         let res = self.state.lock().unwrap().validate();
 
         match res {
-            Ok(_) => Ok(()),
+            Ok(_) => self
+                .logger
+                .log_info("Protocol consensus server validated")
+                .map_err(|e| e.into()),
             Err(err) => {
                 let msg = format!("{}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
@@ -66,12 +78,18 @@ where
         }
     }
 
-    /// `serve` serves the main server operations.
-    pub fn serve(&mut self) -> Result<()> {
+    /// `run` runs the `ProtocolConsensusServer`.
+    pub fn run(&mut self) -> Result<()> {
+        self.logger
+            .log_info("Starting the protocol consensus server")?;
+
         let res = serve_consensus(self.state.clone(), self.transport.clone());
 
         match res {
-            Ok(_) => Ok(()),
+            Ok(_) => self
+                .logger
+                .log_info("Protocol consensus server closed")
+                .map_err(|e| e.into()),
             Err(err) => {
                 let msg = format!("{}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())

@@ -34,6 +34,8 @@ where
         transport: Arc<Mutex<T>>,
         logger: Arc<Logger>,
     ) -> Result<ProtocolMinerServer<S, P, T>> {
+        logger.log_info("Creating a new protocol miner server")?;
+
         let res = state.lock().unwrap().validate();
 
         match res {
@@ -50,15 +52,25 @@ where
             logger,
         };
 
+        server
+            .logger
+            .log_info("New protocol miner server created")?;
+
         Ok(server)
     }
 
     /// `validate` validates the `ProtocolMinerServer`.
     pub fn validate(&self) -> Result<()> {
+        self.logger
+            .log_info("Validating the protocol miner server")?;
+
         let res = self.state.lock().unwrap().validate();
 
         match res {
-            Ok(_) => Ok(()),
+            Ok(_) => self
+                .logger
+                .log_info("Protocol miner server validated")
+                .map_err(|e| e.into()),
             Err(err) => {
                 let msg = format!("{}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())
@@ -66,12 +78,17 @@ where
         }
     }
 
-    /// `serve` serves the mining operations.
-    pub fn serve(&mut self) -> Result<()> {
+    /// `run` runs the `ProtocolMinerServer`.
+    pub fn run(&mut self) -> Result<()> {
+        self.logger.log_info("Starting the protocol miner server")?;
+
         let res = serve_mining(self.state.clone(), self.transport.clone());
 
         match res {
-            Ok(_) => Ok(()),
+            Ok(_) => self
+                .logger
+                .log_info("Protocol miner server closed")
+                .map_err(|e| e.into()),
             Err(err) => {
                 let msg = format!("{}", err);
                 self.logger.log_critical(&msg).map_err(|e| e.into())

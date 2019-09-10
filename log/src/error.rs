@@ -22,10 +22,12 @@ pub enum Error {
     Config { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
+    #[fail(display = "Invalid level")]
+    InvalidLevel,
     #[fail(display = "Invalid format")]
     InvalidFormat,
-    #[fail(display = "Invalid log file")]
-    InvalidLogFile,
+    #[fail(display = "Invalid file")]
+    InvalidFile,
     #[fail(display = "NotFound")]
     NotFound,
 }

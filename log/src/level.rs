@@ -10,6 +10,7 @@ use std::fmt;
 /// `LogLevel` represents the level of the output of a log operation.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
 pub enum LogLevel {
+    None,
     Critical,
     Info,
     Debug,
@@ -19,6 +20,7 @@ impl LogLevel {
     /// Parses a `LogLevel` from a `&str`.
     pub fn parse(s: &str) -> Result<LogLevel> {
         match s {
+            "none" => Ok(LogLevel::None),
             "critical" => Ok(LogLevel::Critical),
             "info" => Ok(LogLevel::Info),
             "debug" => Ok(LogLevel::Debug),
@@ -28,6 +30,14 @@ impl LogLevel {
                 };
                 Err(err)
             }
+        }
+    }
+
+    /// `is_none` returns if the record is a `None` `LogLevel`.
+    pub fn is_none(self) -> bool {
+        match self {
+            LogLevel::None => true,
+            _ => false,
         }
     }
 
@@ -59,6 +69,7 @@ impl LogLevel {
 impl fmt::Display for LogLevel {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            LogLevel::None => write!(f, "none"),
             LogLevel::Critical => write!(f, "critical"),
             LogLevel::Info => write!(f, "info"),
             LogLevel::Debug => write!(f, "debug"),
@@ -68,7 +79,7 @@ impl fmt::Display for LogLevel {
 
 impl Default for LogLevel {
     fn default() -> LogLevel {
-        LogLevel::Critical
+        LogLevel::None
     }
 }
 

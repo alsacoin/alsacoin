@@ -87,11 +87,21 @@ impl Logger {
 
     /// `log_record` returns a `LogRecord` from a log message.
     pub fn log_record(level: LogLevel, msg: &str) -> Result<LogRecord> {
+        if level.is_none() {
+            let err = Error::InvalidLevel;
+            return Err(err);
+        }
+
         LogRecord::new(level, msg)
     }
 
     /// `log_message` returns the binary log message from a string message.
     pub fn log_message(level: LogLevel, format: LogFormat, msg: &str) -> Result<Vec<u8>> {
+        if level.is_none() {
+            let err = Error::InvalidLevel;
+            return Err(err);
+        }
+
         let record = Logger::log_record(level, msg)?;
 
         let msg = match format {
@@ -104,6 +114,11 @@ impl Logger {
 
     /// `log_to_file` logs a message on a file.
     pub fn log_to_file(path: &str, level: LogLevel, format: LogFormat, msg: &str) -> Result<()> {
+        if level.is_none() {
+            let err = Error::InvalidLevel;
+            return Err(err);
+        }
+
         let msg = Logger::log_message(level, format, msg)?;
 
         write_to_file(path, &msg)
@@ -111,6 +126,11 @@ impl Logger {
 
     /// `log_to_stdout` logs a message on stdout. It does nothing if it should not.
     pub fn log_to_stdout(level: LogLevel, format: LogFormat, color: bool, msg: &str) -> Result<()> {
+        if level.is_none() {
+            let err = Error::InvalidLevel;
+            return Err(err);
+        }
+
         let msg = Logger::log_message(level, format, msg)?;
 
         if color {
@@ -123,6 +143,7 @@ impl Logger {
             };
 
             match LogColor::level_color(level) {
+                LogColor::None => {}
                 LogColor::Red => {
                     t.fg(term::color::RED)?;
                 }
@@ -146,6 +167,11 @@ impl Logger {
 
     /// `log_to_stderr` logs a message on stderr
     pub fn log_to_stderr(level: LogLevel, format: LogFormat, color: bool, msg: &str) -> Result<()> {
+        if level.is_none() {
+            let err = Error::InvalidLevel;
+            return Err(err);
+        }
+
         let msg = Logger::log_message(level, format, msg)?;
 
         if color {
@@ -158,6 +184,7 @@ impl Logger {
             };
 
             match LogColor::level_color(level) {
+                LogColor::None => {}
                 LogColor::Red => {
                     t.fg(term::color::RED)?;
                 }
@@ -183,7 +210,7 @@ impl Logger {
     /// level is greater than the logger level, the logger does
     /// nothing.
     pub fn log(&self, level: LogLevel, msg: &str) -> Result<()> {
-        if self.level < level {
+        if self.level.is_none() || self.level < level {
             return Ok(());
         }
 
@@ -251,7 +278,7 @@ fn test_logger_log_record() {
     let valid_msg = "abcd";
     let invalid_msg = "\n";
 
-    let level = LogLevel::default();
+    let level = LogLevel::Info;
 
     let res = Logger::log_record(level, invalid_msg);
     assert!(res.is_err());
@@ -265,7 +292,7 @@ fn test_logger_log_message() {
     // let valid_msg = "abcd";
     let invalid_msg = "\n";
 
-    let level = LogLevel::default();
+    let level = LogLevel::Info;
     let format = LogFormat::default();
 
     let res = Logger::log_message(level, format, invalid_msg);

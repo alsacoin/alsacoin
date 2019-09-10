@@ -11,6 +11,7 @@ use std::fmt;
 /// `LogColor` represents the color of the output of a log operation.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
 pub enum LogColor {
+    None,
     Red,
     Blue,
     Green,
@@ -20,6 +21,7 @@ impl LogColor {
     /// Parses a `LogColor` from a `&str`.
     pub fn parse(s: &str) -> Result<LogColor> {
         match s {
+            "none" => Ok(LogColor::None),
             "red" => Ok(LogColor::Red),
             "blue" => Ok(LogColor::Blue),
             "green" => Ok(LogColor::Green),
@@ -35,9 +37,18 @@ impl LogColor {
     /// `level_color` returns a `LogLevel` `LogColor`.
     pub fn level_color(level: LogLevel) -> LogColor {
         match level {
+            LogLevel::None => LogColor::None,
             LogLevel::Critical => LogColor::Red,
             LogLevel::Info => LogColor::Blue,
             LogLevel::Debug => LogColor::Green,
+        }
+    }
+
+    /// `is_none` returns if the record is a `None` `LogColor`.
+    pub fn is_none(self) -> bool {
+        match self {
+            LogColor::None => true,
+            _ => false,
         }
     }
 
@@ -69,6 +80,7 @@ impl LogColor {
 impl fmt::Display for LogColor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            LogColor::None => write!(f, "none"),
             LogColor::Red => write!(f, "red"),
             LogColor::Blue => write!(f, "blue"),
             LogColor::Green => write!(f, "green"),
@@ -78,7 +90,7 @@ impl fmt::Display for LogColor {
 
 impl Default for LogColor {
     fn default() -> LogColor {
-        LogColor::Red
+        LogColor::None
     }
 }
 
