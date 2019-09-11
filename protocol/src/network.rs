@@ -2,6 +2,7 @@
 //!
 //! `network` contains the network functionalities used in the module.
 
+use crate::common::handle_result;
 use crate::error::Error;
 use crate::result::Result;
 use crate::state::ProtocolState;
@@ -56,22 +57,43 @@ pub fn send_message<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
-    _logger: Arc<Logger>,
+    logger: Arc<Logger>,
     cons_msg: &ConsensusMessage,
 ) -> Result<()> {
-    cons_msg.validate()?;
+    logger.log_info("Sending a consensus message")?;
+    logger.log_debug(&format!(
+        "Started network send_message of message: {:?}",
+        cons_msg
+    ))?;
 
-    handle_message(state.clone(), cons_msg)?;
+    let res = cons_msg.validate().map_err(|e| e.into());
+    handle_result(logger.clone(), res, "Network send_message error")?;
+
+    let res = handle_message(state.clone(), cons_msg);
+    handle_result(logger.clone(), res, "Network send_message error")?;
 
     let address = cons_msg.node().address;
-    let msg = Message::from_consensus_message(cons_msg)?;
-    let data = msg.to_bytes()?;
 
-    transport
+    let res = Message::from_consensus_message(cons_msg).map_err(|e| e.into());
+    let msg = handle_result(logger.clone(), res, "Network send_message error")?;
+
+    let res = msg.to_bytes().map_err(|e| e.into());
+    let data = handle_result(logger.clone(), res, "Network send_message error")?;
+
+    let res = transport
         .lock()
         .unwrap()
         .send(&address, &data, state.lock().unwrap().config.timeout)
-        .map_err(|e| e.into())
+        .map_err(|e| e.into());
+
+    let res = handle_result(logger.clone(), res, "Network send_message error");
+    logger.log_info("Consensus message sent")?;
+    logger.log_debug(&format!(
+        "Concluded network send_message of message: {:?}",
+        cons_msg
+    ))?;
+
+    res
 }
 
 /// `recv_message` receives a `ConsensusMessage` from a `Node`.
@@ -82,16 +104,30 @@ pub fn recv_message<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
-    _logger: Arc<Logger>,
+    logger: Arc<Logger>,
 ) -> Result<ConsensusMessage> {
-    let msg = transport
+    logger.log_info("Receiving a consensus message")?;
+    logger.log_debug("Started network recv_message of message")?;
+
+    let res = state.lock().unwrap().validate();
+    handle_result(logger.clone(), res, "Network recv_message error")?;
+
+    let res = transport
         .lock()
         .unwrap()
-        .recv(state.lock().unwrap().config.timeout)?;
+        .recv(state.lock().unwrap().config.timeout)
+        .map_err(|e| e.into());
 
-    let cons_msg = msg.to_consensus_message()?;
+    let msg = handle_result(logger.clone(), res, "Network recv_message error")?;
 
-    handle_message(state, &cons_msg)?;
+    let res = msg.to_consensus_message().map_err(|e| e.into());
+    let cons_msg = handle_result(logger.clone(), res, "Network recv_message error")?;
+
+    let res = handle_message(state, &cons_msg);
+    handle_result(logger.clone(), res, "Network recv_message error")?;
+
+    logger.log_info("Received a new consensus message")?;
+    logger.log_debug(&format!("Network recv_message message: {:?}", &cons_msg))?;
 
     Ok(cons_msg)
 }

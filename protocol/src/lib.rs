@@ -11,6 +11,9 @@ pub mod error;
 /// `result` contains the result type used in the crate.
 pub mod result;
 
+/// `common` contains the common functionalities used in the crate.
+pub mod common;
+
 /// `network` contains the protocol network functions.
 pub mod network;
 
