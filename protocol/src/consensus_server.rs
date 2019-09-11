@@ -83,7 +83,11 @@ where
         self.logger
             .log_info("Starting the protocol consensus server")?;
 
-        let res = serve_consensus(self.state.clone(), self.transport.clone());
+        let res = serve_consensus(
+            self.state.clone(),
+            self.transport.clone(),
+            self.logger.clone(),
+        );
 
         match res {
             Ok(_) => self

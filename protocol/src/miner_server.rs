@@ -82,7 +82,11 @@ where
     pub fn run(&mut self) -> Result<()> {
         self.logger.log_info("Starting the protocol miner server")?;
 
-        let res = serve_mining(self.state.clone(), self.transport.clone());
+        let res = serve_mining(
+            self.state.clone(),
+            self.transport.clone(),
+            self.logger.clone(),
+        );
 
         match res {
             Ok(_) => self

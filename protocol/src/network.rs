@@ -6,6 +6,7 @@ use crate::error::Error;
 use crate::result::Result;
 use crate::state::ProtocolState;
 use crypto::hash::Digest;
+use log::logger::Logger;
 use models::conflict_set::ConflictSet;
 use models::consensus_message::ConsensusMessage;
 use models::error::Error as ModelsError;
@@ -55,6 +56,7 @@ pub fn send_message<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    _logger: Arc<Logger>,
     cons_msg: &ConsensusMessage,
 ) -> Result<()> {
     cons_msg.validate()?;
@@ -80,6 +82,7 @@ pub fn recv_message<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    _logger: Arc<Logger>,
 ) -> Result<ConsensusMessage> {
     let msg = transport
         .lock()
@@ -148,6 +151,7 @@ pub fn push_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     fetch_id: u64,
     transactions: &BTreeSet<Transaction>,
@@ -162,7 +166,7 @@ pub fn push_transactions<
         transactions,
     )?;
 
-    send_message(state, transport, &cons_msg)
+    send_message(state, transport, logger, &cons_msg)
 }
 
 /// `handle_fetch_transactions` handles a `FetchTransactions` request.
@@ -173,6 +177,7 @@ pub fn handle_fetch_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
@@ -243,7 +248,7 @@ pub fn handle_fetch_transactions<
                 &node,
                 &transactions,
             )?;
-            send_message(state, transport, &cons_msg)
+            send_message(state, transport, logger, &cons_msg)
         }
         _ => {
             let err = Error::InvalidMessage;
@@ -260,6 +265,7 @@ pub fn handle_fetch_random_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
@@ -294,7 +300,7 @@ pub fn handle_fetch_random_transactions<
                 &node,
                 &transactions,
             )?;
-            send_message(state, transport, &cons_msg)
+            send_message(state, transport, logger, &cons_msg)
         }
         _ => {
             let err = Error::InvalidMessage;
@@ -311,6 +317,7 @@ pub fn handle_push_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
     prev_id: u64,
     ids: &BTreeSet<Digest>,
@@ -334,13 +341,16 @@ pub fn handle_push_transactions<
                 for transaction in &transactions {
                     let state = state.clone();
                     let transport = transport.clone();
+                    let logger = logger.clone();
                     let transaction = transaction.clone();
 
-                    thread::spawn(move || handle_transaction(state, transport, &transaction))
-                        .join()
-                        .map_err(|e| Error::Thread {
-                            msg: format!("{:?}", e),
-                        })??;
+                    thread::spawn(move || {
+                        handle_transaction(state, transport, logger, &transaction)
+                    })
+                    .join()
+                    .map_err(|e| Error::Thread {
+                        msg: format!("{:?}", e),
+                    })??;
                 }
 
                 Ok(transactions)
@@ -365,6 +375,7 @@ pub fn handle_push_random_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
     fetch_id: u64,
     count: u32,
@@ -390,13 +401,16 @@ pub fn handle_push_random_transactions<
                 for transaction in &transactions {
                     let state = state.clone();
                     let transport = transport.clone();
+                    let logger = logger.clone();
                     let transaction = transaction.clone();
 
-                    thread::spawn(move || handle_transaction(state, transport, &transaction))
-                        .join()
-                        .map_err(|e| Error::Thread {
-                            msg: format!("{:?}", e),
-                        })??;
+                    thread::spawn(move || {
+                        handle_transaction(state, transport, logger, &transaction)
+                    })
+                    .join()
+                    .map_err(|e| Error::Thread {
+                        msg: format!("{:?}", e),
+                    })??;
                 }
 
                 Ok(transactions)
@@ -420,6 +434,7 @@ pub fn fetch_node_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Transaction>> {
@@ -428,11 +443,11 @@ pub fn fetch_node_transactions<
 
     let cons_msg =
         ConsensusMessage::new_fetch_transactions(&*state.lock().unwrap().address, &node, ids)?;
-    send_message(state.clone(), transport.clone(), &cons_msg)?;
+    send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
-        let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+        let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
         if recv_cons_msg.is_push_transactions()?
             && recv_cons_msg.node().address == state.lock().unwrap().address
             && recv_cons_msg.id() == cons_msg.id() + 1
@@ -440,6 +455,7 @@ pub fn fetch_node_transactions<
             let transactions = handle_push_transactions(
                 state.clone(),
                 transport.clone(),
+                logger.clone(),
                 &recv_cons_msg,
                 cons_msg.id(),
                 ids,
@@ -448,12 +464,17 @@ pub fn fetch_node_transactions<
             for transaction in &transactions {
                 let state = state.clone();
                 let transport = transport.clone();
+                let logger = logger.clone();
                 let transaction = transaction.clone();
                 let res_arc = res_arc.clone();
 
                 thread::spawn(move || {
-                    let res: Result<()> =
-                        handle_transaction(state.clone(), transport.clone(), &transaction);
+                    let res: Result<()> = handle_transaction(
+                        state.clone(),
+                        transport.clone(),
+                        logger.clone(),
+                        &transaction,
+                    );
 
                     if res.is_err() {
                         return res;
@@ -487,6 +508,7 @@ pub fn fetch_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Transaction>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
@@ -495,11 +517,11 @@ pub fn fetch_transactions<
     for node in nodes {
         let cons_msg =
             ConsensusMessage::new_fetch_transactions(&*state.lock().unwrap().address, &node, ids)?;
-        send_message(state.clone(), transport.clone(), &cons_msg)?;
+        send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
         let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
         while max_retries > 0 {
-            let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+            let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
             if recv_cons_msg.is_push_transactions()?
                 && recv_cons_msg.node().address == state.lock().unwrap().address
                 && recv_cons_msg.id() == cons_msg.id() + 1
@@ -507,6 +529,7 @@ pub fn fetch_transactions<
                 let transactions = handle_push_transactions(
                     state.clone(),
                     transport.clone(),
+                    logger.clone(),
                     &recv_cons_msg,
                     cons_msg.id(),
                     ids,
@@ -515,12 +538,17 @@ pub fn fetch_transactions<
                 for transaction in transactions {
                     let state = state.clone();
                     let transport = transport.clone();
+                    let logger = logger.clone();
                     let transaction = transaction.clone();
                     let res_arc = res_arc.clone();
 
                     thread::spawn(move || {
-                        let res: Result<()> =
-                            handle_transaction(state.clone(), transport.clone(), &transaction);
+                        let res: Result<()> = handle_transaction(
+                            state.clone(),
+                            transport.clone(),
+                            logger.clone(),
+                            &transaction,
+                        );
 
                         if res.is_err() {
                             return res;
@@ -555,6 +583,7 @@ pub fn fetch_node_random_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     count: u32,
 ) -> Result<BTreeSet<Transaction>> {
@@ -567,12 +596,12 @@ pub fn fetch_node_random_transactions<
         count,
     )?;
 
-    send_message(state.clone(), transport.clone(), &cons_msg)?;
+    send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
 
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
-        let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+        let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
         if recv_cons_msg.is_push_transactions()?
             && recv_cons_msg.node().address == state.lock().unwrap().address
             && recv_cons_msg.id() == cons_msg.id() + 1
@@ -580,6 +609,7 @@ pub fn fetch_node_random_transactions<
             let transactions = handle_push_random_transactions(
                 state.clone(),
                 transport.clone(),
+                logger.clone(),
                 &recv_cons_msg,
                 cons_msg.id(),
                 count,
@@ -588,12 +618,17 @@ pub fn fetch_node_random_transactions<
             for transaction in transactions {
                 let state = state.clone();
                 let transport = transport.clone();
+                let logger = logger.clone();
                 let transaction = transaction.clone();
                 let res_arc = res_arc.clone();
 
                 thread::spawn(move || {
-                    let res: Result<()> =
-                        handle_transaction(state.clone(), transport.clone(), &transaction);
+                    let res: Result<()> = handle_transaction(
+                        state.clone(),
+                        transport.clone(),
+                        logger.clone(),
+                        &transaction,
+                    );
 
                     if res.is_err() {
                         return res;
@@ -627,6 +662,7 @@ pub fn fetch_random_transactions<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     count: u32,
 ) -> Result<BTreeSet<Transaction>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
@@ -638,11 +674,11 @@ pub fn fetch_random_transactions<
             &node,
             count,
         )?;
-        send_message(state.clone(), transport.clone(), &cons_msg)?;
+        send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
         let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
         while max_retries > 0 {
-            let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+            let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
             if recv_cons_msg.is_push_transactions()?
                 && recv_cons_msg.node().address == state.lock().unwrap().address
                 && recv_cons_msg.id() == cons_msg.id() + 1
@@ -650,6 +686,7 @@ pub fn fetch_random_transactions<
                 let transactions = handle_push_random_transactions(
                     state.clone(),
                     transport.clone(),
+                    logger.clone(),
                     &recv_cons_msg,
                     cons_msg.id(),
                     count,
@@ -658,12 +695,17 @@ pub fn fetch_random_transactions<
                 for transaction in transactions {
                     let state = state.clone();
                     let transport = transport.clone();
+                    let logger = logger.clone();
                     let transaction = transaction.clone();
                     let res_arc = res_arc.clone();
 
                     thread::spawn(move || {
-                        let res: Result<()> =
-                            handle_transaction(state.clone(), transport.clone(), &transaction);
+                        let res: Result<()> = handle_transaction(
+                            state.clone(),
+                            transport.clone(),
+                            logger.clone(),
+                            &transaction,
+                        );
 
                         if res.is_err() {
                             return res;
@@ -698,6 +740,7 @@ pub fn push_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     fetch_id: u64,
     nodes: &BTreeSet<Node>,
@@ -709,7 +752,7 @@ pub fn push_nodes<
         &node,
         nodes,
     )?;
-    send_message(state, transport, &cons_msg)
+    send_message(state, transport, logger, &cons_msg)
 }
 
 /// `handle_fetch_nodes` handles a `FetchNodes` request.
@@ -720,6 +763,7 @@ pub fn handle_fetch_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
@@ -791,7 +835,7 @@ pub fn handle_fetch_nodes<
                 &node,
                 &nodes,
             )?;
-            send_message(state, transport, &cons_msg)
+            send_message(state, transport, logger, &cons_msg)
         }
         _ => {
             let err = Error::InvalidMessage;
@@ -808,6 +852,7 @@ pub fn handle_fetch_random_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
@@ -842,7 +887,7 @@ pub fn handle_fetch_random_nodes<
                 &node,
                 &nodes,
             )?;
-            send_message(state, transport, &cons_msg)
+            send_message(state, transport, logger, &cons_msg)
         }
         _ => {
             let err = Error::InvalidMessage;
@@ -950,18 +995,19 @@ pub fn fetch_node_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Node>> {
     let node = Node::new(state.lock().unwrap().stage, address);
     let cons_msg = ConsensusMessage::new_fetch_nodes(&*state.lock().unwrap().address, &node, ids)?;
-    send_message(state.clone(), transport.clone(), &cons_msg)?;
+    send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
 
     let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
-        let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+        let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
         if recv_cons_msg.is_push_nodes()?
             && recv_cons_msg.node().address == state.lock().unwrap().address
             && recv_cons_msg.id() == cons_msg.id() + 1
@@ -1008,6 +1054,7 @@ pub fn fetch_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     ids: &BTreeSet<Digest>,
 ) -> Result<BTreeSet<Node>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
@@ -1016,12 +1063,12 @@ pub fn fetch_nodes<
     for node in nodes {
         let cons_msg =
             ConsensusMessage::new_fetch_nodes(&*state.lock().unwrap().address, &node, ids)?;
-        send_message(state.clone(), transport.clone(), &cons_msg)?;
+        send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
 
         let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
         while max_retries > 0 {
-            let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+            let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
             if recv_cons_msg.is_push_nodes()?
                 && recv_cons_msg.node().address == state.lock().unwrap().address
                 && recv_cons_msg.id() == cons_msg.id() + 1
@@ -1069,19 +1116,20 @@ pub fn fetch_node_random_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     count: u32,
 ) -> Result<BTreeSet<Node>> {
     let node = Node::new(state.lock().unwrap().stage, &address);
     let cons_msg =
         ConsensusMessage::new_fetch_random_nodes(&*state.lock().unwrap().address, &node, count)?;
-    send_message(state.clone(), transport.clone(), &cons_msg)?;
+    send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
 
     let res_arc = Arc::new(Mutex::new(BTreeSet::new()));
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
-        let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+        let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
         if recv_cons_msg.is_push_nodes()?
             && recv_cons_msg.node().address == state.lock().unwrap().address
             && recv_cons_msg.id() == cons_msg.id() + 1
@@ -1129,6 +1177,7 @@ pub fn fetch_random_nodes<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     count: u32,
 ) -> Result<BTreeSet<Node>> {
     let nodes = state.lock().unwrap().sample_nodes()?;
@@ -1141,12 +1190,12 @@ pub fn fetch_random_nodes<
             count,
         )?;
 
-        send_message(state.clone(), transport.clone(), &cons_msg)?;
+        send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
 
         let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
         while max_retries > 0 {
-            let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+            let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
             if recv_cons_msg.is_push_nodes()?
                 && recv_cons_msg.node().address == state.lock().unwrap().address
                 && recv_cons_msg.id() == cons_msg.id() + 1
@@ -1195,6 +1244,7 @@ pub fn fetch_missing_ancestors<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     transaction: &Transaction,
 ) -> Result<BTreeSet<Transaction>> {
     transaction.validate()?;
@@ -1216,14 +1266,20 @@ pub fn fetch_missing_ancestors<
     for node in &nodes {
         let state = state.clone();
         let transport = transport.clone();
+        let logger = logger.clone();
         let node = node.clone();
         let nodes = nodes.clone();
         let to_fetch = to_fetch.clone();
         let res_arc = res_arc.clone();
 
         thread::spawn(move || {
-            let result =
-                fetch_node_transactions(state.clone(), transport.clone(), &node.address, &to_fetch);
+            let result = fetch_node_transactions(
+                state.clone(),
+                transport.clone(),
+                logger.clone(),
+                &node.address,
+                &to_fetch,
+            );
 
             if let Ok(txs) = result {
                 for tx in txs {
@@ -1243,7 +1299,8 @@ pub fn fetch_missing_ancestors<
                     node = state.lock().unwrap().random_node()?;
                 }
 
-                let res = fetch_node_transactions(state, transport, &node.address, &to_fetch);
+                let res =
+                    fetch_node_transactions(state, transport, logger, &node.address, &to_fetch);
 
                 if res.is_err() {
                     let res = res.map(|_| ());
@@ -1273,6 +1330,7 @@ pub fn fetch_missing_ancestors<
 pub fn mine<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport + Send + 'static>(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     transactions: &BTreeSet<Transaction>,
 ) -> Result<()> {
@@ -1288,7 +1346,7 @@ pub fn mine<S: Store + Send + 'static, P: Store + Send + 'static, T: Transport +
     let node = Node::new(state.lock().unwrap().stage, address);
     let cons_msg =
         ConsensusMessage::new_mine(&*state.lock().unwrap().address, &node, transactions)?;
-    send_message(state, transport, &cons_msg)
+    send_message(state, transport, logger, &cons_msg)
 }
 
 /// `handle_mine` handles a `Mine` `ConsensusMessage` request.
@@ -1299,6 +1357,7 @@ pub fn handle_mine<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
@@ -1354,10 +1413,16 @@ pub fn handle_mine<
             for transaction in &*mined_arc.lock().unwrap() {
                 let state = state.clone();
                 let transport = transport.clone();
+                let logger = logger.clone();
                 let transaction = transaction.clone();
 
                 thread::spawn(move || {
-                    handle_transaction(state.clone(), transport.clone(), &transaction)
+                    handle_transaction(
+                        state.clone(),
+                        transport.clone(),
+                        logger.clone(),
+                        &transaction,
+                    )
                 })
                 .join()
                 .map_err(|e| Error::Thread {
@@ -1373,7 +1438,8 @@ pub fn handle_mine<
                 &node,
                 &mined,
             )?;
-            send_message(state, transport, &cons_msg)
+
+            send_message(state, transport, logger, &cons_msg)
         }
         _ => {
             let err = Error::InvalidMessage;
@@ -1390,6 +1456,7 @@ pub fn serve_mining<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
 ) -> Result<()> {
     let timeout = state.lock().unwrap().config.timeout;
 
@@ -1399,7 +1466,7 @@ pub fn serve_mining<
         .serve(timeout, |msg| {
             let cons_msg = msg.to_consensus_message()?;
 
-            handle_mine(state.clone(), transport.clone(), &cons_msg).map_err(|e| {
+            handle_mine(state.clone(), transport.clone(), logger.clone(), &cons_msg).map_err(|e| {
                 NetworkError::Consensus {
                     msg: format!("{}", e),
                 }
@@ -1416,15 +1483,22 @@ pub fn update_ancestors<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     transaction: &Transaction,
 ) -> Result<()> {
     let mut res = Ok(());
 
-    for ancestor in fetch_missing_ancestors(state.clone(), transport.clone(), transaction)? {
+    for ancestor in fetch_missing_ancestors(
+        state.clone(),
+        transport.clone(),
+        logger.clone(),
+        transaction,
+    )? {
         let state = state.clone();
         let transport = transport.clone();
+        let logger = logger.clone();
 
-        res = thread::spawn(move || handle_transaction(state, transport, &ancestor))
+        res = thread::spawn(move || handle_transaction(state, transport, logger, &ancestor))
             .join()
             .map_err(|e| Error::Thread {
                 msg: format!("{:?}", e),
@@ -1447,6 +1521,7 @@ pub fn handle_transaction<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     transaction: &Transaction,
 ) -> Result<()> {
     transaction.validate()?;
@@ -1486,7 +1561,12 @@ pub fn handle_transaction<
             .state
             .set_transaction_confidence(tx_id, 0)?;
 
-        update_ancestors(state.clone(), transport.clone(), transaction)?;
+        update_ancestors(
+            state.clone(),
+            transport.clone(),
+            logger.clone(),
+            transaction,
+        )?;
         state.lock().unwrap().update_successors(transaction)?;
     }
 
@@ -1542,19 +1622,20 @@ pub fn query_node<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     address: &[u8],
     transaction: &Transaction,
 ) -> Result<bool> {
     let node = Node::new(state.lock().unwrap().stage, address);
     let cons_msg =
         ConsensusMessage::new_query(&*state.lock().unwrap().address, &node, transaction)?;
-    send_message(state.clone(), transport.clone(), &cons_msg)?;
+    send_message(state.clone(), transport.clone(), logger.clone(), &cons_msg)?;
 
     let mut res = false;
     let mut max_retries = state.lock().unwrap().config.max_retries.unwrap_or(1);
 
     while max_retries > 0 {
-        let recv_cons_msg = recv_message(state.clone(), transport.clone())?;
+        let recv_cons_msg = recv_message(state.clone(), transport.clone(), logger.clone())?;
         if recv_cons_msg.is_reply()?
             && recv_cons_msg.node().address == state.lock().unwrap().address
             && recv_cons_msg.id() == cons_msg.id() + 1
@@ -1565,6 +1646,7 @@ pub fn query_node<
                 cons_msg.id(),
                 &transaction.id,
             )?;
+
             break;
         } else {
             max_retries -= 1;
@@ -1582,6 +1664,7 @@ pub fn query<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     transaction: &Transaction,
 ) -> Result<u32> {
     let nodes = state.lock().unwrap().sample_nodes()?;
@@ -1590,6 +1673,7 @@ pub fn query<
     for node in nodes {
         let state = state.clone();
         let transport = transport.clone();
+        let logger = logger.clone();
         let node = node.clone();
         let transaction = transaction.clone();
         let res_arc = res_arc.clone();
@@ -1598,6 +1682,7 @@ pub fn query<
             let res = query_node(
                 state.clone(),
                 transport.clone(),
+                logger.clone(),
                 &node.address,
                 &transaction,
             );
@@ -1631,6 +1716,7 @@ pub fn reply<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
@@ -1662,7 +1748,8 @@ pub fn reply<
                 transaction.id,
                 chit,
             )?;
-            send_message(state, transport, &cons_msg)
+
+            send_message(state, transport, logger, &cons_msg)
         }
         _ => {
             let err = Error::InvalidMessage;
@@ -1679,24 +1766,27 @@ pub fn handle<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
     msg: &ConsensusMessage,
 ) -> Result<()> {
     msg.validate()?;
 
     match msg.to_owned() {
         ConsensusMessage::FetchNodes { .. } => {
-            handle_fetch_nodes(state.clone(), transport.clone(), msg)
+            handle_fetch_nodes(state.clone(), transport.clone(), logger.clone(), msg)
         }
         ConsensusMessage::FetchRandomNodes { .. } => {
-            handle_fetch_random_nodes(state.clone(), transport.clone(), msg)
+            handle_fetch_random_nodes(state.clone(), transport.clone(), logger.clone(), msg)
         }
         ConsensusMessage::FetchTransactions { .. } => {
-            handle_fetch_transactions(state.clone(), transport.clone(), msg)
+            handle_fetch_transactions(state.clone(), transport.clone(), logger.clone(), msg)
         }
         ConsensusMessage::FetchRandomTransactions { .. } => {
-            handle_fetch_random_transactions(state.clone(), transport.clone(), msg)
+            handle_fetch_random_transactions(state.clone(), transport.clone(), logger.clone(), msg)
         }
-        ConsensusMessage::Query { .. } => reply(state.clone(), transport.clone(), msg),
+        ConsensusMessage::Query { .. } => {
+            reply(state.clone(), transport.clone(), logger.clone(), msg)
+        }
         _ => {
             let err = Error::InvalidMessage;
             Err(err)
@@ -1712,6 +1802,7 @@ pub fn serve_client<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
 ) -> Result<()> {
     let timeout = state.lock().unwrap().config.timeout;
 
@@ -1721,7 +1812,7 @@ pub fn serve_client<
         .serve(timeout, |msg| {
             let cons_msg = msg.to_consensus_message()?;
 
-            handle(state.clone(), transport.clone(), &cons_msg).map_err(|e| {
+            handle(state.clone(), transport.clone(), logger.clone(), &cons_msg).map_err(|e| {
                 NetworkError::Consensus {
                     msg: format!("{}", e),
                 }
@@ -1738,6 +1829,7 @@ pub fn avalanche_step<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
 ) -> Result<()> {
     let tx_ids: BTreeSet<Digest> = state
         .lock()
@@ -1771,15 +1863,22 @@ pub fn avalanche_step<
             Err(err) => Err(err),
         }?;
 
-        let missing_txs = fetch_missing_ancestors(state.clone(), transport.clone(), &tx)?;
+        let missing_txs =
+            fetch_missing_ancestors(state.clone(), transport.clone(), logger.clone(), &tx)?;
 
         for missing_tx in missing_txs.iter() {
             let state = state.clone();
             let transport = transport.clone();
+            let logger = logger.clone();
             let missing_tx = missing_tx.clone();
 
             thread::spawn(move || {
-                handle_transaction(state.clone(), transport.clone(), &missing_tx)
+                handle_transaction(
+                    state.clone(),
+                    transport.clone(),
+                    logger.clone(),
+                    &missing_tx,
+                )
             })
             .join()
             .map_err(|e| Error::Thread {
@@ -1787,7 +1886,7 @@ pub fn avalanche_step<
             })??;
         }
 
-        let chit_sum = query(state.clone(), transport.clone(), &tx)?;
+        let chit_sum = query(state.clone(), transport.clone(), logger.clone(), &tx)?;
 
         let mut config = state.lock().unwrap().config.clone();
         config.populate();
@@ -1940,14 +2039,16 @@ pub fn serve_consensus<
 >(
     state: Arc<Mutex<ProtocolState<S, P>>>,
     transport: Arc<Mutex<T>>,
+    logger: Arc<Logger>,
 ) -> Result<()> {
     let mut res = Ok(());
 
     while res.is_ok() {
         let state = state.clone();
         let transport = transport.clone();
+        let logger = logger.clone();
 
-        res = thread::spawn(|| avalanche_step(state, transport))
+        res = thread::spawn(|| avalanche_step(state, transport, logger))
             .join()
             .map_err(|e| Error::Thread {
                 msg: format!("{:?}", e),

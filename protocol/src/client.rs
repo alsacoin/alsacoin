@@ -79,6 +79,7 @@ where
         let res = protocol_network::fetch_node_transactions(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             address,
             ids,
         );
@@ -96,8 +97,12 @@ where
 
     /// `fetch_transactions` fetches transactions from remote.
     pub fn fetch_transactions(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Transaction>> {
-        let res =
-            protocol_network::fetch_transactions(self.state.clone(), self.transport.clone(), ids);
+        let res = protocol_network::fetch_transactions(
+            self.state.clone(),
+            self.transport.clone(),
+            self.logger.clone(),
+            ids,
+        );
 
         match res {
             Ok(_) => {}
@@ -119,6 +124,7 @@ where
         let res = protocol_network::fetch_node_random_transactions(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             address,
             count,
         );
@@ -142,6 +148,7 @@ where
         let res = protocol_network::fetch_random_transactions(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             count,
         );
 
@@ -165,6 +172,7 @@ where
         let res = protocol_network::fetch_node_nodes(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             address,
             ids,
         );
@@ -182,7 +190,12 @@ where
 
     /// `fetch_nodes` fetches nodes from remote.
     pub fn fetch_nodes(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Node>> {
-        let res = protocol_network::fetch_nodes(self.state.clone(), self.transport.clone(), ids);
+        let res = protocol_network::fetch_nodes(
+            self.state.clone(),
+            self.transport.clone(),
+            self.logger.clone(),
+            ids,
+        );
 
         match res {
             Ok(_) => {}
@@ -204,6 +217,7 @@ where
         let res = protocol_network::fetch_node_random_nodes(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             address,
             count,
         );
@@ -221,8 +235,12 @@ where
 
     /// `fetch_random_nodes` fetches random nodes from remote.
     pub fn fetch_random_nodes(&mut self, count: u32) -> Result<BTreeSet<Node>> {
-        let res =
-            protocol_network::fetch_random_nodes(self.state.clone(), self.transport.clone(), count);
+        let res = protocol_network::fetch_random_nodes(
+            self.state.clone(),
+            self.transport.clone(),
+            self.logger.clone(),
+            count,
+        );
 
         match res {
             Ok(_) => {}
@@ -243,6 +261,7 @@ where
         let res = protocol_network::fetch_missing_ancestors(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             transaction,
         );
 
@@ -262,6 +281,7 @@ where
         let res = protocol_network::query_node(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             address,
             transaction,
         );
@@ -279,7 +299,12 @@ where
 
     /// `query` queries remote nodes.
     pub fn query(&mut self, transaction: &Transaction) -> Result<u32> {
-        let res = protocol_network::query(self.state.clone(), self.transport.clone(), transaction);
+        let res = protocol_network::query(
+            self.state.clone(),
+            self.transport.clone(),
+            self.logger.clone(),
+            transaction,
+        );
 
         match res {
             Ok(_) => {}
@@ -297,6 +322,7 @@ where
         let res = protocol_network::mine(
             self.state.clone(),
             self.transport.clone(),
+            self.logger.clone(),
             address,
             transactions,
         );
