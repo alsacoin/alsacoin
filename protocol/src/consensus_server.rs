@@ -2,9 +2,8 @@
 //!
 //! `consensus_server` is the module containing the protocol consensus server type and functions.
 
-use crate::common::handle_result;
 use crate::network::serve_consensus;
-use crate::result::Result;
+use crate::result::{handle_result, Result};
 use crate::state::ProtocolState;
 use log::logger::Logger;
 use network::traits::Transport;

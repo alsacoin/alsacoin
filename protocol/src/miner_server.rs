@@ -2,9 +2,8 @@
 //!
 //! `miner_server` is the module containing the protocol miner server type and functions.
 
-use crate::common::handle_result;
 use crate::network::serve_mining;
-use crate::result::Result;
+use crate::result::{handle_result, Result};
 use crate::state::ProtocolState;
 use log::logger::Logger;
 use network::traits::Transport;

@@ -2,9 +2,8 @@
 //!
 //! `network` contains the network functionalities used in the module.
 
-use crate::common::handle_result;
 use crate::error::Error;
-use crate::result::Result;
+use crate::result::{handle_result, Result};
 use crate::state::ProtocolState;
 use crypto::hash::Digest;
 use log::logger::Logger;

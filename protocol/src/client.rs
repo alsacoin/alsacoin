@@ -2,9 +2,8 @@
 //!
 //! `client` is the module containing the protocol client type and functions.
 
-use crate::common::handle_result;
 use crate::network as protocol_network;
-use crate::result::Result;
+use crate::result::{handle_result, Result};
 use crate::state::ProtocolState;
 use crypto::hash::Digest;
 use log::logger::Logger;
