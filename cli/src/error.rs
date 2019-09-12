@@ -19,6 +19,8 @@ pub enum Error {
     Config { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
+    #[fail(display = "Invalid CLI status")]
+    InvalidCliStatus,
 }
 
 impl From<io::Error> for Error {
