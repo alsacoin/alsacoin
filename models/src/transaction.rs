@@ -125,17 +125,35 @@ impl Transaction {
     }
 
     /// `input_balance` returns the `Transaction` inputs balance.
-    pub fn input_balance(&self) -> u64 {
-        self.inputs
-            .iter()
-            .fold(0, |acc, (_, input)| acc + input.amount)
+    pub fn input_balance(&self) -> Result<u64> {
+        let mut res = 0;
+
+        for input in self.inputs.values() {
+            if let Some(amount) = input.amount.checked_add(res) {
+                res += amount;
+            } else {
+                let err = Error::InvalidBalance;
+                return Err(err);
+            }
+        }
+
+        Ok(res)
     }
 
     /// `output_balance` returns the `Transaction` outputs balance.
-    pub fn output_balance(&self) -> u64 {
-        self.outputs
-            .iter()
-            .fold(0, |acc, (_, output)| acc + output.amount)
+    pub fn output_balance(&self) -> Result<u64> {
+        let mut res = 0;
+
+        for output in self.outputs.values() {
+            if let Some(amount) = output.amount.checked_add(res) {
+                res += amount;
+            } else {
+                let err = Error::InvalidBalance;
+                return Err(err);
+            }
+        }
+
+        Ok(res)
     }
 
     /// `coinbase_amount` returns the `Transaction` coinbase amount.
@@ -148,12 +166,14 @@ impl Transaction {
     }
 
     /// `balance` returns the `Transaction` balance.
-    pub fn balance(&self) -> i64 {
-        let ibalance = self.input_balance() as i64;
-        let obalance = self.output_balance() as i64;
+    pub fn balance(&self) -> Result<i64> {
+        let ibalance = self.input_balance()? as i64;
+        let obalance = self.output_balance()? as i64;
         let cbalance = self.coinbase_amount() as i64;
 
-        ibalance + cbalance - obalance
+        let res = ibalance + cbalance - obalance;
+
+        Ok(res)
     }
 
     /// `ancestors` returns the `Transaction` ancestors' ids.
@@ -598,7 +618,7 @@ impl Transaction {
 
     /// `validate_balance` validates the `Transaction` balance.
     pub fn validate_balance(&self) -> Result<()> {
-        if self.balance() != self.coinbase_amount() as i64 {
+        if self.balance()? != self.coinbase_amount() as i64 {
             let err = Error::InvalidBalance;
             return Err(err);
         }
@@ -1198,7 +1218,7 @@ fn test_transaction_balance() {
         input_balance += input.amount;
         expected_balance += input.amount as i64;
 
-        let balance = transaction.balance();
+        let balance = transaction.balance().unwrap();
         assert_eq!(balance, expected_balance);
         assert_eq!(balance, input_balance as i64);
 
@@ -1209,7 +1229,7 @@ fn test_transaction_balance() {
         input_balance -= input.amount;
         expected_balance -= input.amount as i64;
 
-        let balance = transaction.balance();
+        let balance = transaction.balance().unwrap();
         assert_eq!(balance, expected_balance);
         assert_eq!(balance, input_balance as i64);
 
@@ -1227,7 +1247,7 @@ fn test_transaction_balance() {
         output_balance += output.amount;
         expected_balance -= output.amount as i64;
 
-        let balance = transaction.balance();
+        let balance = transaction.balance().unwrap();
         assert_eq!(balance, expected_balance);
         assert_eq!(balance, -(output_balance as i64));
 
@@ -1238,7 +1258,7 @@ fn test_transaction_balance() {
         output_balance -= output.amount;
         expected_balance += output.amount as i64;
 
-        let balance = transaction.balance();
+        let balance = transaction.balance().unwrap();
         assert_eq!(expected_balance, 0);
         assert_eq!(balance, expected_balance);
 
@@ -1246,7 +1266,7 @@ fn test_transaction_balance() {
         assert!(res.is_ok());
     }
 
-    let balance = transaction.balance();
+    let balance = transaction.balance().unwrap();
     assert_eq!(balance, expected_balance);
 
     let res = transaction.validate_balance();
