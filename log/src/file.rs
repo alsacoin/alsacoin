@@ -2,11 +2,10 @@
 //!
 //! `file` is the module containing the log file type and functions.
 
-use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// `LogFile` represents the output file of a log operation.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum LogFile {
     StdOut,
     StdErr,

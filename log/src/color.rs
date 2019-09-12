@@ -5,11 +5,10 @@
 use crate::error::Error;
 use crate::level::LogLevel;
 use crate::result::Result;
-use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// `LogColor` represents the color of the output of a log operation.
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum LogColor {
     None,
     Red,

@@ -10,7 +10,6 @@ use crate::level::LogLevel;
 use crate::record::LogRecord;
 use crate::result::Result;
 use config::log::LogConfig;
-use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::{stderr, stdout, Write};
 use term;
@@ -35,7 +34,7 @@ fn write_to_file(path: &str, msg: &[u8]) -> Result<()> {
 }
 
 /// `Logger` is the logger type used in Alsacoin.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
 pub struct Logger {
     level: LogLevel,
     format: LogFormat,

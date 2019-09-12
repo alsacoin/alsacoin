@@ -12,7 +12,7 @@ use serde_json;
 use std::fmt;
 
 /// `LogRecord` is the log record type.
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Default, Debug, Hash, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Default, Debug, Serialize, Deserialize)]
 pub struct LogRecord {
     pub timestamp: Timestamp,
     pub level: LogLevel,
