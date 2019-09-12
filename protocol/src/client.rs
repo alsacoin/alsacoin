@@ -2,6 +2,7 @@
 //!
 //! `client` is the module containing the protocol client type and functions.
 
+use crate::common::handle_result;
 use crate::network as protocol_network;
 use crate::result::Result;
 use crate::state::ProtocolState;
@@ -39,14 +40,7 @@ where
         logger: Arc<Logger>,
     ) -> Result<ProtocolClient<S, P, T>> {
         let res = state.lock().unwrap().validate();
-
-        match res {
-            Ok(_) => {}
-            Err(err) => {
-                let msg = format!("Protocol client creation error: {}", err);
-                logger.log_critical(&msg)?;
-            }
-        }
+        handle_result(logger.clone(), res, "Protocol client creation error")?;
 
         let client = ProtocolClient {
             state,
@@ -60,14 +54,7 @@ where
     /// `validate` validates the `ProtocolClient`.
     pub fn validate(&self) -> Result<()> {
         let res = self.state.lock().unwrap().validate();
-
-        match res {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                let msg = format!("Protocol client validation error: {}", err);
-                self.logger.log_critical(&msg).map_err(|e| e.into())
-            }
-        }
+        handle_result(self.logger.clone(), res, "Protocol client creation error")
     }
 
     /// `fetch_node_transactions` fetches transactions from a remote node.
@@ -84,15 +71,11 @@ where
             ids,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_node_transactions error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_node_transactions error",
+        )
     }
 
     /// `fetch_transactions` fetches transactions from remote.
@@ -104,15 +87,11 @@ where
             ids,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_transactions error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_transactions error",
+        )
     }
 
     /// `fetch_node_random_transactions` fetches random transactions from a remote node.
@@ -129,18 +108,11 @@ where
             count,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!(
-                    "Protocol client fetch_node_random_transactions error: {}",
-                    err
-                );
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_node_random_transactions error",
+        )
     }
 
     /// `fetch_random_transactions` fetches random transactions from remote.
@@ -152,15 +124,11 @@ where
             count,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_random-transactions error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_random_transactions error",
+        )
     }
 
     /// `fetch_node_nodes` fetches nodes from a remote node.
@@ -177,15 +145,11 @@ where
             ids,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_node_nodes error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_node_nodes error",
+        )
     }
 
     /// `fetch_nodes` fetches nodes from remote.
@@ -197,15 +161,11 @@ where
             ids,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_nodes error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_nodes error",
+        )
     }
 
     /// `fetch_node_random_nodes` fetches random nodes from a remote node.
@@ -222,15 +182,11 @@ where
             count,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_node_random_nodes error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_node_random_nodes error",
+        )
     }
 
     /// `fetch_random_nodes` fetches random nodes from remote.
@@ -242,15 +198,11 @@ where
             count,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_random_nodes error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_random_nodes error",
+        )
     }
 
     /// `fetch_missing_ancestors` fetches a `Transaction` ancestors from remote if missing.
@@ -265,15 +217,11 @@ where
             transaction,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client fetch_missing_ancestors error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client fetch_missing_ancestors error",
+        )
     }
 
     /// `query_node` queries a single remote node.
@@ -286,15 +234,7 @@ where
             transaction,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client query_node error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(self.logger.clone(), res, "Protocol client query_node error")
     }
 
     /// `query` queries remote nodes.
@@ -306,15 +246,7 @@ where
             transaction,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client query error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(self.logger.clone(), res, "Protocol client query error")
     }
 
     /// `mine` mines a set of `Transaction`s.
@@ -327,14 +259,6 @@ where
             transactions,
         );
 
-        match res {
-            Ok(_) => {}
-            Err(ref err) => {
-                let msg = format!("Protocol client mine error: {}", err);
-                self.logger.log_critical(&msg)?;
-            }
-        }
-
-        res
+        handle_result(self.logger.clone(), res, "Protocol client mine error")
     }
 }
