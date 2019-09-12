@@ -225,6 +225,20 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         Ok(ancestors)
     }
 
+    /// `update_successors` updates the set of successors of the ancestor `Transaction`s of the
+    /// `Transaction`.
+    pub fn update_successors(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
+        let id = transaction.id;
+        let ancestors = transaction.ancestors()?;
+        for anc_id in ancestors {
+            self.state.add_successor(&anc_id, id)?;
+        }
+
+        Ok(())
+    }
+
     /// `get_transaction_conflict_set` returns a `Transaction` `ConflictSet`.
     pub fn get_transaction_conflict_set(&self, tx_id: &Digest) -> Result<ConflictSet> {
         if let Some(cs_id) = self.state.get_transaction_conflict_set(tx_id) {
@@ -236,6 +250,77 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
             let err = Error::NotFound;
             Err(err)
         }
+    }
+
+    /// `calc_confidence` calculates the confidence of a `Transaction`.
+    pub fn calc_confidence(&self, tx_id: &Digest) -> Result<u64> {
+        let tx_in_pool = Transaction::lookup(&*self.pool.lock().unwrap(), self.stage, tx_id)?;
+        let tx_in_store = Transaction::lookup(&*self.store.lock().unwrap(), self.stage, tx_id)?;
+
+        if tx_in_pool || tx_in_store {
+            let confidence = if let Some(successors) = self.state.get_successors(tx_id) {
+                let mut confidence = 0;
+
+                for succ_id in successors {
+                    if !self.state.lookup_known_transaction(&succ_id) {
+                        let err = Error::NotFound;
+                        return Err(err);
+                    }
+
+                    let chit = self.state.get_transaction_chit(&succ_id).unwrap_or(false) as u64;
+
+                    confidence += chit;
+                }
+
+                confidence += self.state.get_transaction_chit(tx_id).unwrap_or(false) as u64;
+
+                confidence
+            } else {
+                0
+            };
+
+            Ok(confidence)
+        } else {
+            let err = Error::NotFound;
+            Err(err)
+        }
+    }
+
+    /// `update_confidence` updates the confidence of a `Transaction`.
+    pub fn update_confidence(&mut self, tx_id: &Digest) -> Result<()> {
+        let confidence = self.calc_confidence(tx_id)?;
+
+        self.state
+            .set_transaction_confidence(*tx_id, confidence)
+            .map_err(|e| e.into())
+    }
+
+    /// `upsert_conflict_sets` upserts the `ConsensusState` conflict sets.
+    pub fn upsert_conflict_sets(&mut self, transaction: &Transaction) -> Result<()> {
+        transaction.validate()?;
+
+        let tx_id = transaction.id;
+        let addresses: BTreeSet<Address> = transaction
+            .outputs
+            .values()
+            .map(|out| out.address)
+            .collect();
+
+        for address in addresses {
+            if ConflictSet::lookup(&*self.pool.lock().unwrap(), self.stage, &address)? {
+                let mut cs = ConflictSet::get(&*self.pool.lock().unwrap(), self.stage, &address)?;
+                cs.validate()?;
+                cs.transactions.insert(tx_id);
+                ConflictSet::update(&mut *self.pool.lock().unwrap(), self.stage, &address, &cs)?;
+            } else {
+                let mut cs = ConflictSet::new(address, self.stage);
+                cs.add_transaction(tx_id);
+                cs.count = 0;
+                ConflictSet::create(&mut *self.pool.lock().unwrap(), self.stage, &address, &cs)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// `is_preferred` returns if a `Transaction` is preferred.
@@ -350,49 +435,6 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         Ok(false)
     }
 
-    /// `calc_confidence` calculates the confidence of a `Transaction`.
-    pub fn calc_confidence(&self, tx_id: &Digest) -> Result<u64> {
-        let tx_in_pool = Transaction::lookup(&*self.pool.lock().unwrap(), self.stage, tx_id)?;
-        let tx_in_store = Transaction::lookup(&*self.store.lock().unwrap(), self.stage, tx_id)?;
-
-        if tx_in_pool || tx_in_store {
-            let confidence = if let Some(successors) = self.state.get_successors(tx_id) {
-                let mut confidence = 0;
-
-                for succ_id in successors {
-                    if !self.state.lookup_known_transaction(&succ_id) {
-                        let err = Error::NotFound;
-                        return Err(err);
-                    }
-
-                    let chit = self.state.get_transaction_chit(&succ_id).unwrap_or(false) as u64;
-
-                    confidence += chit;
-                }
-
-                confidence += self.state.get_transaction_chit(tx_id).unwrap_or(false) as u64;
-
-                confidence
-            } else {
-                0
-            };
-
-            Ok(confidence)
-        } else {
-            let err = Error::NotFound;
-            Err(err)
-        }
-    }
-
-    /// `update_confidence` updates the confidence of a `Transaction`.
-    pub fn update_confidence(&mut self, tx_id: &Digest) -> Result<()> {
-        let confidence = self.calc_confidence(tx_id)?;
-
-        self.state
-            .set_transaction_confidence(*tx_id, confidence)
-            .map_err(|e| e.into())
-    }
-
     /// `sample_nodes` samples a maximum of k nodes from the store.
     pub fn sample_nodes(&mut self) -> Result<BTreeSet<Node>> {
         self.config.populate();
@@ -416,48 +458,6 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
             let err = Error::InvalidLength;
             Err(err)
         }
-    }
-
-    /// `upsert_conflict_sets` upserts the `ConsensusState` conflict sets.
-    pub fn upsert_conflict_sets(&mut self, transaction: &Transaction) -> Result<()> {
-        transaction.validate()?;
-
-        let tx_id = transaction.id;
-        let addresses: BTreeSet<Address> = transaction
-            .outputs
-            .values()
-            .map(|out| out.address)
-            .collect();
-
-        for address in addresses {
-            if ConflictSet::lookup(&*self.pool.lock().unwrap(), self.stage, &address)? {
-                let mut cs = ConflictSet::get(&*self.pool.lock().unwrap(), self.stage, &address)?;
-                cs.validate()?;
-                cs.transactions.insert(tx_id);
-                ConflictSet::update(&mut *self.pool.lock().unwrap(), self.stage, &address, &cs)?;
-            } else {
-                let mut cs = ConflictSet::new(address, self.stage);
-                cs.add_transaction(tx_id);
-                cs.count = 0;
-                ConflictSet::create(&mut *self.pool.lock().unwrap(), self.stage, &address, &cs)?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// `update_successors` updates the set of successors of the ancestor `Transaction`s of the
-    /// `Transaction`.
-    pub fn update_successors(&mut self, transaction: &Transaction) -> Result<()> {
-        transaction.validate()?;
-
-        let id = transaction.id;
-        let ancestors = transaction.ancestors()?;
-        for anc_id in ancestors {
-            self.state.add_successor(&anc_id, id)?;
-        }
-
-        Ok(())
     }
 
     /// `clear_state` clears the state of the `ProtocolState`.
