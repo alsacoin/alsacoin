@@ -66,18 +66,18 @@ pub fn send_message<
     ))?;
 
     let res = cons_msg.validate().map_err(|e| e.into());
-    handle_result(logger.clone(), res, "Network send_message error")?;
+    handle_result(logger.clone(), res, "Protocol network send_message error")?;
 
     let res = handle_message(state.clone(), cons_msg);
-    handle_result(logger.clone(), res, "Network send_message error")?;
+    handle_result(logger.clone(), res, "Protocol network send_message error")?;
 
     let address = cons_msg.node().address;
 
     let res = Message::from_consensus_message(cons_msg).map_err(|e| e.into());
-    let msg = handle_result(logger.clone(), res, "Network send_message error")?;
+    let msg = handle_result(logger.clone(), res, "Protocol network send_message error")?;
 
     let res = msg.to_bytes().map_err(|e| e.into());
-    let data = handle_result(logger.clone(), res, "Network send_message error")?;
+    let data = handle_result(logger.clone(), res, "Protocol network send_message error")?;
 
     let res = transport
         .lock()
@@ -85,7 +85,7 @@ pub fn send_message<
         .send(&address, &data, state.lock().unwrap().config.timeout)
         .map_err(|e| e.into());
 
-    let res = handle_result(logger.clone(), res, "Network send_message error");
+    let res = handle_result(logger.clone(), res, "Protocol network send_message error");
     logger.log_info("Consensus message sent")?;
     logger.log_debug(&format!(
         "Concluded network send_message of message: {:?}",
@@ -109,7 +109,7 @@ pub fn recv_message<
     logger.log_debug("Started network recv_message of message")?;
 
     let res = state.lock().unwrap().validate();
-    handle_result(logger.clone(), res, "Network recv_message error")?;
+    handle_result(logger.clone(), res, "Protocol network recv_message error")?;
 
     let res = transport
         .lock()
@@ -117,16 +117,19 @@ pub fn recv_message<
         .recv(state.lock().unwrap().config.timeout)
         .map_err(|e| e.into());
 
-    let msg = handle_result(logger.clone(), res, "Network recv_message error")?;
+    let msg = handle_result(logger.clone(), res, "Protocol network recv_message error")?;
 
     let res = msg.to_consensus_message().map_err(|e| e.into());
-    let cons_msg = handle_result(logger.clone(), res, "Network recv_message error")?;
+    let cons_msg = handle_result(logger.clone(), res, "Protocol network recv_message error")?;
 
     let res = handle_message(state, &cons_msg);
-    handle_result(logger.clone(), res, "Network recv_message error")?;
+    handle_result(logger.clone(), res, "Protocol network recv_message error")?;
 
     logger.log_info("Received a new consensus message")?;
-    logger.log_debug(&format!("Network recv_message message: {:?}", &cons_msg))?;
+    logger.log_debug(&format!(
+        "Protocol network recv_message message: {:?}",
+        &cons_msg
+    ))?;
 
     Ok(cons_msg)
 }
