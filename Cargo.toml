@@ -17,17 +17,4 @@ travis-ci = { repository = "alsacoin/alsacoin", branch = "master" }
 members = ["crypto", "store",  "mining", "models", "protocol",  "network", "config", "cli"]
 
 [dependencies]
-failure = "~0.1"
-serde = { version = "~1.0", features = ["derive"] }
-serde_cbor = "~0.10"
-serde_json = "~1.0"
-clap = { version = "~2", features = ["suggestions", "color", "vec_map", "yaml", "wrap_help"] }
-
-crypto = { path = "crypto" }
-mining = { path = "mining" }
-config = { path = "config" }
-store = { path = "store" }
-models = { path = "models" }
-log = { path = "log" }
-protocol = { path = "protocol" }
 cli = { path = "cli" }
