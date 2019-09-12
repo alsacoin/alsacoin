@@ -2,6 +2,7 @@
 //!
 //! `client_server` is the module containing the protocol client server type and functions.
 
+use crate::common::handle_result;
 use crate::network::serve_client;
 use crate::result::Result;
 use crate::state::ProtocolState;
@@ -38,13 +39,7 @@ where
 
         let res = state.lock().unwrap().validate();
 
-        match res {
-            Ok(_) => {}
-            Err(err) => {
-                let msg = format!("Protocol client server creation error: {}", err);
-                logger.log_critical(&msg)?;
-            }
-        }
+        handle_result(logger.clone(), res, "Protocol client server creation error")?;
 
         let server = ProtocolClientServer {
             state,
@@ -66,16 +61,15 @@ where
 
         let res = self.state.lock().unwrap().validate();
 
-        match res {
-            Ok(_) => self
-                .logger
-                .log_info("Protocol client server validated")
-                .map_err(|e| e.into()),
-            Err(err) => {
-                let msg = format!("Protocol client server validation error: {}", err);
-                self.logger.log_critical(&msg).map_err(|e| e.into())
-            }
-        }
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol client server validate error",
+        )?;
+
+        self.logger
+            .log_info("Protocol client server validated")
+            .map_err(|e| e.into())
     }
 
     /// `run` runs the `ProtocolClientServer`.
@@ -89,15 +83,10 @@ where
             self.logger.clone(),
         );
 
-        match res {
-            Ok(_) => self
-                .logger
-                .log_info("Protocol client server closed")
-                .map_err(|e| e.into()),
-            Err(err) => {
-                let msg = format!("Protocol client server closed with error: {}", err);
-                self.logger.log_critical(&msg).map_err(|e| e.into())
-            }
-        }
+        handle_result(self.logger.clone(), res, "Protocol client server run error")?;
+
+        self.logger
+            .log_info("Protocol client server closed")
+            .map_err(|e| e.into())
     }
 }

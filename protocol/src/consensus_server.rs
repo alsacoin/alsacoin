@@ -2,6 +2,7 @@
 //!
 //! `consensus_server` is the module containing the protocol consensus server type and functions.
 
+use crate::common::handle_result;
 use crate::network::serve_consensus;
 use crate::result::Result;
 use crate::state::ProtocolState;
@@ -38,13 +39,11 @@ where
 
         let res = state.lock().unwrap().validate();
 
-        match res {
-            Ok(_) => {}
-            Err(err) => {
-                let msg = format!("Protocol consensus server creation error: {}", err);
-                logger.log_critical(&msg)?;
-            }
-        }
+        handle_result(
+            logger.clone(),
+            res,
+            "Protocol consensus server creation error",
+        )?;
 
         let server = ProtocolConsensusServer {
             state,
@@ -66,16 +65,15 @@ where
 
         let res = self.state.lock().unwrap().validate();
 
-        match res {
-            Ok(_) => self
-                .logger
-                .log_info("Protocol consensus server validated")
-                .map_err(|e| e.into()),
-            Err(err) => {
-                let msg = format!("Protocol consensus server validation error: {}", err);
-                self.logger.log_critical(&msg).map_err(|e| e.into())
-            }
-        }
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol consensus server validate error",
+        )?;
+
+        self.logger
+            .log_info("Protocol consensus server validated")
+            .map_err(|e| e.into())
     }
 
     /// `run` runs the `ProtocolConsensusServer`.
@@ -89,15 +87,14 @@ where
             self.logger.clone(),
         );
 
-        match res {
-            Ok(_) => self
-                .logger
-                .log_info("Protocol consensus server closed")
-                .map_err(|e| e.into()),
-            Err(err) => {
-                let msg = format!("Protocol consensus server closed with error: {}", err);
-                self.logger.log_critical(&msg).map_err(|e| e.into())
-            }
-        }
+        handle_result(
+            self.logger.clone(),
+            res,
+            "Protocol consensus server run error",
+        )?;
+
+        self.logger
+            .log_info("Protocol consensus server closed")
+            .map_err(|e| e.into())
     }
 }
