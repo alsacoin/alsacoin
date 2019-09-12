@@ -137,7 +137,9 @@ impl Logger {
             let mut t = match term::stdout() {
                 Some(t) => t,
                 None => {
-                    let err = Error::NotFound;
+                    let err = Error::IO {
+                        msg: "Terminal not found".into(),
+                    };
                     return Err(err);
                 }
             };
@@ -178,7 +180,9 @@ impl Logger {
             let mut t = match term::stdout() {
                 Some(t) => t,
                 None => {
-                    let err = Error::NotFound;
+                    let err = Error::IO {
+                        msg: "Terminal not found".into(),
+                    };
                     return Err(err);
                 }
             };

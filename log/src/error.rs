@@ -14,8 +14,6 @@ use term;
 pub enum Error {
     #[fail(display = "IO: {}", msg)]
     IO { msg: String },
-    #[fail(display = "Terminal: {}", msg)]
-    Terminal { msg: String },
     #[fail(display = "Model: {}", msg)]
     Model { msg: String },
     #[fail(display = "Config: {}", msg)]
@@ -28,8 +26,6 @@ pub enum Error {
     InvalidFormat,
     #[fail(display = "Invalid file")]
     InvalidFile,
-    #[fail(display = "NotFound")]
-    NotFound,
 }
 
 impl From<io::Error> for Error {
@@ -42,7 +38,7 @@ impl From<io::Error> for Error {
 impl From<term::Error> for Error {
     fn from(error: term::Error) -> Error {
         let msg = format!("{}", error);
-        Error::Terminal { msg }
+        Error::IO { msg }
     }
 }
 
