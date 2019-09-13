@@ -2,7 +2,7 @@
 //!
 //! `common` contains the CLI common functionalities.
 
-use clap::{App, AppSettings};
+use clap::{App, AppSettings, Arg};
 use models::version::VERSION;
 
 /// `app` creates and returns a clap `App`.
@@ -17,4 +17,29 @@ pub fn app(name: &'static str, about: &'static str) -> App<'static, 'static> {
         AppSettings::StrictUtf8,
         AppSettings::VersionlessSubcommands,
     ])
+}
+
+/// `add_verbose` adds a verbose option to a command.
+pub fn add_verbose(app: App<'static, 'static>) -> App<'static, 'static> {
+    app.arg(
+        Arg::with_name("verbose")
+            .help("Turns on verbose output")
+            .short("v")
+            .long("verbose")
+            .takes_value(false)
+            .required(false),
+    )
+}
+
+/// `add_config` adds a config option to a command.
+pub fn add_config(app: App<'static, 'static>) -> App<'static, 'static> {
+    app.arg(
+        Arg::with_name("config")
+            .help("Sets a custom config file")
+            .short("c")
+            .long("config")
+            .takes_value(true)
+            .value_name("FILE")
+            .required(false),
+    )
 }
