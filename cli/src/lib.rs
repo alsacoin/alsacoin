@@ -17,8 +17,5 @@ pub mod common;
 /// `client` contains the CLI client type and functions.
 pub mod client;
 
-/// `status` contains the CLI status type and functions.
-pub mod status;
-
 /// `daemon` contains the CLI daemon type and functions.
 pub mod daemon;
