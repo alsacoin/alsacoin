@@ -6,9 +6,15 @@ use crate::common;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 /// `add_lookup` adds a lookup command to the `App`.
-/// TODO: lookup [-key]
 fn add_lookup(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("lookup");
+    let mut cmd = SubCommand::with_name("lookup")
+        .about("Lookup an item in the store")
+        .arg(
+            Arg::with_name("key")
+                .help("Key of the item to lookup")
+                .takes_value(true)
+                .value_name("KEY"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -17,9 +23,15 @@ fn add_lookup(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_get` adds a get command to the `App`.
-/// TODO: get [-key]
 fn add_get(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("get");
+    let mut cmd = SubCommand::with_name("get")
+        .about("Get an item from the store")
+        .arg(
+            Arg::with_name("key")
+                .help("Key of the item to get")
+                .takes_value(true)
+                .value_name("KEY"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -60,17 +72,6 @@ fn add_insert(app: App<'static, 'static>) -> App<'static, 'static> {
     app.subcommand(cmd)
 }
 
-/// `add_insert_batch` adds a insert command to the `App`.
-/// TODO: insert-batch [-values | -file]
-fn add_insert_batch(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("insert-batch");
-
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
-
-    app.subcommand(cmd)
-}
-
 /// `add_update` adds a update command to the `App`.
 /// TODO: update -key -value
 fn add_update(app: App<'static, 'static>) -> App<'static, 'static> {
@@ -83,20 +84,15 @@ fn add_update(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_remove` adds a remove command to the `App`.
-/// TODO: remove [-key]
 fn add_remove(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("remove");
-
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
-
-    app.subcommand(cmd)
-}
-
-/// `add_remove_batch` adds a remove command to the `App`.
-/// TODO: remove-batch [-keys | -file]
-fn add_remove_batch(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("remove-batch");
+    let mut cmd = SubCommand::with_name("remove")
+        .about("Remove an item from the store")
+        .arg(
+            Arg::with_name("key")
+                .help("Key of the item to remove")
+                .takes_value(true)
+                .value_name("KEY"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -105,9 +101,13 @@ fn add_remove_batch(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_cleanup` adds a cleanup command to the `App`.
-/// TODO: cleanup -to
 fn add_cleanup(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("cleanup");
+    let mut cmd = SubCommand::with_name("cleanup").about("Cleanup").arg(
+        Arg::with_name("to")
+            .help("Timestamp to clean up to")
+            .takes_value(true)
+            .value_name("TO"),
+    );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -116,7 +116,6 @@ fn add_cleanup(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_clean` adds a clean command to the `App`.
-/// TODO: clean
 fn add_clean(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("clean");
 
@@ -126,10 +125,52 @@ fn add_clean(app: App<'static, 'static>) -> App<'static, 'static> {
     app.subcommand(cmd)
 }
 
+/// `add_storable` adds the storable commands to the `App`.
+fn add_storable(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut app = add_wallet_create(app);
+    app = add_lookup(app);
+    app = add_get(app);
+    app = add_count(app);
+    app = add_query(app);
+    app = add_insert(app);
+    app = add_update(app);
+    app = add_remove(app);
+    app = add_cleanup(app);
+    app = add_clean(app);
+
+    app
+}
+
 /// `add_fetch` adds a fetch command to the `App`.
-/// TODO: fetch [-node] [-count | -keys]
 fn add_fetch(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("fetch");
+    let mut cmd = SubCommand::with_name("fetch")
+        .about("Fetch from remote")
+        .arg(
+            Arg::with_name("address")
+                .help("Node address to fetch from")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("keys")
+                .help("Keys of the items to fetch")
+                .long("keys")
+                .takes_value(true)
+                .value_name("KEY")
+                .conflicts_with("count"),
+        )
+        .arg(
+            Arg::with_name("count")
+                .help("Count of the items to fetch")
+                .short("C")
+                .long("count")
+                .takes_value(true)
+                .value_name("COUNT")
+                .conflicts_with("keys"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -138,9 +179,47 @@ fn add_fetch(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_push` adds a push command to the `App`.
-/// TODO: push [-node] [-key | -value]
 fn add_push(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("push");
+    let mut cmd = SubCommand::with_name("push")
+        .about("Push to remote")
+        .arg(
+            Arg::with_name("address")
+                .help("Node address to push to")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("key")
+                .help("Key of the item to push")
+                .short("k")
+                .long("key")
+                .takes_value(true)
+                .value_name("KEY")
+                .conflicts_with("value"),
+        )
+        .arg(
+            Arg::with_name("value")
+                .help("Value of the item to push")
+                .short("v")
+                .long("value")
+                .takes_value(true)
+                .value_name("VALUE")
+                .conflicts_with("key"),
+        )
+        .arg(
+            Arg::with_name("format")
+                .help("Item format")
+                .short("F")
+                .long("format")
+                .takes_value(true)
+                .value_name("FORMAT")
+                .possible_values(&["json", "hex"])
+                .default_value("hex")
+                .requires("value"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -148,58 +227,181 @@ fn add_push(app: App<'static, 'static>) -> App<'static, 'static> {
     app.subcommand(cmd)
 }
 
+/// `add_wallet_create` adds a create command to the wallet subcommand.
+fn add_wallet_create(_app: App<'static, 'static>) -> App<'static, 'static> {
+    // TODO
+    unreachable!()
+}
+
 /// `add_wallet` adds a wallet command to the `App`.
-/// TODO: wallet create + storable subcommands
 fn add_wallet(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("wallet");
+    let mut cmd = SubCommand::with_name("wallet").about("Wallet operations");
+
+    cmd = add_wallet_create(cmd);
+    cmd = add_storable(cmd);
 
     app.subcommand(cmd)
+}
+
+/// `add_account_create` adds a create command to the account subcommand.
+fn add_account_create(_app: App<'static, 'static>) -> App<'static, 'static> {
+    // TODO
+    unreachable!()
 }
 
 /// `add_account` adds a account command to the `App`.
-/// TODO: account create + storable subcommands
 fn add_account(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("account"); // TODO
+    let mut cmd = SubCommand::with_name("account").about("Account operations");
+
+    cmd = add_account_create(cmd);
+    cmd = add_storable(cmd);
 
     app.subcommand(cmd)
+}
+
+/// `add_transaction_create` adds a create command to the transaction subcommand.
+fn add_transaction_create(_app: App<'static, 'static>) -> App<'static, 'static> {
+    // TODO
+    unreachable!()
 }
 
 /// `add_transaction` adds a transaction command to the `App`.
-/// TODO: transaction create + storable subcommands
 fn add_transaction(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("transaction"); // TODO
+    let mut cmd = SubCommand::with_name("transaction").about("Transaction operations");
+
+    cmd = add_transaction_create(cmd);
+    cmd = add_fetch(cmd);
+    cmd = add_push(cmd);
+    cmd = add_storable(cmd);
 
     app.subcommand(cmd)
+}
+
+/// `add_node_create` adds a create command to the node subcommand.
+fn add_node_create(_app: App<'static, 'static>) -> App<'static, 'static> {
+    // TODO
+    unreachable!()
 }
 
 /// `add_node` adds a node command to the `App`.
-/// TODO: node create + storable subcommands
 fn add_node(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("node"); // TODO
+    let mut cmd = SubCommand::with_name("node").about("Node operations");
+
+    cmd = add_node_create(cmd);
+    cmd = add_fetch(cmd);
+    cmd = add_push(cmd);
+    cmd = add_storable(cmd);
 
     app.subcommand(cmd)
+}
+
+/// `add_consensus_state_create` adds a create command to the consensus-state subcommand.
+fn add_consensus_state_create(_app: App<'static, 'static>) -> App<'static, 'static> {
+    // TODO
+    unreachable!()
 }
 
 /// `add_consensus_state` adds a consensus-state command to the `App`.
-/// TODO: consensus-state storable subcommands
 fn add_consensus_state(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("consensus-state"); // TODO
+    let mut cmd = SubCommand::with_name("consensus-state").about("Consensus state operations");
+
+    cmd = add_consensus_state_create(cmd);
+    cmd = add_storable(cmd);
 
     app.subcommand(cmd)
 }
 
+/// `add_consensus_message_create` adds a create command to the consensus-message subcommand.
+fn add_consensus_message_create(_app: App<'static, 'static>) -> App<'static, 'static> {
+    // TODO
+    unreachable!()
+}
+
 /// `add_consensus_message` adds a consensus-message command to the `App`.
-/// TODO: consensus-message storable subcommands
 fn add_consensus_message(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("consensus-message"); // TODO
+    let mut cmd = SubCommand::with_name("consensus-message").about("Consensus message operations");
+
+    cmd = add_consensus_message_create(cmd);
+    cmd = add_storable(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_import` adds an import command to the `App`.
+fn add_import(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("import")
+        .about("Import store comma-separated items from a file")
+        .arg(
+            Arg::with_name("file")
+                .help("File with the comma separated key-values to import")
+                .takes_value(true)
+                .value_name("FILE")
+                .conflicts_with("file"),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_export` adds an export command to the `App`.
+fn add_export(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("export")
+        .about("Export the store in comma-separated items to a file")
+        .arg(
+            Arg::with_name("file")
+                .help("File where to export")
+                .takes_value(true)
+                .value_name("FILE")
+                .conflicts_with("file"),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_size` adds a size command to the `App`.
+fn add_size(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("size")
+        .about("Returns the size of the store keys and values")
+        .arg(
+            Arg::with_name("keys")
+                .help("Returns the size of the store keys")
+                .long("keys")
+                .takes_value(false)
+                .conflicts_with("all"),
+        )
+        .arg(
+            Arg::with_name("values")
+                .help("Returns the size of the store values")
+                .long("values")
+                .takes_value(false)
+                .conflicts_with("all"),
+        )
+        .arg(
+            Arg::with_name("all")
+                .help("Returns the size of the store keys and values")
+                .long("all")
+                .takes_value(false),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
 
     app.subcommand(cmd)
 }
 
 /// `add_store` adds a store command to the `App`.
-/// TODO: store [import -file | export -file | size [-keys | -values | -all] | clean]
 fn add_store(app: App<'static, 'static>) -> App<'static, 'static> {
-    let cmd = SubCommand::with_name("store"); // TODO
+    let mut cmd = SubCommand::with_name("store").about("Store operations");
+
+    cmd = add_import(cmd);
+    cmd = add_export(cmd);
+    cmd = add_size(cmd);
+    cmd = add_clean(cmd);
 
     app.subcommand(cmd)
 }
