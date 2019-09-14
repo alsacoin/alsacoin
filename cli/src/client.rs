@@ -40,9 +40,30 @@ fn add_get(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_count` adds a count command to the `App`.
-/// TODO: count -from -to -skip
 fn add_count(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("count");
+    let mut cmd = SubCommand::with_name("count")
+        .about("Counts items in the store")
+        .arg(
+            Arg::with_name("from")
+                .help("Key from where the count starts")
+                .long("from")
+                .takes_value(true)
+                .value_name("FROM"),
+        )
+        .arg(
+            Arg::with_name("to")
+                .help("Key to where the count ends")
+                .long("to")
+                .takes_value(true)
+                .value_name("TO"),
+        )
+        .arg(
+            Arg::with_name("skip")
+                .help("Number of items skipeed at start")
+                .long("skip")
+                .takes_value(true)
+                .value_name("SKIP"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -51,9 +72,37 @@ fn add_count(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_query` adds a query command to the `App`.
-/// TODO: query -from -to -count -skip
 fn add_query(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("query");
+    let mut cmd = SubCommand::with_name("query")
+        .about("Queries items in the store")
+        .arg(
+            Arg::with_name("from")
+                .help("Key from where the count starts")
+                .long("from")
+                .takes_value(true)
+                .value_name("FROM"),
+        )
+        .arg(
+            Arg::with_name("to")
+                .help("Key to where the count ends")
+                .long("to")
+                .takes_value(true)
+                .value_name("TO"),
+        )
+        .arg(
+            Arg::with_name("count")
+                .help("Maximum number of items returned")
+                .long("count")
+                .takes_value(true)
+                .value_name("COUNT"),
+        )
+        .arg(
+            Arg::with_name("skip")
+                .help("Number of items skipeed at start")
+                .long("skip")
+                .takes_value(true)
+                .value_name("SKIP"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -62,9 +111,36 @@ fn add_query(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_insert` adds a insert command to the `App`.
-/// TODO: insert -key -value
 fn add_insert(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("insert");
+    let mut cmd = SubCommand::with_name("insert")
+        .about("Inserts an item in the store")
+        .arg(
+            Arg::with_name("key")
+                .help("Key of the item to insert")
+                .short("k")
+                .long("key")
+                .takes_value(true)
+                .value_name("KEY"),
+        )
+        .arg(
+            Arg::with_name("value")
+                .help("Value of the item to insert")
+                .short("v")
+                .long("value")
+                .takes_value(true)
+                .value_name("VALUE"),
+        )
+        .arg(
+            Arg::with_name("format")
+                .help("Item format")
+                .short("F")
+                .long("format")
+                .takes_value(true)
+                .value_name("FORMAT")
+                .possible_values(&["json", "hex"])
+                .default_value("hex")
+                .requires("value"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -73,9 +149,36 @@ fn add_insert(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_update` adds a update command to the `App`.
-/// TODO: update -key -value
 fn add_update(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("update");
+    let mut cmd = SubCommand::with_name("update")
+        .about("Updates an item in the store")
+        .arg(
+            Arg::with_name("key")
+                .help("Key of the item to update")
+                .short("k")
+                .long("key")
+                .takes_value(true)
+                .value_name("KEY"),
+        )
+        .arg(
+            Arg::with_name("value")
+                .help("Value of the item to update")
+                .short("v")
+                .long("value")
+                .takes_value(true)
+                .value_name("VALUE"),
+        )
+        .arg(
+            Arg::with_name("format")
+                .help("Item format")
+                .short("F")
+                .long("format")
+                .takes_value(true)
+                .value_name("FORMAT")
+                .possible_values(&["json", "hex"])
+                .default_value("hex")
+                .requires("value"),
+        );
 
     cmd = common::add_config_option(cmd);
     cmd = common::add_verbose_option(cmd);
@@ -159,7 +262,7 @@ fn add_fetch(app: App<'static, 'static>) -> App<'static, 'static> {
                 .help("Keys of the items to fetch")
                 .long("keys")
                 .takes_value(true)
-                .value_name("KEY")
+                .value_name("KEYS")
                 .conflicts_with("count"),
         )
         .arg(
