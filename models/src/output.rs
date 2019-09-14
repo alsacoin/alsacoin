@@ -3,8 +3,8 @@
 //! `output` contains the `Output` type and functions.
 
 use crate::address::Address;
+use crate::error::Error;
 use crate::result::Result;
-use crypto::hash::Digest;
 use crypto::random::Random;
 use serde::{Deserialize, Serialize};
 
@@ -13,19 +13,41 @@ use serde::{Deserialize, Serialize};
 pub struct Output {
     pub address: Address,
     pub amount: u64,
-    pub custom_digest: Option<Digest>,
+    pub custom_len: u32,
+    pub custom: Vec<u8>,
 }
 
 impl Output {
+    /// `new` creates a new `Output`.
+    pub fn new(address: &Address, amount: u64, custom: &[u8]) -> Output {
+        Output {
+            address: address.to_owned(),
+            amount,
+            custom_len: custom.len() as u32,
+            custom: custom.to_owned(),
+        }
+    }
+
     /// `random` creates a random `Output`.
-    pub fn random() -> Result<Output> {
+    pub fn random(custom_len: u32) -> Result<Output> {
         let output = Output {
             address: Address::random()?,
             amount: Random::u64()?,
-            custom_digest: None,
+            custom_len,
+            custom: Random::bytes(custom_len as usize)?,
         };
 
         Ok(output)
+    }
+
+    /// `validate` validates the `Output`.
+    pub fn validate(&self) -> Result<()> {
+        if self.custom.len() != self.custom_len as usize {
+            let err = Error::InvalidLength;
+            return Err(err);
+        }
+
+        Ok(())
     }
 
     /// `to_bytes` converts the `Output` into a CBOR binary.
@@ -50,9 +72,25 @@ impl Output {
 }
 
 #[test]
+fn test_output_validate() {
+    for _ in 0..10 {
+        let custom_len = Random::u32_range(0, 11).unwrap();
+        let mut output = Output::random(custom_len).unwrap();
+
+        let res = output.validate();
+        assert!(res.is_ok());
+
+        output.custom_len += 1;
+        let res = output.validate();
+        assert!(res.is_err());
+    }
+}
+
+#[test]
 fn test_output_serialize_bytes() {
     for _ in 0..10 {
-        let output_a = Output::random().unwrap();
+        let custom_len = Random::u32_range(0, 11).unwrap();
+        let output_a = Output::random(custom_len).unwrap();
 
         let res = output_a.to_bytes();
         assert!(res.is_ok());
@@ -69,7 +107,8 @@ fn test_output_serialize_bytes() {
 #[test]
 fn test_output_serialize_json() {
     for _ in 0..10 {
-        let output_a = Output::random().unwrap();
+        let custom_len = Random::u32_range(0, 11).unwrap();
+        let output_a = Output::random(custom_len).unwrap();
 
         let res = output_a.to_json();
         assert!(res.is_ok());

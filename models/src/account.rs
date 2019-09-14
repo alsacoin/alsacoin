@@ -24,7 +24,7 @@ pub struct Account {
     pub stage: Stage,
     pub timestamp: Timestamp,
     pub signers: Signers,
-    pub value: u64, // NB: gonna be confidential
+    pub amount: u64, // NB: gonna be confidential
     pub counter: u64,
     pub transaction_id: Option<Digest>,
 }
@@ -34,7 +34,7 @@ impl Account {
     pub fn new(
         stage: Stage,
         signers: &Signers,
-        value: u64,
+        amount: u64,
         tx_id: Option<Digest>,
     ) -> Result<Account> {
         signers.validate()?;
@@ -44,7 +44,7 @@ impl Account {
             stage,
             timestamp: Timestamp::now(),
             signers: signers.to_owned(),
-            value,
+            amount,
             counter: 0,
             transaction_id: tx_id,
         };
@@ -63,14 +63,14 @@ impl Account {
     pub fn is_eve(&self) -> Result<bool> {
         self.signers.validate()?;
 
-        let res = self.value == 0 && self.transaction_id.is_none() && self.counter == 0;
+        let res = self.amount == 0 && self.transaction_id.is_none() && self.counter == 0;
 
         Ok(res)
     }
 
     /// `update` updates the `Account`.
-    pub fn update(&mut self, value: u64, tx_id: Digest) {
-        self.value = value;
+    pub fn update(&mut self, amount: u64, tx_id: Digest) {
+        self.amount = amount;
         self.transaction_id = Some(tx_id);
         self.counter += 1;
     }
@@ -85,7 +85,7 @@ impl Account {
             return Err(err);
         }
 
-        if (self.value != 0 || self.counter != 0) && self.transaction_id.is_none() {
+        if (self.amount != 0 || self.counter != 0) && self.transaction_id.is_none() {
             let err = Error::InvalidAccount;
             return Err(err);
         }
@@ -162,11 +162,11 @@ impl<S: Store> Storable<S> for Account {
 
         let from = from.as_ref().map(|from| from.as_slice());
         let to = to.as_ref().map(|to| to.as_slice());
-        let values = store.query(from, to, count, skip)?;
+        let amounts = store.query(from, to, count, skip)?;
         let mut items = BTreeSet::new();
 
-        for value in values {
-            let item = Self::from_bytes(&value)?;
+        for amount in amounts {
+            let item = Self::from_bytes(&amount)?;
             items.insert(item);
         }
 
@@ -196,11 +196,11 @@ impl<S: Store> Storable<S> for Account {
 
         let from = from.as_ref().map(|from| from.as_slice());
         let to = to.as_ref().map(|to| to.as_slice());
-        let values = store.sample(from, to, count)?;
+        let amounts = store.sample(from, to, count)?;
         let mut items = BTreeSet::new();
 
-        for value in values {
-            let item = Self::from_bytes(&value)?;
+        for amount in amounts {
+            let item = Self::from_bytes(&amount)?;
             items.insert(item);
         }
 
@@ -233,22 +233,22 @@ impl<S: Store> Storable<S> for Account {
         store.count(from, to, skip).map_err(|e| e.into())
     }
 
-    fn insert(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+    fn insert(store: &mut S, stage: Stage, key: &Self::Key, amount: &Self) -> Result<()> {
         let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-        let value = value.to_bytes()?;
-        store.insert(&key, &value).map_err(|e| e.into())
+        let amount = amount.to_bytes()?;
+        store.insert(&key, &amount).map_err(|e| e.into())
     }
 
-    fn create(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+    fn create(store: &mut S, stage: Stage, key: &Self::Key, amount: &Self) -> Result<()> {
         let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-        let value = value.to_bytes()?;
-        store.create(&key, &value).map_err(|e| e.into())
+        let amount = amount.to_bytes()?;
+        store.create(&key, &amount).map_err(|e| e.into())
     }
 
-    fn update(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
+    fn update(store: &mut S, stage: Stage, key: &Self::Key, amount: &Self) -> Result<()> {
         let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-        let value = value.to_bytes()?;
-        store.update(&key, &value).map_err(|e| e.into())
+        let amount = amount.to_bytes()?;
+        store.update(&key, &amount).map_err(|e| e.into())
     }
 
     fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()> {
@@ -256,8 +256,8 @@ impl<S: Store> Storable<S> for Account {
 
         for (k, v) in items {
             let key = <Self as Storable<S>>::key_to_bytes(stage, k)?;
-            let value = v.to_bytes()?;
-            let item = (key, value);
+            let amount = v.to_bytes()?;
+            let item = (key, amount);
             _items.insert(item);
         }
 
@@ -301,8 +301,8 @@ impl<S: Store> Storable<S> for Account {
         let to = Some(_to.to_vec());
         let to = to.as_ref().map(|to| to.as_slice());
 
-        for value in store.query(from, to, None, None)? {
-            let account = Account::from_bytes(&value)?;
+        for amount in store.query(from, to, None, None)? {
+            let account = Account::from_bytes(&amount)?;
             if account.timestamp < min_time {
                 let key = <Self as Storable<S>>::key_to_bytes(stage, &account.address)?;
                 store.remove(&key)?;
@@ -330,7 +330,7 @@ fn test_account_new() {
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
-    let value = Random::u64().unwrap();
+    let amount = Random::u64().unwrap();
     let mut valid_signers = Signers::new().unwrap();
 
     for _ in 0..10 {
@@ -346,10 +346,10 @@ fn test_account_new() {
 
     let tx_id = Digest::random().unwrap();
 
-    let res = Account::new(stage, &valid_signers, value, Some(tx_id));
+    let res = Account::new(stage, &valid_signers, amount, Some(tx_id));
     assert!(res.is_ok());
 
-    let res = Account::new(stage, &invalid_signers, value, Some(tx_id));
+    let res = Account::new(stage, &invalid_signers, amount, Some(tx_id));
     assert!(res.is_err());
 }
 
@@ -388,7 +388,7 @@ fn test_account_new_eve() {
     let res = eve_account.validate();
     assert!(res.is_ok());
 
-    eve_account.value = 1;
+    eve_account.amount = 1;
 
     let res = eve_account.is_eve();
     assert!(res.is_ok());
@@ -397,7 +397,7 @@ fn test_account_new_eve() {
     let res = eve_account.validate();
     assert!(res.is_err());
 
-    eve_account.value = 0;
+    eve_account.amount = 0;
 
     eve_account.counter = 1;
 
@@ -416,7 +416,7 @@ fn test_account_validate() {
     use crypto::random::Random;
 
     let stage = Stage::random().unwrap();
-    let value = Random::u64().unwrap();
+    let amount = Random::u64().unwrap();
     let mut valid_signers = Signers::new().unwrap();
 
     let mut invalid_address = Address::random().unwrap();
@@ -436,7 +436,7 @@ fn test_account_validate() {
     invalid_signers.threshold = invalid_signers.total_weight() + 1;
     let tx_id = Digest::random().unwrap();
 
-    let mut account = Account::new(stage, &valid_signers, value, Some(tx_id)).unwrap();
+    let mut account = Account::new(stage, &valid_signers, amount, Some(tx_id)).unwrap();
 
     let res = account.validate();
     assert!(res.is_ok());
@@ -459,9 +459,9 @@ fn test_account_serialize_bytes() {
     for _ in 0..10 {
         let stage = Stage::random().unwrap();
         let signers = Signers::new().unwrap();
-        let value = Random::u64().unwrap();
+        let amount = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account_a = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account_a = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let res = account_a.to_bytes();
         assert!(res.is_ok());
@@ -482,9 +482,9 @@ fn test_account_serialize_json() {
     for _ in 0..10 {
         let stage = Stage::random().unwrap();
         let signers = Signers::new().unwrap();
-        let value = Random::u64().unwrap();
+        let amount = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account_a = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account_a = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let res = account_a.to_json();
         assert!(res.is_ok());
@@ -503,24 +503,24 @@ fn test_account_storable() {
     use crypto::random::Random;
     use store::memory::MemoryStoreFactory;
 
-    let max_value_size = 1 << 10;
+    let max_amount_size = 1 << 10;
     let max_size = 1 << 30;
 
-    let mut store = MemoryStoreFactory::new_unqlite(max_value_size, max_size).unwrap();
+    let mut store = MemoryStoreFactory::new_unqlite(max_amount_size, max_size).unwrap();
 
     let stage = Stage::random().unwrap();
 
     let items: Vec<(Address, Account)> = (0..10)
         .map(|_| {
             let signers = Signers::new().unwrap();
-            let value = Random::u64().unwrap();
+            let amount = Random::u64().unwrap();
             let tx_id = Digest::random().unwrap();
-            let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+            let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
             (account.address, account)
         })
         .collect();
 
-    for (key, value) in &items {
+    for (key, amount) in &items {
         let res = Account::count(&store, stage, Some(*key), None, None);
         assert!(res.is_ok());
         assert_eq!(res.unwrap(), 0);
@@ -537,7 +537,7 @@ fn test_account_storable() {
         let res = Account::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Account::insert(&mut store, stage, &key, &value);
+        let res = Account::insert(&mut store, stage, &key, &amount);
         assert!(res.is_ok());
 
         let res = Account::count(&store, stage, Some(*key), None, None);
@@ -546,7 +546,7 @@ fn test_account_storable() {
 
         let res = Account::query(&store, stage, Some(*key), None, None, None);
         assert!(res.is_ok());
-        assert_eq!(res.unwrap().iter().next(), Some(value));
+        assert_eq!(res.unwrap().iter().next(), Some(amount));
 
         let res = Account::lookup(&store, stage, &key);
         assert!(res.is_ok());
@@ -555,7 +555,7 @@ fn test_account_storable() {
 
         let res = Account::get(&store, stage, &key);
         assert!(res.is_ok());
-        assert_eq!(&res.unwrap(), value);
+        assert_eq!(&res.unwrap(), amount);
 
         let res = Account::remove(&mut store, stage, &key);
         assert!(res.is_ok());
@@ -576,7 +576,7 @@ fn test_account_storable() {
         let res = Account::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Account::insert(&mut store, stage, &key, &value);
+        let res = Account::insert(&mut store, stage, &key, &amount);
         assert!(res.is_ok());
 
         let res = Account::clear(&mut store, stage);

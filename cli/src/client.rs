@@ -230,8 +230,7 @@ fn add_clean(app: App<'static, 'static>) -> App<'static, 'static> {
 
 /// `add_storable` adds the storable commands to the `App`.
 fn add_storable(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut app = add_wallet_create(app);
-    app = add_lookup(app);
+    let mut app = add_lookup(app);
     app = add_get(app);
     app = add_count(app);
     app = add_query(app);
@@ -331,9 +330,13 @@ fn add_push(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_wallet_create` adds a create command to the wallet subcommand.
-fn add_wallet_create(_app: App<'static, 'static>) -> App<'static, 'static> {
-    // TODO
-    unreachable!()
+fn add_wallet_create(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("create").about("Create a new wallet");
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
 }
 
 /// `add_wallet` adds a wallet command to the `App`.
@@ -347,9 +350,55 @@ fn add_wallet(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_account_create` adds a create command to the account subcommand.
-fn add_account_create(_app: App<'static, 'static>) -> App<'static, 'static> {
-    // TODO
-    unreachable!()
+fn add_account_create(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("create")
+        .about("Create a new account")
+        .arg(
+            Arg::with_name("eve")
+                .help("Create an eve transaction")
+                .long("eve")
+                .takes_value(false),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_add_signer` adds a command to the `App` to add a signer.
+fn add_add_signer(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("add-signer")
+        .about("Add a signer to an account")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the account")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("signer")
+                .help("Address of the signer")
+                .long("signer")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("weight")
+                .help("Weight of the signer")
+                .long("weight")
+                .takes_value(true)
+                .required(true),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
 }
 
 /// `add_account` adds a account command to the `App`.
@@ -357,15 +406,141 @@ fn add_account(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("account").about("Account operations");
 
     cmd = add_account_create(cmd);
+    cmd = add_add_signer(cmd);
     cmd = add_storable(cmd);
 
     app.subcommand(cmd)
 }
 
 /// `add_transaction_create` adds a create command to the transaction subcommand.
-fn add_transaction_create(_app: App<'static, 'static>) -> App<'static, 'static> {
-    // TODO
-    unreachable!()
+fn add_transaction_create(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("create")
+        .about("Create a new transaction")
+        .arg(
+            Arg::with_name("eve")
+                .help("Create an eve transaction")
+                .long("eve")
+                .takes_value(false),
+        )
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the eve account")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .requires("eve"),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_set_locktime` adds a command to set the transaction locktime to the `App`.
+fn add_set_locktime(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("set-locktime")
+        .about("Sets the locktime of the transaction")
+        .arg(
+            Arg::with_name("locktime")
+                .help("Locktime of the transaction")
+                .takes_value(true)
+                .value_name("LOCKTIME")
+                .required(true),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_add_input` adds a command to add a transaction input to the `App`.
+fn add_add_input(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("add-input")
+        .about("Add an input to a transaction")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the account")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("amount")
+                .help("Amount of the input")
+                .long("amount")
+                .takes_value(true)
+                .required(true),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_add_output` adds a command to add a transaction output to the `App`.
+fn add_add_output(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("add-output")
+        .about("Add an output to a transaction")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the account")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("amount")
+                .help("Amount of the output")
+                .long("amount")
+                .takes_value(true)
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("custom")
+                .help("Custom data of the output")
+                .long("custom")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("format")
+                .help("Format of the output data")
+                .short("F")
+                .long("format")
+                .takes_value(true)
+                .value_name("FORMAT")
+                .possible_values(&["binary", "hex"])
+                .default_value("binary")
+                .requires("custom"),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_set_coinbase` adds a command to set the transaction coinbase to the `App`.
+fn add_set_coinbase(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("set-coinbase")
+        .about("Sets the coinbase of the transaction")
+        .arg(
+            Arg::with_name("coinbase")
+                .help("Coinbase of the transaction")
+                .takes_value(true)
+                .value_name("COINBASE")
+                .required(true),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
 }
 
 /// `add_transaction` adds a transaction command to the `App`.
@@ -373,6 +548,10 @@ fn add_transaction(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("transaction").about("Transaction operations");
 
     cmd = add_transaction_create(cmd);
+    cmd = add_set_locktime(cmd);
+    cmd = add_add_input(cmd);
+    cmd = add_add_output(cmd);
+    cmd = add_set_coinbase(cmd);
     cmd = add_fetch(cmd);
     cmd = add_push(cmd);
     cmd = add_storable(cmd);
@@ -381,9 +560,21 @@ fn add_transaction(app: App<'static, 'static>) -> App<'static, 'static> {
 }
 
 /// `add_node_create` adds a create command to the node subcommand.
-fn add_node_create(_app: App<'static, 'static>) -> App<'static, 'static> {
-    // TODO
-    unreachable!()
+fn add_node_create(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("create")
+        .about("Create a new node")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the node to create")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        );
+
+    cmd = common::add_config_option(cmd);
+    cmd = common::add_verbose_option(cmd);
+
+    app.subcommand(cmd)
 }
 
 /// `add_node` adds a node command to the `App`.
@@ -398,34 +589,28 @@ fn add_node(app: App<'static, 'static>) -> App<'static, 'static> {
     app.subcommand(cmd)
 }
 
-/// `add_consensus_state_create` adds a create command to the consensus-state subcommand.
-fn add_consensus_state_create(_app: App<'static, 'static>) -> App<'static, 'static> {
-    // TODO
-    unreachable!()
-}
-
 /// `add_consensus_state` adds a consensus-state command to the `App`.
 fn add_consensus_state(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("consensus-state").about("Consensus state operations");
 
-    cmd = add_consensus_state_create(cmd);
-    cmd = add_storable(cmd);
+    cmd = add_get(cmd);
+    cmd = add_count(cmd);
+    cmd = add_query(cmd);
+    cmd = add_cleanup(cmd);
+    cmd = add_clean(cmd);
 
     app.subcommand(cmd)
-}
-
-/// `add_consensus_message_create` adds a create command to the consensus-message subcommand.
-fn add_consensus_message_create(_app: App<'static, 'static>) -> App<'static, 'static> {
-    // TODO
-    unreachable!()
 }
 
 /// `add_consensus_message` adds a consensus-message command to the `App`.
 fn add_consensus_message(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("consensus-message").about("Consensus message operations");
 
-    cmd = add_consensus_message_create(cmd);
-    cmd = add_storable(cmd);
+    cmd = add_get(cmd);
+    cmd = add_count(cmd);
+    cmd = add_query(cmd);
+    cmd = add_cleanup(cmd);
+    cmd = add_clean(cmd);
 
     app.subcommand(cmd)
 }

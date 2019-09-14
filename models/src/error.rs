@@ -54,6 +54,8 @@ pub enum Error {
     NotFound,
     #[fail(display = "Invalid length")]
     InvalidLength,
+    #[fail(display = "Invalid amount")]
+    InvalidAmount,
     #[fail(display = "Invalid balance")]
     InvalidBalance,
     #[fail(display = "Invalid fee")]

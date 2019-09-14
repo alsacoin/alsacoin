@@ -991,16 +991,15 @@ fn test_transaction_inputs() {
         signers.add(&signer).unwrap();
         signers.set_threshold(threshold).unwrap();
 
-        let value = Random::u64().unwrap();
+        let amount = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
             distance = Random::u64().unwrap();
         }
 
-        let amount = Random::u64().unwrap();
         let mut input = Input::new(&account, distance, amount).unwrap();
 
         let found = transaction.lookup_input(&input.address);
@@ -1071,10 +1070,11 @@ fn test_transaction_inputs() {
 
 #[test]
 fn test_transaction_outputs() {
+    let custom_len = 10;
     let mut transaction = Transaction::new().unwrap();
 
     for _ in 0..10 {
-        let mut output = Output::random().unwrap();
+        let mut output = Output::random(custom_len).unwrap();
 
         let found = transaction.lookup_output(&output.address);
         assert!(!found);
@@ -1146,16 +1146,15 @@ fn test_transaction_distance() {
         signers.add(&signer).unwrap();
         signers.set_threshold(threshold).unwrap();
 
-        let value = Random::u64().unwrap();
+        let amount = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
             distance = Random::u64().unwrap();
         }
 
-        let amount = Random::u64().unwrap();
         let input = Input::new(&account, distance, amount).unwrap();
 
         transaction.add_input(&input).unwrap();
@@ -1202,16 +1201,15 @@ fn test_transaction_balance() {
         signers.add(&signer).unwrap();
         signers.set_threshold(threshold).unwrap();
 
-        let value = Random::u64().unwrap();
+        let amount = 10;
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
             distance = Random::u64().unwrap();
         }
 
-        let amount = 10;
         let input = Input::new(&account, distance, amount).unwrap();
 
         transaction.add_input(&input).unwrap();
@@ -1239,8 +1237,10 @@ fn test_transaction_balance() {
 
     assert_eq!(expected_balance, 0);
 
+    let custom_len = 10;
+
     for _ in 0..10 {
-        let mut output = Output::random().unwrap();
+        let mut output = Output::random(custom_len).unwrap();
         output.amount = 10;
 
         transaction.add_output(&output).unwrap();

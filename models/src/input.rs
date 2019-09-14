@@ -26,6 +26,11 @@ impl Input {
     pub fn new(account: &Account, distance: u64, amount: u64) -> Result<Input> {
         account.validate()?;
 
+        if account.amount < amount {
+            let err = Error::InvalidAmount;
+            return Err(err);
+        }
+
         if distance == 0 {
             let err = Error::InvalidDistance;
             return Err(err);
@@ -110,6 +115,11 @@ impl Input {
     /// `validate` validates the `Input`.
     pub fn validate(&self) -> Result<()> {
         self.account.validate()?;
+
+        if self.account.amount < self.amount {
+            let err = Error::InvalidAmount;
+            return Err(err);
+        }
 
         if self.distance == 0 {
             let err = Error::InvalidDistance;
@@ -197,16 +207,15 @@ fn test_input_new() {
 
     let stage = Stage::random().unwrap();
     let signers = Signers::new().unwrap();
-    let value = Random::u64().unwrap();
+    let amount = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+    let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
 
-    let amount = Random::u64().unwrap();
     let res = Input::new(&account, distance, amount);
     assert!(res.is_ok());
 
@@ -248,15 +257,14 @@ fn test_input_sign() {
     signers.add(&signer_a).unwrap();
     signers.add(&signer_b).unwrap();
 
-    let value = Random::u64().unwrap();
+    let amount = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+    let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
-    let amount = Random::u64().unwrap();
     let mut input = Input::new(&account, distance, amount).unwrap();
 
     let res = input.sign(&secret_key_a, &msg);
@@ -295,16 +303,15 @@ fn test_input_validate() {
 
     let stage = Stage::random().unwrap();
     let signers = Signers::new().unwrap();
-    let value = Random::u64().unwrap();
+    let amount = Random::u64().unwrap();
     let tx_id = Digest::random().unwrap();
-    let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+    let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
     let mut distance = Random::u64().unwrap();
     while distance == 0 {
         distance = Random::u64().unwrap();
     }
 
-    let amount = Random::u64().unwrap();
     let mut input = Input::new(&account, distance, amount).unwrap();
 
     let res = input.validate();
@@ -341,16 +348,15 @@ fn test_input_serialize_bytes() {
 
     for _ in 0..10 {
         let signers = Signers::new().unwrap();
-        let value = Random::u64().unwrap();
+        let amount = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
             distance = Random::u64().unwrap();
         }
 
-        let amount = Random::u64().unwrap();
         let input_a = Input::new(&account, distance, amount).unwrap();
 
         let res = input_a.to_bytes();
@@ -376,16 +382,15 @@ fn test_input_serialize_json() {
 
     for _ in 0..10 {
         let signers = Signers::new().unwrap();
-        let value = Random::u64().unwrap();
+        let amount = Random::u64().unwrap();
         let tx_id = Digest::random().unwrap();
-        let account = Account::new(stage, &signers, value, Some(tx_id)).unwrap();
+        let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
 
         let mut distance = Random::u64().unwrap();
         while distance == 0 {
             distance = Random::u64().unwrap();
         }
 
-        let amount = Random::u64().unwrap();
         let input_a = Input::new(&account, distance, amount).unwrap();
 
         let res = input_a.to_json();
