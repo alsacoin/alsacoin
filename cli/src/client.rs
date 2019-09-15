@@ -16,8 +16,7 @@ fn add_lookup(app: App<'static, 'static>) -> App<'static, 'static> {
                 .value_name("KEY"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -33,8 +32,7 @@ fn add_get(app: App<'static, 'static>) -> App<'static, 'static> {
                 .value_name("KEY"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -65,8 +63,7 @@ fn add_count(app: App<'static, 'static>) -> App<'static, 'static> {
                 .value_name("SKIP"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -104,8 +101,7 @@ fn add_query(app: App<'static, 'static>) -> App<'static, 'static> {
                 .value_name("SKIP"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -142,8 +138,7 @@ fn add_insert(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("value"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -180,8 +175,7 @@ fn add_update(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("value"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -197,8 +191,7 @@ fn add_remove(app: App<'static, 'static>) -> App<'static, 'static> {
                 .value_name("KEY"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -212,8 +205,7 @@ fn add_cleanup(app: App<'static, 'static>) -> App<'static, 'static> {
             .value_name("TO"),
     );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -222,8 +214,7 @@ fn add_cleanup(app: App<'static, 'static>) -> App<'static, 'static> {
 fn add_clean(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("clean");
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -274,8 +265,7 @@ fn add_fetch(app: App<'static, 'static>) -> App<'static, 'static> {
                 .conflicts_with("keys"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -323,8 +313,7 @@ fn add_push(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("value"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -333,8 +322,7 @@ fn add_push(app: App<'static, 'static>) -> App<'static, 'static> {
 fn add_wallet_create(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("create").about("Create a new wallet");
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -360,8 +348,7 @@ fn add_account_create(app: App<'static, 'static>) -> App<'static, 'static> {
                 .takes_value(false),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -395,8 +382,7 @@ fn add_add_signer(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -430,8 +416,7 @@ fn add_transaction_create(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("eve"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -448,8 +433,7 @@ fn add_set_locktime(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -475,8 +459,7 @@ fn add_add_input(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -519,8 +502,7 @@ fn add_add_output(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("custom"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -537,8 +519,7 @@ fn add_set_coinbase(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -571,8 +552,7 @@ fn add_node_create(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -627,8 +607,7 @@ fn add_import(app: App<'static, 'static>) -> App<'static, 'static> {
                 .conflicts_with("file"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -645,8 +624,7 @@ fn add_export(app: App<'static, 'static>) -> App<'static, 'static> {
                 .conflicts_with("file"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -676,8 +654,7 @@ fn add_size(app: App<'static, 'static>) -> App<'static, 'static> {
                 .takes_value(false),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -730,8 +707,7 @@ fn add_hash(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("file"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -770,8 +746,7 @@ fn add_sign(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required_unless("message"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -788,8 +763,7 @@ fn add_balance(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -823,8 +797,7 @@ fn add_send(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(true),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
@@ -863,8 +836,7 @@ fn add_mine(app: App<'static, 'static>) -> App<'static, 'static> {
                 .requires("value"),
         );
 
-    cmd = common::add_config_option(cmd);
-    cmd = common::add_verbose_option(cmd);
+    cmd = common::add_verbose(cmd);
 
     app.subcommand(cmd)
 }
