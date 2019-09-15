@@ -3,7 +3,6 @@
 //! `config` is the module containing the configuration type and functions.
 
 use crate::consensus::ConsensusConfig;
-use crate::error::Error;
 use crate::log::LogConfig;
 use crate::network::NetworkConfig;
 use crate::pool::PoolConfig;
@@ -17,7 +16,6 @@ use toml;
 /// `Config` is the type representing an Alsacoin configuration.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct Config {
-    pub stage: Option<String>,
     pub store: StoreConfig,
     pub pool: PoolConfig,
     pub network: NetworkConfig,
@@ -26,32 +24,14 @@ pub struct Config {
 }
 
 impl Config {
-    /// `VALID_STAGES` sets the valid stages.
-    pub const VALID_STAGES: &'static [&'static str] = &["testing", "development", "production"];
-
-    /// `DEFAULT_STAGE` is the default stage.
-    pub const DEFAULT_STAGE: &'static str = "production";
-
     /// `new` creates a new `Config`.
     pub fn new(
-        stage: Option<String>,
         store_conf: &StoreConfig,
         pool_conf: &PoolConfig,
         net_conf: &NetworkConfig,
         log_conf: &LogConfig,
         cons_conf: &ConsensusConfig,
     ) -> Result<Config> {
-        let stage = if let Some(stage) = stage {
-            if !Self::VALID_STAGES.contains(&stage.as_str()) {
-                let err = Error::InvalidStage;
-                return Err(err);
-            }
-
-            Some(stage)
-        } else {
-            Some(Self::DEFAULT_STAGE.into())
-        };
-
         store_conf.validate()?;
         pool_conf.validate()?;
         net_conf.validate()?;
@@ -59,7 +39,6 @@ impl Config {
         cons_conf.validate()?;
 
         let conf = Config {
-            stage,
             store: store_conf.to_owned(),
             pool: pool_conf.to_owned(),
             network: net_conf.to_owned(),
@@ -73,10 +52,6 @@ impl Config {
     /// `populate` populates the `None` fields in the `Config` when there are
     /// defaults.
     pub fn populate(&mut self) {
-        if self.stage.is_none() {
-            self.stage = Some(Self::DEFAULT_STAGE.into());
-        }
-
         self.store.populate();
         self.pool.populate();
         self.network.populate();
@@ -86,13 +61,6 @@ impl Config {
 
     /// `validate` validates the `Config`.
     pub fn validate(&self) -> Result<()> {
-        if let Some(ref stage) = self.stage {
-            if !Self::VALID_STAGES.contains(&stage.as_str()) {
-                let err = Error::InvalidStage;
-                return Err(err);
-            }
-        };
-
         self.store.validate()?;
         self.pool.validate()?;
         self.network.validate()?;
@@ -135,7 +103,6 @@ impl Config {
 
 impl Default for Config {
     fn default() -> Config {
-        let stage = Some(Config::DEFAULT_STAGE.into());
         let store = StoreConfig::default();
         let pool = PoolConfig::default();
         let network = NetworkConfig::default();
@@ -143,7 +110,6 @@ impl Default for Config {
         let consensus = ConsensusConfig::default();
 
         Config {
-            stage,
             store,
             pool,
             network,
@@ -156,7 +122,6 @@ impl Default for Config {
 #[test]
 fn test_config_new() {
     let invalid_kind = "kind";
-    let invalid_stage = "stage";
     let invalid_level = "level";
     let invalid_s_cost = 0;
 
@@ -181,9 +146,11 @@ fn test_config_new() {
     let mut invalid_cons_conf = cons_conf.clone();
     invalid_cons_conf.s_cost = Some(invalid_s_cost);
 
+    let res = Config::new(&store_conf, &pool_conf, &net_conf, &log_conf, &cons_conf);
+    assert!(res.is_ok());
+
     let res = Config::new(
-        Some(invalid_stage.into()),
-        &store_conf,
+        &invalid_store_conf,
         &pool_conf,
         &net_conf,
         &log_conf,
@@ -191,73 +158,46 @@ fn test_config_new() {
     );
     assert!(res.is_err());
 
-    for stage in Config::VALID_STAGES.iter().copied() {
-        let res = Config::new(
-            Some(stage.into()),
-            &invalid_store_conf,
-            &pool_conf,
-            &net_conf,
-            &log_conf,
-            &cons_conf,
-        );
-        assert!(res.is_err());
+    let res = Config::new(
+        &store_conf,
+        &invalid_pool_conf,
+        &net_conf,
+        &log_conf,
+        &cons_conf,
+    );
+    assert!(res.is_err());
 
-        let res = Config::new(
-            Some(stage.into()),
-            &store_conf,
-            &invalid_pool_conf,
-            &net_conf,
-            &log_conf,
-            &cons_conf,
-        );
-        assert!(res.is_err());
+    let res = Config::new(
+        &store_conf,
+        &pool_conf,
+        &invalid_net_conf,
+        &log_conf,
+        &cons_conf,
+    );
+    assert!(res.is_err());
 
-        let res = Config::new(
-            Some(stage.into()),
-            &store_conf,
-            &pool_conf,
-            &invalid_net_conf,
-            &log_conf,
-            &cons_conf,
-        );
-        assert!(res.is_err());
+    let res = Config::new(
+        &store_conf,
+        &pool_conf,
+        &net_conf,
+        &invalid_log_conf,
+        &cons_conf,
+    );
+    assert!(res.is_err());
 
-        let res = Config::new(
-            Some(stage.into()),
-            &store_conf,
-            &pool_conf,
-            &net_conf,
-            &invalid_log_conf,
-            &cons_conf,
-        );
-        assert!(res.is_err());
-
-        let res = Config::new(
-            Some(stage.into()),
-            &store_conf,
-            &pool_conf,
-            &net_conf,
-            &log_conf,
-            &invalid_cons_conf,
-        );
-        assert!(res.is_err());
-
-        let res = Config::new(
-            Some(stage.into()),
-            &store_conf,
-            &pool_conf,
-            &net_conf,
-            &log_conf,
-            &cons_conf,
-        );
-        assert!(res.is_ok());
-    }
+    let res = Config::new(
+        &store_conf,
+        &pool_conf,
+        &net_conf,
+        &log_conf,
+        &invalid_cons_conf,
+    );
+    assert!(res.is_err());
 }
 
 #[test]
 fn test_config_validate() {
     let invalid_kind = "kind";
-    let invalid_stage = "stage";
     let invalid_level = "level";
     let invalid_s_cost = 0;
 
@@ -286,19 +226,9 @@ fn test_config_validate() {
     let res = config.validate();
     assert!(res.is_ok());
 
-    config.stage = None;
-    let res = config.validate();
-    assert!(res.is_ok());
-
     config.populate();
     let res = config.validate();
     assert!(res.is_ok());
-
-    config.stage = Some(invalid_stage.into());
-    let res = config.validate();
-    assert!(res.is_err());
-
-    config.stage = None;
 
     config.store = invalid_store_conf;
     let res = config.validate();

@@ -3,6 +3,7 @@
 //! `client` contains the CLI client type and functions.
 
 use crate::common;
+use crate::result::Result;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 /// `add_lookup` adds a lookup command to the `App`.
@@ -847,15 +848,15 @@ fn add_mine(app: App<'static, 'static>) -> App<'static, 'static> {
 pub struct CliClient {}
 
 impl CliClient {
-    /// `CLI_CLIENT_NAME` is the CLI client app name.
-    pub const CLI_CLIENT_NAME: &'static str = "alsac";
+    /// `CLI_NAME` is the CLI client app name.
+    pub const CLI_NAME: &'static str = "alsac";
 
-    /// `CLI_CLIENT_ABOUT` is the CLI client app description.
-    pub const CLI_CLIENT_ABOUT: &'static str = "Alsacoin client";
+    /// `CLI_ABOUT` is the CLI client app description.
+    pub const CLI_ABOUT: &'static str = "Alsacoin client";
 
     /// `app` returns the `CliClient` clap `App`.
     pub fn app() -> App<'static, 'static> {
-        let mut app = common::app(Self::CLI_CLIENT_NAME, Self::CLI_CLIENT_ABOUT);
+        let mut app = common::app(Self::CLI_NAME, Self::CLI_ABOUT);
 
         app = add_hash(app);
         app = add_sign(app);
@@ -880,5 +881,27 @@ impl CliClient {
     /// `args` returns the `CliClient` clap `ArgMatches`.
     pub fn args() -> ArgMatches<'static> {
         CliClient::app().get_matches()
+    }
+
+    /// `init` inits the `CliClient` environment.
+    pub fn init() -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `reset` resets the `CliClient` environment.
+    pub fn reset() -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `run` runs the `CliClient` application.
+    pub fn run() -> Result<()> {
+        //CliClient::init()?;
+
+        let matches = CliClient::args();
+        println!("{} matches: {:?}", Self::CLI_NAME, matches);
+
+        Ok(())
     }
 }

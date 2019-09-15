@@ -3,6 +3,7 @@
 //! `daemon` contains the CLI daemon type and functions.
 
 use crate::common;
+use crate::result::Result;
 use clap::{App, Arg, ArgMatches, SubCommand};
 
 /// `add_start` adds a start command to `App`.
@@ -80,15 +81,15 @@ fn add_restart(app: App<'static, 'static>) -> App<'static, 'static> {
 pub struct CliDaemon {}
 
 impl CliDaemon {
-    /// `CLI_DAEMON_NAME` is the CLI daemon app name.
-    pub const CLI_DAEMON_NAME: &'static str = "alsad";
+    /// `CLI_NAME` is the CLI daemon app name.
+    pub const CLI_NAME: &'static str = "alsad";
 
-    /// `CLI_DAEMON_ABOUT` is the CLI daemon app description.
-    pub const CLI_DAEMON_ABOUT: &'static str = "Alsacoin daemon";
+    /// `CLI_ABOUT` is the CLI daemon app description.
+    pub const CLI_ABOUT: &'static str = "Alsacoin daemon";
 
     /// `app` returns the `CliDaemon` clap `App`.
     pub fn app() -> App<'static, 'static> {
-        let mut app = common::app(Self::CLI_DAEMON_NAME, Self::CLI_DAEMON_ABOUT);
+        let mut app = common::app(Self::CLI_NAME, Self::CLI_ABOUT);
         app = add_start(app);
         app = add_stop(app);
         add_restart(app)
@@ -97,5 +98,27 @@ impl CliDaemon {
     /// `args` returns the `CliDaemon` clap `ArgMatches`.
     pub fn args() -> ArgMatches<'static> {
         CliDaemon::app().get_matches()
+    }
+
+    /// `init` inits the `CliDaemon` environment.
+    pub fn init() -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `reset` resets the `CliDaemon` environment.
+    pub fn reset() -> Result<()> {
+        // TODO
+        unreachable!()
+    }
+
+    /// `run` runs the `CliDaemon` application.
+    pub fn run() -> Result<()> {
+        //CliDaemon::init()?;
+
+        let matches = CliDaemon::args();
+        println!("{} matches: {:?}", Self::CLI_NAME, matches);
+
+        Ok(())
     }
 }

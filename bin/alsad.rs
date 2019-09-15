@@ -1,6 +1,6 @@
 use alsacoin::cli::CliDaemon;
 
 pub fn main() {
-    let matches = CliDaemon::args();
-    println!("alsad matches: {:?}", matches)
+    CliDaemon::run().unwrap()
+    // CliDaemon::reset().unwrap()
 }

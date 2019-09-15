@@ -28,3 +28,5 @@ pub mod consensus;
 
 /// `config` contains the  configuration type and functions.
 pub mod config;
+
+pub use crate::config::Config;
