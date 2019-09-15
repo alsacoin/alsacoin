@@ -13,7 +13,6 @@ use toml;
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Serialize, Deserialize)]
 pub struct StoreConfig {
     pub kind: Option<String>,
-    pub path: Option<String>,
     pub max_value_size: Option<u32>,
     pub max_size: Option<u32>,
 }
@@ -34,7 +33,6 @@ impl StoreConfig {
     /// `new` creates a new `StoreConfig`.
     pub fn new(
         kind: Option<String>,
-        path: Option<String>,
         max_value_size: Option<u32>,
         max_size: Option<u32>,
     ) -> Result<StoreConfig> {
@@ -55,7 +53,6 @@ impl StoreConfig {
 
         let config = StoreConfig {
             kind: Some(kind),
-            path,
             max_value_size: Some(max_value_size),
             max_size: Some(max_size),
         };
@@ -125,13 +122,11 @@ impl StoreConfig {
 impl Default for StoreConfig {
     fn default() -> StoreConfig {
         let kind = Some(StoreConfig::DEFAULT_KIND.into());
-        let path = None;
         let max_value_size = Some(StoreConfig::DEFAULT_MAX_VALUE_SIZE);
         let max_size = Some(StoreConfig::DEFAULT_MAX_SIZE);
 
         StoreConfig {
             kind,
-            path,
             max_value_size,
             max_size,
         }
@@ -142,11 +137,11 @@ impl Default for StoreConfig {
 fn test_store_new() {
     let invalid_kind: String = "kind".into();
 
-    let res = StoreConfig::new(Some(invalid_kind.into()), None, None, None);
+    let res = StoreConfig::new(Some(invalid_kind.into()), None, None);
     assert!(res.is_err());
 
     for kind in StoreConfig::VALID_KINDS.iter().copied() {
-        let res = StoreConfig::new(Some(kind.into()), None, None, None);
+        let res = StoreConfig::new(Some(kind.into()), None, None);
         assert!(res.is_ok());
     }
 }
