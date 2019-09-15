@@ -25,3 +25,12 @@ pub mod temporary;
 
 /// `persistent` contains the persistent store type and functions.
 pub mod persistent;
+
+/// `store` contains the store type and functions.
+pub mod store;
+
+/// `pool` contains the pool type and functions.
+pub mod pool;
+
+pub use crate::pool::PoolFactory;
+pub use crate::store::StoreFactory;

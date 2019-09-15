@@ -12,3 +12,4 @@ tempfile = "~3.1"
 unqlite = "~1.4"
 
 crypto = { path = "../crypto" }
+config = { path = "../config" }

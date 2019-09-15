@@ -102,19 +102,22 @@ impl CliDaemon {
 
     /// `init` inits the `CliDaemon` environment.
     pub fn init() -> Result<()> {
-        // TODO
-        unreachable!()
+        common::init()
     }
 
     /// `reset` resets the `CliDaemon` environment.
     pub fn reset() -> Result<()> {
-        // TODO
-        unreachable!()
+        common::reset()
+    }
+
+    /// `clean` cleans the `CliDaemon` environment.
+    pub fn clean() -> Result<()> {
+        common::destroy()
     }
 
     /// `run` runs the `CliDaemon` application.
     pub fn run() -> Result<()> {
-        //CliDaemon::init()?;
+        CliDaemon::init()?;
 
         let matches = CliDaemon::args();
         println!("{} matches: {:?}", Self::CLI_NAME, matches);

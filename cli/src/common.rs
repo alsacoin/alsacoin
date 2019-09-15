@@ -2,6 +2,7 @@
 //!
 //! `common` contains the CLI common functionalities.
 
+use crate::error::Error;
 use crate::result::Result;
 use clap::{App, AppSettings, Arg};
 use config::Config;
@@ -10,6 +11,9 @@ use models::version::VERSION;
 use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
+use store::traits::Store;
+use store::PoolFactory;
+use store::StoreFactory;
 
 /// `app` creates and returns a clap `App`.
 pub fn app(name: &'static str, about: &'static str) -> App<'static, 'static> {
@@ -49,10 +53,13 @@ pub fn destroy_dir(path: &str) -> Result<()> {
 
 /// `write_file` writes a file.
 pub fn write_file(path: &str, buf: &[u8]) -> Result<()> {
-    let mut file = OpenOptions::new().create(true).truncate(true).open(path)?;
+    let mut file = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .truncate(true)
+        .open(path)?;
 
-    file.write_all(buf)?;
-    file.write_all(b"\n").map_err(|e| e.into())
+    file.write_all(buf).map_err(|e| e.into())
 }
 
 /// `read_file` reads a file.
@@ -70,23 +77,51 @@ pub fn destroy_file(path: &str) -> Result<()> {
     fs::remove_file(path).map_err(|e| e.into())
 }
 
+/// `data_dir` returns the data directory.
+pub fn data_dir() -> Result<String> {
+    let mut path = env::current_dir()?;
+    path.push("data");
+
+    if let Some(path) = path.to_str() {
+        Ok(path.into())
+    } else {
+        let err = Error::InvalidPath;
+        Err(err)
+    }
+}
+
+/// `destroy_data_dir` destroys the data directory.
+pub fn destroy_data_dir() -> Result<()> {
+    destroy_dir(&data_dir()?)
+}
+
 /// `config_dir` returns the Alsacoin configs directory.
 pub fn config_dir() -> Result<String> {
-    let mut path = env::current_exe()?;
+    let mut path = env::current_dir()?;
+    path.push("data");
     path.push("config");
 
-    let path = format!("{}", path.display());
-    Ok(path)
+    if let Some(path) = path.to_str() {
+        Ok(path.into())
+    } else {
+        let err = Error::InvalidPath;
+        Err(err)
+    }
 }
 
 /// `config_path` returns an Alsacoin config path.
 pub fn config_path(stage: Stage) -> Result<String> {
-    let mut path = env::current_exe()?;
+    let mut path = env::current_dir()?;
+    path.push("data");
     path.push("config");
     path.push(&format!("{}.toml", stage));
 
-    let path = format!("{}", path.display());
-    Ok(path)
+    if let Some(path) = path.to_str() {
+        Ok(path.into())
+    } else {
+        let err = Error::InvalidPath;
+        Err(err)
+    }
 }
 
 /// `create_config_dir` creates the Alsacoin configs directory if missing.
@@ -104,7 +139,7 @@ pub fn write_config(stage: Stage, config: &Config) -> Result<()> {
     config.validate()?;
 
     let path = config_path(stage)?;
-    let buf = config.to_bytes()?;
+    let buf = config.to_toml()?.into_bytes();
 
     write_file(&path, &buf)
 }
@@ -120,26 +155,37 @@ pub fn read_config(stage: Stage) -> Result<Config> {
     let path = config_path(stage)?;
     let buf = read_file(&path)?;
 
-    Config::from_bytes(&buf).map_err(|e| e.into())
+    let contents = String::from_utf8(buf)?;
+    Config::from_toml(&contents).map_err(|e| e.into())
 }
 
 /// `store_dir` returns the Alsacoin stores directory.
 pub fn store_dir() -> Result<String> {
-    let mut path = env::current_exe()?;
+    let mut path = env::current_dir()?;
+    path.push("data");
     path.push("store");
 
-    let path = format!("{}", path.display());
-    Ok(path)
+    if let Some(path) = path.to_str() {
+        Ok(path.into())
+    } else {
+        let err = Error::InvalidPath;
+        Err(err)
+    }
 }
 
 /// `store_path` returns an Alsacoin store path.
 pub fn store_path(stage: Stage) -> Result<String> {
-    let mut path = env::current_exe()?;
+    let mut path = env::current_dir()?;
+    path.push("data");
     path.push("store");
     path.push(&format!("{}.store", stage));
 
-    let path = format!("{}", path.display());
-    Ok(path)
+    if let Some(path) = path.to_str() {
+        Ok(path.into())
+    } else {
+        let err = Error::InvalidPath;
+        Err(err)
+    }
 }
 
 /// `create_store_dir` creates the Alsacoin stores directory if missing.
@@ -153,15 +199,42 @@ pub fn destroy_store_dir() -> Result<()> {
 }
 
 /// `create_store` creates an Alsacoin store.
-pub fn create_store(_stage: Stage, _config: &Config) -> Result<()> {
-    // TODO
-    unreachable!()
+pub fn create_store(stage: Stage, config: &Config) -> Result<()> {
+    config.validate()?;
+
+    let kind = config.store.kind.clone().unwrap();
+
+    let path = if &kind == "persistent" {
+        Some(store_path(stage)?)
+    } else {
+        None
+    };
+
+    StoreFactory::create(path, &config.store)
+        .map(|_| ())
+        .map_err(|e| e.into())
 }
 
 /// `open_store` opens an Alsacoin store.
-pub fn open_store(_stage: Stage, _config: &Config) -> Result<()> {
-    // TODO
-    unreachable!()
+pub fn open_store(stage: Stage, config: &Config) -> Result<Box<dyn Store>> {
+    config.validate()?;
+
+    let kind = config.store.kind.clone().unwrap();
+
+    let path = if &kind == "persistent" {
+        Some(store_path(stage)?)
+    } else {
+        None
+    };
+
+    StoreFactory::create(path, &config.store).map_err(|e| e.into())
+}
+
+/// `open_pool` opens an Alsacoin pool.
+pub fn open_pool(config: &Config) -> Result<Box<dyn Store>> {
+    config.validate()?;
+
+    PoolFactory::create(&config.pool).map_err(|e| e.into())
 }
 
 /// `init_config` inits the Alsacoin config of a specific stage.
@@ -189,11 +262,7 @@ pub fn init_store(stage: Stage) -> Result<()> {
 
     let config = read_config(stage)?;
 
-    if open_store(stage, &config).is_err() {
-        create_store(stage, &config)?;
-    }
-
-    Ok(())
+    create_store(stage, &config)
 }
 
 /// `init_stores` inits the Alsacoin stores.
@@ -237,8 +306,7 @@ pub fn destroy_configs() -> Result<()> {
 
 /// `destroy` destroys the Alsacoin CLI environment.
 pub fn destroy() -> Result<()> {
-    destroy_stores()?;
-    destroy_configs()
+    destroy_data_dir()
 }
 
 /// `reset_store` resets the Alsacoin store of a specific stage.

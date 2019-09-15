@@ -962,6 +962,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "store"
 version = "0.1.0"
 dependencies = [
+ "config 0.1.0",
  "crypto 0.1.0",
  "failure 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.97 (registry+https://github.com/rust-lang/crates.io-index)",

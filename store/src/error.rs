@@ -2,6 +2,7 @@
 //!
 //! `error` contains the `store` crate `Error` type.
 
+use config::error::Error as ConfigError;
 use crypto::error::Error as CryptoError;
 use std::convert::From;
 use std::io;
@@ -13,6 +14,8 @@ pub enum Error {
     IO { msg: String },
     #[fail(display = "Crypto: {}", msg)]
     Crypto { msg: String },
+    #[fail(display = "Config: {}", msg)]
+    Config { msg: String },
     #[fail(display = "Store: {}", msg)]
     Store { msg: String },
     #[fail(display = "Not implemented")]
@@ -33,6 +36,10 @@ pub enum Error {
     NotFound,
     #[fail(display = "Already found")]
     AlreadyFound,
+    #[fail(display = "Invalid path")]
+    InvalidPath,
+    #[fail(display = "Invalid kind")]
+    InvalidKind,
 }
 
 impl From<io::Error> for Error {
@@ -46,6 +53,13 @@ impl From<CryptoError> for Error {
     fn from(error: CryptoError) -> Error {
         let msg = format!("{}", error);
         Error::Crypto { msg }
+    }
+}
+
+impl From<ConfigError> for Error {
+    fn from(error: ConfigError) -> Error {
+        let msg = format!("{}", error);
+        Error::Config { msg }
     }
 }
 

@@ -8,6 +8,8 @@ use serde_cbor;
 use serde_json;
 use std::convert::From;
 use std::io;
+use std::string;
+use store::error::Error as StoreError;
 
 #[derive(Debug, Fail)]
 pub enum Error {
@@ -15,14 +17,16 @@ pub enum Error {
     IO { msg: String },
     #[fail(display = "Crypto: {}", msg)]
     Crypto { msg: String },
+    #[fail(display = "Store: {}", msg)]
+    Store { msg: String },
     #[fail(display = "Model: {}", msg)]
     Model { msg: String },
     #[fail(display = "Config: {}", msg)]
     Config { msg: String },
     #[fail(display = "Parse: {}", msg)]
     Parse { msg: String },
-    #[fail(display = "Invalid CLI status")]
-    InvalidCliStatus,
+    #[fail(display = "Invalid path")]
+    InvalidPath,
 }
 
 impl From<io::Error> for Error {
@@ -36,6 +40,13 @@ impl From<CryptoError> for Error {
     fn from(error: CryptoError) -> Error {
         let msg = format!("{}", error);
         Error::Crypto { msg }
+    }
+}
+
+impl From<StoreError> for Error {
+    fn from(error: StoreError) -> Error {
+        let msg = format!("{}", error);
+        Error::Store { msg }
     }
 }
 
@@ -55,6 +66,13 @@ impl From<serde_cbor::error::Error> for Error {
 
 impl From<serde_json::error::Error> for Error {
     fn from(err: serde_json::error::Error) -> Error {
+        let msg = format!("{}", err);
+        Error::Parse { msg }
+    }
+}
+
+impl From<string::FromUtf8Error> for Error {
+    fn from(err: string::FromUtf8Error) -> Error {
         let msg = format!("{}", err);
         Error::Parse { msg }
     }

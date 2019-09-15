@@ -33,7 +33,6 @@ impl Config {
         cons_conf: &ConsensusConfig,
     ) -> Result<Config> {
         store_conf.validate()?;
-        pool_conf.validate()?;
         net_conf.validate()?;
         log_conf.validate()?;
         cons_conf.validate()?;
@@ -62,7 +61,6 @@ impl Config {
     /// `validate` validates the `Config`.
     pub fn validate(&self) -> Result<()> {
         self.store.validate()?;
-        self.pool.validate()?;
         self.network.validate()?;
         self.log.validate()?;
         self.consensus.validate()?;
@@ -134,9 +132,6 @@ fn test_config_new() {
     let mut invalid_store_conf = store_conf.clone();
     invalid_store_conf.kind = Some(invalid_kind.into());
 
-    let mut invalid_pool_conf = pool_conf.clone();
-    invalid_pool_conf.kind = Some(invalid_kind.into());
-
     let mut invalid_net_conf = net_conf.clone();
     invalid_net_conf.kind = Some(invalid_kind.into());
 
@@ -152,15 +147,6 @@ fn test_config_new() {
     let res = Config::new(
         &invalid_store_conf,
         &pool_conf,
-        &net_conf,
-        &log_conf,
-        &cons_conf,
-    );
-    assert!(res.is_err());
-
-    let res = Config::new(
-        &store_conf,
-        &invalid_pool_conf,
         &net_conf,
         &log_conf,
         &cons_conf,
@@ -209,9 +195,6 @@ fn test_config_validate() {
     let mut invalid_store_conf = StoreConfig::default();
     invalid_store_conf.kind = Some(invalid_kind.into());
 
-    let mut invalid_pool_conf = PoolConfig::default();
-    invalid_pool_conf.kind = Some(invalid_kind.into());
-
     let mut invalid_net_conf = NetworkConfig::default();
     invalid_net_conf.kind = Some(invalid_kind.into());
 
@@ -235,12 +218,6 @@ fn test_config_validate() {
     assert!(res.is_err());
 
     config.store = store_conf;
-
-    config.pool = invalid_pool_conf;
-    let res = config.validate();
-    assert!(res.is_err());
-
-    config.pool = pool_conf;
 
     config.network = invalid_net_conf;
     let res = config.validate();

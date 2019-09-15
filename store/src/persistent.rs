@@ -5,7 +5,7 @@
 use crate::backend::UnQLiteStore;
 use crate::result::Result;
 
-/// `PersistentStoreFactory` is a factory for temporary stores.
+/// `PersistentStoreFactory` is a factory for persistent stores.
 pub struct PersistentStoreFactory;
 
 impl PersistentStoreFactory {

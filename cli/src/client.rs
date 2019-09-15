@@ -885,19 +885,22 @@ impl CliClient {
 
     /// `init` inits the `CliClient` environment.
     pub fn init() -> Result<()> {
-        // TODO
-        unreachable!()
+        common::init()
     }
 
     /// `reset` resets the `CliClient` environment.
     pub fn reset() -> Result<()> {
-        // TODO
-        unreachable!()
+        common::reset()
+    }
+
+    /// `clean` cleans the `CliClient` environment.
+    pub fn clean() -> Result<()> {
+        common::destroy()
     }
 
     /// `run` runs the `CliClient` application.
     pub fn run() -> Result<()> {
-        //CliClient::init()?;
+        CliClient::init()?;
 
         let matches = CliClient::args();
         println!("{} matches: {:?}", Self::CLI_NAME, matches);
