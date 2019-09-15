@@ -19,3 +19,6 @@ pub mod client;
 
 /// `daemon` contains the CLI daemon type and functions.
 pub mod daemon;
+
+pub use self::client::CliClient;
+pub use self::daemon::CliDaemon;

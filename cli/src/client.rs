@@ -198,12 +198,14 @@ fn add_remove(app: App<'static, 'static>) -> App<'static, 'static> {
 
 /// `add_cleanup` adds a cleanup command to the `App`.
 fn add_cleanup(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("cleanup").about("Cleanup").arg(
-        Arg::with_name("to")
-            .help("Timestamp to clean up to")
-            .takes_value(true)
-            .value_name("TO"),
-    );
+    let mut cmd = SubCommand::with_name("cleanup")
+        .about("Cleanup the store items")
+        .arg(
+            Arg::with_name("to")
+                .help("Timestamp to clean up to")
+                .takes_value(true)
+                .value_name("TO"),
+        );
 
     cmd = common::add_verbose(cmd);
 
@@ -212,7 +214,7 @@ fn add_cleanup(app: App<'static, 'static>) -> App<'static, 'static> {
 
 /// `add_clean` adds a clean command to the `App`.
 fn add_clean(app: App<'static, 'static>) -> App<'static, 'static> {
-    let mut cmd = SubCommand::with_name("clean");
+    let mut cmd = SubCommand::with_name("clean").about("Clean the store");
 
     cmd = common::add_verbose(cmd);
 

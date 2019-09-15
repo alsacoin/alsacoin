@@ -24,7 +24,7 @@ pub fn add_verbose(app: App<'static, 'static>) -> App<'static, 'static> {
     app.arg(
         Arg::with_name("verbose")
             .help("Turns on verbose output")
-            .short("v")
+            .short("V")
             .long("verbose")
             .takes_value(false)
             .required(false),

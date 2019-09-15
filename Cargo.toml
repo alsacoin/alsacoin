@@ -16,5 +16,24 @@ travis-ci = { repository = "alsacoin/alsacoin", branch = "master" }
 [workspace]
 members = ["crypto", "store",  "mining", "models", "protocol",  "network", "config", "cli"]
 
+[lib]
+name = "alsacoin"
+path = "src/lib.rs"
+
+[[bin]]
+name = "alsad"
+path = "bin/alsad.rs"
+
+[[bin]]
+name = "alsac"
+path = "bin/alsac.rs"
+
 [dependencies]
+crypto = { path = "crypto" }
+store = { path = "store" }
+mining = { path = "mining" }
+models = { path = "models" }
+protocol = { path = "protocol" }
+network = { path = "network" }
+config = { path = "config" }
 cli = { path = "cli" }
