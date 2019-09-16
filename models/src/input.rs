@@ -58,7 +58,7 @@ impl Input {
             return Err(err);
         }
 
-        if account.timestamp > transaction.time {
+        if account.time > transaction.time {
             let err = Error::InvalidTimestamp;
             return Err(err);
         }

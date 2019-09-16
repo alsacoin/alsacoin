@@ -22,7 +22,7 @@ use store::traits::Store;
 pub struct Account {
     pub address: Address,
     pub stage: Stage,
-    pub timestamp: Timestamp,
+    pub time: Timestamp,
     pub locktime: Option<Timestamp>,
     pub signers: Signers,
     pub amount: u64, // NB: gonna be confidential
@@ -43,7 +43,7 @@ impl Account {
         let account = Account {
             address: signers.address,
             stage,
-            timestamp: Timestamp::now(),
+            time: Timestamp::now(),
             locktime: None,
             signers: signers.to_owned(),
             amount,
@@ -74,7 +74,7 @@ impl Account {
     pub fn set_locktime(&mut self, locktime: Timestamp) -> Result<()> {
         locktime.validate()?;
 
-        if locktime < self.timestamp {
+        if locktime < self.time {
             let err = Error::InvalidLocktime;
             return Err(err);
         }
@@ -108,12 +108,12 @@ impl Account {
 
     /// `validate` validates the `Account`.
     pub fn validate(&self) -> Result<()> {
-        self.timestamp.validate()?;
+        self.time.validate()?;
 
         if let Some(locktime) = self.locktime {
             locktime.validate()?;
 
-            if locktime < self.timestamp {
+            if locktime < self.time {
                 let err = Error::InvalidLocktime;
                 return Err(err);
             }
@@ -344,7 +344,7 @@ impl<S: Store> Storable<S> for Account {
 
         for amount in store.query(from, to, None, None)? {
             let account = Account::from_bytes(&amount)?;
-            if account.timestamp < min_time {
+            if account.time < min_time {
                 let key = <Self as Storable<S>>::key_to_bytes(stage, &account.address)?;
                 store.remove(&key)?;
             }

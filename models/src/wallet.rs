@@ -25,7 +25,7 @@ pub struct Wallet {
     pub public_key: Vec<u8>,
     pub secret_key: Vec<u8>,
     pub stage: Stage,
-    pub timestamp: Timestamp,
+    pub time: Timestamp,
     pub checksum: Digest,
 }
 
@@ -46,14 +46,14 @@ impl Wallet {
     pub fn from_keypair(stage: Stage, keypair: &KeyPair) -> Result<Wallet> {
         keypair.validate()?;
 
-        let timestamp = Timestamp::now();
+        let time = Timestamp::now();
         let checksum = Digest::default();
 
         let mut wallet = Wallet {
             public_key: keypair.public_key.to_vec(),
             secret_key: keypair.secret_key.to_vec(),
             stage,
-            timestamp,
+            time,
             checksum,
         };
 
@@ -130,7 +130,7 @@ impl Wallet {
         };
         keypair.validate()?;
 
-        self.timestamp.validate()?;
+        self.time.validate()?;
 
         if self.checksum != self.calc_checksum()? {
             let err = Error::InvalidChecksum;
@@ -352,7 +352,7 @@ impl<S: Store> Storable<S> for Wallet {
 
         for value in store.query(from, to, None, None)? {
             let wallet = Wallet::from_bytes(&value)?;
-            if wallet.timestamp < min_time {
+            if wallet.time < min_time {
                 let key = <Self as Storable<S>>::key_to_bytes(stage, &wallet.public_key)?;
                 store.remove(&key)?;
             }
