@@ -32,7 +32,7 @@ fn add_start(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(false),
         );
 
-    cmd = common::add_verbose(cmd);
+    cmd = common::add_common(cmd);
 
     app.subcommand(cmd)
 }
@@ -41,7 +41,7 @@ fn add_start(app: App<'static, 'static>) -> App<'static, 'static> {
 fn add_stop(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("stop").about("Stops the daemon");
 
-    cmd = common::add_verbose(cmd);
+    cmd = common::add_common(cmd);
 
     app.subcommand(cmd)
 }
@@ -72,7 +72,7 @@ fn add_restart(app: App<'static, 'static>) -> App<'static, 'static> {
                 .required(false),
         );
 
-    cmd = common::add_verbose(cmd);
+    cmd = common::add_common(cmd);
 
     app.subcommand(cmd)
 }

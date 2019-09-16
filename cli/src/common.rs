@@ -29,6 +29,21 @@ pub fn app(name: &'static str, about: &'static str) -> App<'static, 'static> {
     ])
 }
 
+/// `add_stage` adds a stage option to a command.
+pub fn add_stage(app: App<'static, 'static>) -> App<'static, 'static> {
+    app.arg(
+        Arg::with_name("stage")
+            .help("Sets the stage used")
+            .short("s")
+            .long("stage")
+            .takes_value(true)
+            .value_name("STAGE")
+            .possible_values(&["development", "testing", "production"])
+            .default_value("development")
+            .required(false),
+    )
+}
+
 /// `add_verbose` adds a verbose option to a command.
 pub fn add_verbose(app: App<'static, 'static>) -> App<'static, 'static> {
     app.arg(
@@ -39,6 +54,12 @@ pub fn add_verbose(app: App<'static, 'static>) -> App<'static, 'static> {
             .takes_value(false)
             .required(false),
     )
+}
+
+/// `add_common` adds the common options to a command.
+pub fn add_common(app: App<'static, 'static>) -> App<'static, 'static> {
+    let app = add_stage(app);
+    add_verbose(app)
 }
 
 /// `create_dir` creates a directory.
