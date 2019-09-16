@@ -86,7 +86,7 @@ impl Account {
 
     /// `update` updates the `Account`.
     pub fn update(
-        self,
+        &self,
         locktime: Option<Timestamp>,
         amount: u64,
         tx_id: Digest,

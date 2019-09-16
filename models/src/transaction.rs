@@ -27,7 +27,7 @@ pub struct Transaction {
     pub version: Version,
     pub stage: Stage,
     pub time: Timestamp,
-    pub locktime: Timestamp,
+    pub locktime: Option<Timestamp>,
     pub distance: u64,
     pub inputs: BTreeMap<Address, Input>,
     pub outputs: BTreeMap<Address, Output>,
@@ -43,7 +43,7 @@ impl Transaction {
             version: Version::default(),
             stage: Stage::default(),
             time: Timestamp::default(),
-            locktime: Timestamp::default(),
+            locktime: None,
             distance: 1,
             inputs: BTreeMap::default(),
             outputs: BTreeMap::default(),
@@ -65,7 +65,7 @@ impl Transaction {
             version: Version::default(),
             stage,
             time: Timestamp::default(),
-            locktime: Timestamp::default(),
+            locktime: None,
             distance: 0,
             inputs: BTreeMap::default(),
             outputs: BTreeMap::default(),
@@ -112,14 +112,7 @@ impl Transaction {
             return Err(err);
         }
 
-        self.locktime = locktime;
-
-        self.update_id()
-    }
-
-    /// `clear_locktime` clears the `Transaction` locktime.
-    pub fn clear_locktime(&mut self) -> Result<()> {
-        self.locktime = self.time;
+        self.locktime = Some(locktime);
 
         self.update_id()
     }
@@ -608,11 +601,22 @@ impl Transaction {
     pub fn validate_times(&self) -> Result<()> {
         self.time.validate()?;
 
-        self.locktime.validate()?;
+        if let Some(locktime) = self.locktime {
+            locktime.validate()?;
 
-        if self.time > self.locktime {
-            let err = Error::InvalidTimestamp;
-            return Err(err);
+            if self.time > locktime {
+                let err = Error::InvalidTimestamp;
+                return Err(err);
+            }
+        }
+
+        for input in self.inputs.values() {
+            if let Some(locktime) = input.account.locktime {
+                if self.time < locktime {
+                    let err = Error::InvalidTimestamp;
+                    return Err(err);
+                }
+            }
         }
 
         Ok(())
@@ -948,6 +952,7 @@ fn test_transaction_times() {
 
     let invalid_date = "2012-12-12T00:00:00Z";
     let invalid_timestamp = Timestamp::parse(invalid_date).unwrap();
+
     let res = transaction.set_time(invalid_timestamp);
     assert!(res.is_err());
     let res = transaction.set_locktime(invalid_timestamp);
@@ -959,14 +964,10 @@ fn test_transaction_times() {
 
     let invalid_locktime_i64 = transaction.time.to_i64() - 1_000;
     let invalid_locktime = Timestamp::from_i64(invalid_locktime_i64).unwrap();
-    transaction.locktime = invalid_locktime;
+
+    transaction.locktime = Some(invalid_locktime);
     let res = transaction.validate_times();
     assert!(res.is_err());
-
-    transaction.clear_locktime().unwrap();
-    assert_eq!(transaction.time, transaction.locktime);
-    let res = transaction.validate_times();
-    assert!(res.is_ok());
 }
 
 #[test]

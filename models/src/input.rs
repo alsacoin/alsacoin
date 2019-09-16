@@ -48,15 +48,28 @@ impl Input {
         self.account.address
     }
 
-    /// `from_transaction_output` creates a new `Input` from a `Transaction` `Output`.
-    pub fn from_transaction_output(transaction: &Transaction, account: &Account) -> Result<Input> {
+    /// `from_transaction` creates a new `Input` from a `Transaction`.
+    pub fn from_transaction(account: &Account, transaction: &Transaction) -> Result<Input> {
+        account.validate()?;
         transaction.validate()?;
+
+        if account.stage != transaction.stage {
+            let err = Error::InvalidStage;
+            return Err(err);
+        }
+
+        if account.timestamp > transaction.time {
+            let err = Error::InvalidTimestamp;
+            return Err(err);
+        }
 
         let output = transaction.get_output(&account.address)?;
         let distance = transaction.distance;
         let amount = output.amount;
 
-        Input::new(account, distance, amount)
+        let account = account.update(transaction.locktime, amount, transaction.id)?;
+
+        Input::new(&account, distance, amount)
     }
 
     /// `signature_message` returns the binary message to sign from a binary seed.
