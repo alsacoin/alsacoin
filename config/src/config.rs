@@ -188,7 +188,6 @@ fn test_config_validate() {
     let invalid_s_cost = 0;
 
     let store_conf = StoreConfig::default();
-    let pool_conf = PoolConfig::default();
     let net_conf = NetworkConfig::default();
     let log_conf = LogConfig::default();
 

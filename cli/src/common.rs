@@ -48,7 +48,7 @@ pub fn create_dir(path: &str) -> Result<()> {
 
 /// `destroy_dir` destroys a directory.
 pub fn destroy_dir(path: &str) -> Result<()> {
-    fs::remove_dir(path).map_err(|e| e.into())
+    fs::remove_dir_all(path).map_err(|e| e.into())
 }
 
 /// `write_file` writes a file.

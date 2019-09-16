@@ -1,6 +1,5 @@
 use alsacoin::cli::CliClient;
 
 pub fn main() {
-    CliClient::run().unwrap();
-    CliClient::clean().unwrap()
+    CliClient::run().unwrap()
 }

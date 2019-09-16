@@ -119,8 +119,7 @@ impl CliDaemon {
     pub fn run() -> Result<()> {
         CliDaemon::init()?;
 
-        let matches = CliDaemon::args();
-        println!("{} matches: {:?}", Self::CLI_NAME, matches);
+        let _matches = CliDaemon::args();
 
         Ok(())
     }

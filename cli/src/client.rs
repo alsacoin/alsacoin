@@ -902,8 +902,7 @@ impl CliClient {
     pub fn run() -> Result<()> {
         CliClient::init()?;
 
-        let matches = CliClient::args();
-        println!("{} matches: {:?}", Self::CLI_NAME, matches);
+        let _matches = CliClient::args();
 
         Ok(())
     }
