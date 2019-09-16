@@ -6,7 +6,7 @@
 use crate::error::Error;
 use crate::message::Message;
 use crate::result::Result;
-use crate::traits::Transport;
+use crate::traits::Network;
 use crypto::hash::{Blake512Hasher, Digest};
 use crypto::random::Random;
 use std::collections::BTreeMap;
@@ -153,7 +153,7 @@ impl ChannelNode {
     }
 }
 
-impl Transport for ChannelNode {
+impl Network for ChannelNode {
     fn local_address(&self) -> Result<Vec<u8>> {
         Ok(self.address.clone())
     }

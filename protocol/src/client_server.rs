@@ -6,34 +6,34 @@ use crate::network::serve_client;
 use crate::result::{handle_result, Result};
 use crate::state::ProtocolState;
 use log::logger::Logger;
-use network::traits::Transport;
+use network::traits::Network;
 use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
 /// `ProtocolClientServer` is the protocol client server type.
-pub struct ProtocolClientServer<S, P, T>
+pub struct ProtocolClientServer<S, P, N>
 where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
-    T: Transport + Send + 'static,
+    N: Network + Send + 'static,
 {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
-    pub transport: Arc<Mutex<T>>,
+    pub network: Arc<Mutex<N>>,
     pub logger: Arc<Logger>,
 }
 
-impl<S, P, T> ProtocolClientServer<S, P, T>
+impl<S, P, N> ProtocolClientServer<S, P, N>
 where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
-    T: Transport + Send + 'static,
+    N: Network + Send + 'static,
 {
     /// `new` creates a new `ProtocolClientServer`.
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,
-        transport: Arc<Mutex<T>>,
+        network: Arc<Mutex<N>>,
         logger: Arc<Logger>,
-    ) -> Result<ProtocolClientServer<S, P, T>> {
+    ) -> Result<ProtocolClientServer<S, P, N>> {
         logger.log_info("Creating a new protocol client server")?;
 
         let res = state.lock().unwrap().validate();
@@ -42,7 +42,7 @@ where
 
         let server = ProtocolClientServer {
             state,
-            transport,
+            network,
             logger,
         };
 
@@ -78,7 +78,7 @@ where
 
         let res = serve_client(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
         );
 

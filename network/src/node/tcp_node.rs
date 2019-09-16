@@ -5,7 +5,7 @@
 use crate::error::Error;
 use crate::message::Message;
 use crate::result::Result;
-use crate::traits::Transport;
+use crate::traits::Network;
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 use crypto::hash::{Blake512Hasher, Digest};
 use std::io::{Cursor, Read, Write};
@@ -170,7 +170,7 @@ impl TcpNode {
     }
 }
 
-impl Transport for TcpNode {
+impl Network for TcpNode {
     fn local_address(&self) -> Result<Vec<u8>> {
         self.address_bytes()
     }

@@ -9,41 +9,41 @@ use crypto::hash::Digest;
 use log::logger::Logger;
 use models::node::Node;
 use models::transaction::Transaction;
-use network::traits::Transport;
+use network::traits::Network;
 use std::collections::BTreeSet;
 use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
 /// `ProtocolClient` is the protocol client type.
-pub struct ProtocolClient<S, P, T>
+pub struct ProtocolClient<S, P, N>
 where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
-    T: Transport + Send + 'static,
+    N: Network + Send + 'static,
 {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
-    pub transport: Arc<Mutex<T>>,
+    pub network: Arc<Mutex<N>>,
     pub logger: Arc<Logger>,
 }
 
-impl<S, P, T> ProtocolClient<S, P, T>
+impl<S, P, N> ProtocolClient<S, P, N>
 where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
-    T: Transport + Send + 'static,
+    N: Network + Send + 'static,
 {
     /// `new` creates a new `ProtocolClient`.
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,
-        transport: Arc<Mutex<T>>,
+        network: Arc<Mutex<N>>,
         logger: Arc<Logger>,
-    ) -> Result<ProtocolClient<S, P, T>> {
+    ) -> Result<ProtocolClient<S, P, N>> {
         let res = state.lock().unwrap().validate();
         handle_result(logger.clone(), res, "Protocol client creation error")?;
 
         let client = ProtocolClient {
             state,
-            transport,
+            network,
             logger,
         };
 
@@ -64,7 +64,7 @@ where
     ) -> Result<BTreeSet<Transaction>> {
         let res = protocol_network::fetch_node_transactions(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             address,
             ids,
@@ -81,7 +81,7 @@ where
     pub fn fetch_transactions(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Transaction>> {
         let res = protocol_network::fetch_transactions(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             ids,
         );
@@ -101,7 +101,7 @@ where
     ) -> Result<BTreeSet<Transaction>> {
         let res = protocol_network::fetch_node_random_transactions(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             address,
             count,
@@ -118,7 +118,7 @@ where
     pub fn fetch_random_transactions(&mut self, count: u32) -> Result<BTreeSet<Transaction>> {
         let res = protocol_network::fetch_random_transactions(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             count,
         );
@@ -138,7 +138,7 @@ where
     ) -> Result<BTreeSet<Node>> {
         let res = protocol_network::fetch_node_nodes(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             address,
             ids,
@@ -155,7 +155,7 @@ where
     pub fn fetch_nodes(&mut self, ids: &BTreeSet<Digest>) -> Result<BTreeSet<Node>> {
         let res = protocol_network::fetch_nodes(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             ids,
         );
@@ -175,7 +175,7 @@ where
     ) -> Result<BTreeSet<Node>> {
         let res = protocol_network::fetch_node_random_nodes(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             address,
             count,
@@ -192,7 +192,7 @@ where
     pub fn fetch_random_nodes(&mut self, count: u32) -> Result<BTreeSet<Node>> {
         let res = protocol_network::fetch_random_nodes(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             count,
         );
@@ -211,7 +211,7 @@ where
     ) -> Result<BTreeSet<Transaction>> {
         let res = protocol_network::fetch_missing_ancestors(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             transaction,
         );
@@ -227,7 +227,7 @@ where
     pub fn query_node(&mut self, address: &[u8], transaction: &Transaction) -> Result<bool> {
         let res = protocol_network::query_node(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             address,
             transaction,
@@ -240,7 +240,7 @@ where
     pub fn query(&mut self, transaction: &Transaction) -> Result<u32> {
         let res = protocol_network::query(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             transaction,
         );
@@ -252,7 +252,7 @@ where
     pub fn mine(&mut self, address: &[u8], transactions: &BTreeSet<Transaction>) -> Result<()> {
         let res = protocol_network::mine(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
             address,
             transactions,

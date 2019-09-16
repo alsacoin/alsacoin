@@ -6,8 +6,8 @@ use crate::message::Message;
 use crate::result::Result;
 use std::ops::FnMut;
 
-/// `Transport` is the trait implemented by `Alsacoin` network transports.
-pub trait Transport {
+/// `Network` is the trait implemented by `Alsacoin` network transports.
+pub trait Network {
     /// `local_address` returns the local `Node` address.
     fn local_address(&self) -> Result<Vec<u8>>;
 

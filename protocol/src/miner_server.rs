@@ -6,34 +6,34 @@ use crate::network::serve_mining;
 use crate::result::{handle_result, Result};
 use crate::state::ProtocolState;
 use log::logger::Logger;
-use network::traits::Transport;
+use network::traits::Network;
 use std::sync::{Arc, Mutex};
 use store::traits::Store;
 
 /// `ProtocolMinerServer` is the protocol miner server type.
-pub struct ProtocolMinerServer<S, P, T>
+pub struct ProtocolMinerServer<S, P, N>
 where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
-    T: Transport + Send + 'static,
+    N: Network + Send + 'static,
 {
     pub state: Arc<Mutex<ProtocolState<S, P>>>,
-    pub transport: Arc<Mutex<T>>,
+    pub network: Arc<Mutex<N>>,
     pub logger: Arc<Logger>,
 }
 
-impl<S, P, T> ProtocolMinerServer<S, P, T>
+impl<S, P, N> ProtocolMinerServer<S, P, N>
 where
     S: Store + Send + 'static,
     P: Store + Send + 'static,
-    T: Transport + Send + 'static,
+    N: Network + Send + 'static,
 {
     /// `new` creates a new `ProtocolMinerServer`.
     pub fn new(
         state: Arc<Mutex<ProtocolState<S, P>>>,
-        transport: Arc<Mutex<T>>,
+        network: Arc<Mutex<N>>,
         logger: Arc<Logger>,
-    ) -> Result<ProtocolMinerServer<S, P, T>> {
+    ) -> Result<ProtocolMinerServer<S, P, N>> {
         logger.log_info("Creating a new protocol miner server")?;
 
         let res = state.lock().unwrap().validate();
@@ -42,7 +42,7 @@ where
 
         let server = ProtocolMinerServer {
             state,
-            transport,
+            network,
             logger,
         };
 
@@ -77,7 +77,7 @@ where
 
         let res = serve_mining(
             self.state.clone(),
-            self.transport.clone(),
+            self.network.clone(),
             self.logger.clone(),
         );
 

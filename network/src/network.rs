@@ -5,7 +5,7 @@
 use crate::error::Error;
 use crate::node::TcpNode;
 use crate::result::Result;
-use crate::traits::Transport;
+use crate::traits::Network;
 use config::network::NetworkConfig;
 
 /// `NetworkFactory` is the factory for network types.
@@ -13,7 +13,7 @@ pub struct NetworkFactory {}
 
 impl NetworkFactory {
     /// `create` creates a new network from the configs.
-    pub fn create(config: &NetworkConfig) -> Result<Box<dyn Transport>> {
+    pub fn create(config: &NetworkConfig) -> Result<Box<dyn Network>> {
         config.validate()?;
 
         let mut config = config.clone();
@@ -40,7 +40,7 @@ impl NetworkFactory {
             }
             _ => {
                 let err = Error::InvalidKind;
-                return Err(err);
+                Err(err)
             }
         }
     }
