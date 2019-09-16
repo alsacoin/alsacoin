@@ -293,13 +293,57 @@ impl Transaction {
             return Err(err);
         }
 
+        if input.is_fully_signed()? {
+            let msg = self.input_sign_message()?;
+            input.verify_fully_signed(&msg)?;
+        } else if input.is_signed() {
+            let msg = self.input_sign_message()?;
+            input.verify_signatures(&msg)?;
+        }
+
+        Ok(())
+    }
+
+    /// `validate_fully_signed_input` validates a signed `Input`.
+    pub fn validate_fully_signed_input(&self, address: &Address) -> Result<()> {
+        let input = self.get_input(address)?;
+        input.validate()?;
+
+        if &input.address() != address {
+            let err = Error::InvalidAddress;
+            return Err(err);
+        }
+
+        if input.distance > self.distance {
+            let err = Error::InvalidDistance;
+            return Err(err);
+        }
+
+        if input.account.transaction_id == Some(self.id) {
+            let err = Error::InvalidId;
+            return Err(err);
+        }
+
+        let msg = self.input_sign_message()?;
+        input.verify_fully_signed(&msg)?;
+
         Ok(())
     }
 
     /// `validate_inputs` validates all the `Input`s in the `Transaction`.
     pub fn validate_inputs(&self) -> Result<()> {
-        for address in self.clone().inputs.keys() {
+        for address in self.inputs.keys() {
             self.validate_input(address)?;
+        }
+
+        Ok(())
+    }
+
+    /// `validate_fully_signed_inputs` validate all the `Input` expecting them to be fully
+    /// signed.
+    pub fn validate_fully_signed_inputs(&self) -> Result<()> {
+        for address in self.inputs.keys() {
+            self.validate_fully_signed_input(address)?;
         }
 
         Ok(())
@@ -350,6 +394,33 @@ impl Transaction {
         let input = self.get_input(address)?;
         let msg = self.input_sign_message()?;
         input.verify_signature(public_key, &msg)
+    }
+
+    /// `verify_fully_signed_input` verifies a fully signed `Input`.
+    pub fn verify_fully_signed_input(&self, address: &Address) -> Result<()> {
+        let input = self.get_input(address)?;
+        let msg = self.input_sign_message()?;
+        input.verify_fully_signed(&msg)
+    }
+
+    /// `is_signed` returns if at least one `Input` has been signed.
+    pub fn is_signed(&self) -> bool {
+        self.inputs
+            .values()
+            .filter(|input| input.is_signed())
+            .count()
+            != 0
+    }
+
+    /// `is_fully_signed` returns if all the `Input`s are fully signed.
+    pub fn is_fully_signed(&self) -> Result<bool> {
+        for input in self.inputs.values() {
+            if !input.is_fully_signed()? {
+                return Ok(false);
+            }
+        }
+
+        Ok(true)
     }
 
     /// `set_coinbase` sets the `Transaction` `Coinbase`.
@@ -641,6 +712,26 @@ impl Transaction {
         self.validate_times()?;
 
         self.validate_inputs()?;
+
+        self.validate_distance()?;
+
+        self.validate_balance()?;
+
+        self.validate_coinbase()?;
+
+        Ok(())
+    }
+
+    /// `validate_fully_signed` validates the `Transaction` expecting it to be fully
+    /// signed.
+    pub fn validate_fully_signed(&self) -> Result<()> {
+        self.validate_id()?;
+
+        self.version.validate()?;
+
+        self.validate_times()?;
+
+        self.validate_fully_signed_inputs()?;
 
         self.validate_distance()?;
 
@@ -1032,15 +1123,25 @@ fn test_transaction_inputs() {
         let entry = transaction.get_input(&address).unwrap();
         assert_eq!(entry, input);
 
-        let res = entry.fully_signed();
+        let res = entry.is_fully_signed();
         assert!(res.is_ok());
         assert!(!res.unwrap());
+
+        let res = transaction.is_fully_signed();
+        assert!(res.is_ok());
+        assert!(!res.unwrap());
+
+        let res = transaction.validate_fully_signed_input(&address);
+        assert!(res.is_err());
+
+        let res = transaction.validate_fully_signed_inputs();
+        assert!(res.is_err());
 
         let res = transaction.sign_input(&secret_key, &address);
         assert!(res.is_ok());
 
         let entry = transaction.get_input(&address).unwrap();
-        let res = entry.fully_signed();
+        let res = entry.is_fully_signed();
         assert!(res.is_ok());
         assert!(res.unwrap());
 
@@ -1052,10 +1153,20 @@ fn test_transaction_inputs() {
         let res = transaction.verify_input_signature(&public_key, &address);
         assert!(res.is_ok());
 
+        let res = transaction.is_fully_signed();
+        assert!(res.is_ok());
+        assert!(res.unwrap());
+
         let res = transaction.validate_input(&address);
         assert!(res.is_ok());
 
+        let res = transaction.validate_fully_signed_input(&address);
+        assert!(res.is_ok());
+
         let res = transaction.validate_inputs();
+        assert!(res.is_ok());
+
+        let res = transaction.validate_fully_signed_inputs();
         assert!(res.is_ok());
 
         let res = transaction.delete_input(&address);

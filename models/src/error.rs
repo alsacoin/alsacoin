@@ -46,6 +46,10 @@ pub enum Error {
     InvalidPublicKey,
     #[fail(display = "Invalid signature")]
     InvalidSignature,
+    #[fail(display = "Not signed")]
+    NotSigned,
+    #[fail(display = "Not fully signed")]
+    NotFullySigned,
     #[fail(display = "Invalid checksum")]
     InvalidChecksum,
     #[fail(display = "Not implemented")]

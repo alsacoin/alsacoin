@@ -128,6 +128,24 @@ impl Input {
         public_key.verify(&signature, &msg).map_err(|e| e.into())
     }
 
+    /// `is_signed` returns if the `Input` has been signed by someone.
+    pub fn is_signed(&self) -> bool {
+        let signatures_len = self.signatures.len();
+        let pks_len = self
+            .signatures
+            .keys()
+            .filter(|pk| self.account.signers.lookup(&pk))
+            .count();
+
+        signatures_len != 0 && pks_len == signatures_len
+    }
+
+    /// `is_fully_signed` returns if the `Input` has been fully signed.
+    pub fn is_fully_signed(&self) -> Result<bool> {
+        let res = self.is_signed() && self.signatures_weight()? >= self.account.signers.threshold;
+        Ok(res)
+    }
+
     /// `validate` validates the `Input`.
     pub fn validate(&self) -> Result<()> {
         self.account.validate()?;
@@ -152,8 +170,14 @@ impl Input {
         Ok(())
     }
 
-    /// `verify_signature` verifies all the `Input` signatures.
+    /// `verify_signatures` verifies `Input` signatures. It does not
+    /// expect it to be fully signed.
     pub fn verify_signatures(&self, seed: &[u8]) -> Result<()> {
+        if !self.is_signed() {
+            let err = Error::NotSigned;
+            return Err(err);
+        }
+
         for pk in self.signatures.keys() {
             if !self.account.signers.lookup(&pk) {
                 let err = Error::InvalidPublicKey;
@@ -164,6 +188,17 @@ impl Input {
         }
 
         Ok(())
+    }
+
+    /// `verify_fully_signed` verifies `Input` signatures expecting
+    /// it to be fully signed.
+    pub fn verify_fully_signed(&self, seed: &[u8]) -> Result<()> {
+        if !self.is_fully_signed()? {
+            let err = Error::NotFullySigned;
+            return Err(err);
+        }
+
+        self.verify_signatures(seed)
     }
 
     /// `signatures_weight` returns the sum of the weights of
@@ -179,18 +214,6 @@ impl Input {
         }
 
         Ok(sigs_weight)
-    }
-
-    /// `fully_signed` returns if the `Input` has reached the
-    /// threshold.
-    pub fn fully_signed(&self) -> Result<bool> {
-        self.validate()?;
-
-        if self.signatures_weight()? >= self.account.signers.threshold {
-            Ok(true)
-        } else {
-            Ok(false)
-        }
     }
 
     /// `to_bytes` converts the `Input` into a CBOR binary.
@@ -283,8 +306,14 @@ fn test_input_sign() {
     }
     let mut input = Input::new(&account, distance, amount).unwrap();
 
+    let is_signed = input.is_signed();
+    assert!(!is_signed);
+
     let res = input.sign(&secret_key_a, &msg);
     assert!(res.is_ok());
+
+    let is_signed = input.is_signed();
+    assert!(is_signed);
 
     let res = input.verify_signature(&public_key_a, &msg);
     assert!(res.is_ok());
@@ -295,7 +324,7 @@ fn test_input_sign() {
     let sigs_weight = res.unwrap();
     assert_eq!(sigs_weight, signer_a.weight);
 
-    let res = input.fully_signed();
+    let res = input.is_fully_signed();
     assert!(res.is_ok());
     assert!(!res.unwrap());
 
@@ -305,7 +334,7 @@ fn test_input_sign() {
     let sigs_weight = input.signatures_weight().unwrap();
     assert_eq!(sigs_weight, input.account.signers.threshold);
 
-    let res = input.fully_signed();
+    let res = input.is_fully_signed();
     assert!(res.is_ok());
     assert!(res.unwrap());
 }
