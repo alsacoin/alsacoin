@@ -20,10 +20,10 @@ pub struct NetworkConfig {
 
 impl NetworkConfig {
     /// `VALID_KINDS` sets the valid network kinds.
-    pub const VALID_KINDS: &'static [&'static str] = &["channels", "tcp"];
+    pub const VALID_KINDS: &'static [&'static str] = &["consensus", "miner", "client"];
 
     /// `DEFAULT_KIND` is the default network kind.
-    pub const DEFAULT_KIND: &'static str = "tcp";
+    pub const DEFAULT_KIND: &'static str = "client";
 
     /// `DEFAULT_CONSENSUS_ADDRESS` is the default consensus server address.
     pub const DEFAULT_CONSENSUS_ADDRESS: &'static str = "127.0.0.1:2019";

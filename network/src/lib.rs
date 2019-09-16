@@ -19,3 +19,8 @@ pub mod traits;
 
 /// `node` contains the networking nodes.
 pub mod node;
+
+/// `network` contains the network type and functions.
+pub mod network;
+
+pub use crate::network::NetworkFactory;

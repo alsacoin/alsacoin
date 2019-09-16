@@ -26,6 +26,7 @@ impl StoreFactory {
                     config.max_value_size.unwrap(),
                     config.max_size.unwrap(),
                 )?;
+
                 Ok(Box::new(store))
             }
             "persistent" => {
@@ -41,6 +42,7 @@ impl StoreFactory {
                     config.max_value_size.unwrap(),
                     config.max_size.unwrap(),
                 )?;
+
                 Ok(Box::new(store))
             }
             _ => {

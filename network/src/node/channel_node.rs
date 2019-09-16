@@ -166,10 +166,10 @@ impl Transport for ChannelNode {
         self._recv(timeout)
     }
 
-    fn serve<F: FnMut(Message) -> Result<()>>(
+    fn serve(
         &mut self,
         timeout: Option<u64>,
-        handler: F,
+        handler: Box<dyn FnMut(Message) -> Result<()>>,
     ) -> Result<()> {
         self._serve(timeout, handler)
     }

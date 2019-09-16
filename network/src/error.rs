@@ -3,6 +3,7 @@
 //! `error` contains the `store` crate `Error` type.
 
 use crate::message::Message;
+use config::error::Error as ConfigError;
 use crypto::error::Error as CryptoError;
 use mining::error::Error as MiningError;
 use models::error::Error as ModelError;
@@ -26,6 +27,8 @@ pub enum Error {
     Store { msg: String },
     #[fail(display = "Model: {}", msg)]
     Model { msg: String },
+    #[fail(display = "Config: {}", msg)]
+    Config { msg: String },
     #[fail(display = "Consensus: {}", msg)]
     Consensus { msg: String },
     #[fail(display = "Parse: {}", msg)]
@@ -44,6 +47,8 @@ pub enum Error {
     NotFound,
     #[fail(display = "Invalid address")]
     InvalidAddress,
+    #[fail(display = "Invalid kind")]
+    InvalidKind,
 }
 
 impl From<io::Error> for Error {
@@ -113,5 +118,12 @@ impl From<ModelError> for Error {
     fn from(error: ModelError) -> Error {
         let msg = format!("{}", error);
         Error::Model { msg }
+    }
+}
+
+impl From<ConfigError> for Error {
+    fn from(error: ConfigError) -> Error {
+        let msg = format!("{}", error);
+        Error::Config { msg }
     }
 }

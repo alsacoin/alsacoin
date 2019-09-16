@@ -1,6 +1,6 @@
 //! # Pool Factory
 //!
-//! `pool_factory` is the module containing the PoolFactory type and functions.
+//! `pool` is the module containing the PoolFactory type and functions.
 
 use crate::memory::MemoryStoreFactory;
 use crate::result::Result;
@@ -20,6 +20,7 @@ impl PoolFactory {
             config.max_value_size.unwrap(),
             config.max_size.unwrap(),
         )?;
+
         Ok(Box::new(pool))
     }
 }

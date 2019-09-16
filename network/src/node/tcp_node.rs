@@ -183,10 +183,10 @@ impl Transport for TcpNode {
         self._recv(timeout)
     }
 
-    fn serve<F: FnMut(Message) -> Result<()>>(
+    fn serve(
         &mut self,
         timeout: Option<u64>,
-        handler: F,
+        handler: Box<dyn FnMut(Message) -> Result<()>>,
     ) -> Result<()> {
         self._serve(timeout, handler)
     }
@@ -207,20 +207,21 @@ fn test_tcp_node_ops() {
     let res = trsp_a.validate();
     assert!(res.is_ok());
 
-    let trsp_a_addr = trsp_a.address.clone();
-
     let data_len = 1000;
     let data = Random::bytes(data_len).unwrap();
     let data_arc = Arc::new(data.clone());
+    let trsp_a_addr = trsp_a.address.clone();
+
+    let handler = move |msg: Message| {
+        let trsp_a_addr_buf = address_to_bytes(&trsp_a_addr).unwrap();
+        assert_eq!(msg.address, trsp_a_addr_buf);
+        assert_eq!(msg.data, *data_arc);
+
+        Ok(())
+    };
 
     thread::spawn(move || {
-        let _ = trsp_a.serve(None, |msg| {
-            let trsp_a_addr_buf = address_to_bytes(&trsp_a_addr).unwrap();
-            assert_eq!(msg.address, trsp_a_addr_buf);
-            assert_eq!(msg.data, *data_arc);
-
-            Ok(())
-        });
+        let _ = trsp_a.serve(None, Box::new(handler));
     });
 
     thread::sleep(Duration::from_secs(3));

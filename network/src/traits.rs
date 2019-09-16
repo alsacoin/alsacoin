@@ -7,7 +7,7 @@ use crate::result::Result;
 use std::ops::FnMut;
 
 /// `Transport` is the trait implemented by `Alsacoin` network transports.
-pub trait Transport: Clone {
+pub trait Transport {
     /// `local_address` returns the local `Node` address.
     fn local_address(&self) -> Result<Vec<u8>>;
 
@@ -18,9 +18,9 @@ pub trait Transport: Clone {
     fn recv(&mut self, timeout: Option<u64>) -> Result<Message>;
 
     /// `serve` execs a given function on incoming `Message`s.
-    fn serve<F: FnMut(Message) -> Result<()>>(
+    fn serve(
         &mut self,
         timeout: Option<u64>,
-        handler: F,
+        handler: Box<dyn FnMut(Message) -> Result<()>>,
     ) -> Result<()>;
 }

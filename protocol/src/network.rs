@@ -1499,17 +1499,21 @@ pub fn serve_mining<
     let timeout = state.lock().unwrap().config.timeout;
 
     transport
+        .clone()
         .lock()
         .unwrap()
-        .serve(timeout, |msg| {
-            let cons_msg = msg.to_consensus_message()?;
+        .serve(
+            timeout,
+            Box::new(move |msg| {
+                let cons_msg = msg.to_consensus_message()?;
 
-            handle_mine(state.clone(), transport.clone(), logger.clone(), &cons_msg).map_err(|e| {
-                NetworkError::Consensus {
-                    msg: format!("{}", e),
-                }
-            })
-        })
+                handle_mine(state.clone(), transport.clone(), logger.clone(), &cons_msg).map_err(
+                    |e| NetworkError::Consensus {
+                        msg: format!("{}", e),
+                    },
+                )
+            }),
+        )
         .map_err(|e| e.into())
 }
 
@@ -1845,17 +1849,21 @@ pub fn serve_client<
     let timeout = state.lock().unwrap().config.timeout;
 
     transport
+        .clone()
         .lock()
         .unwrap()
-        .serve(timeout, |msg| {
-            let cons_msg = msg.to_consensus_message()?;
+        .serve(
+            timeout,
+            Box::new(move |msg| {
+                let cons_msg = msg.to_consensus_message()?;
 
-            handle(state.clone(), transport.clone(), logger.clone(), &cons_msg).map_err(|e| {
-                NetworkError::Consensus {
-                    msg: format!("{}", e),
-                }
-            })
-        })
+                handle(state.clone(), transport.clone(), logger.clone(), &cons_msg).map_err(|e| {
+                    NetworkError::Consensus {
+                        msg: format!("{}", e),
+                    }
+                })
+            }),
+        )
         .map_err(|e| e.into())
 }
 
