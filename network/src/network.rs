@@ -2,10 +2,9 @@
 //!
 //! `network` is the module containing the network type and functions.
 
+use crate::backend::TcpNetwork;
 use crate::error::Error;
-use crate::node::TcpNode;
 use crate::result::Result;
-use crate::traits::Network;
 use config::network::NetworkConfig;
 
 /// `NetworkFactory` is the factory for network types.
@@ -13,7 +12,7 @@ pub struct NetworkFactory {}
 
 impl NetworkFactory {
     /// `create` creates a new network from the configs.
-    pub fn create(config: &NetworkConfig) -> Result<Box<dyn Network>> {
+    pub fn create(config: &NetworkConfig) -> Result<TcpNetwork> {
         config.validate()?;
 
         let mut config = config.clone();
@@ -22,21 +21,15 @@ impl NetworkFactory {
         match config.kind.unwrap().as_str() {
             "consensus" => {
                 let addr = config.consensus_address.clone().unwrap();
-                let network = TcpNode::new(&addr)?;
-
-                Ok(Box::new(network))
+                TcpNetwork::new(&addr)
             }
             "miner" => {
                 let addr = config.miner_address.clone().unwrap();
-                let network = TcpNode::new(&addr)?;
-
-                Ok(Box::new(network))
+                TcpNetwork::new(&addr)
             }
             "client" => {
                 let addr = config.client_address.clone().unwrap();
-                let network = TcpNode::new(&addr)?;
-
-                Ok(Box::new(network))
+                TcpNetwork::new(&addr)
             }
             _ => {
                 let err = Error::InvalidKind;

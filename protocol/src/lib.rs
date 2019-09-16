@@ -28,3 +28,8 @@ pub mod consensus_server;
 
 /// `miner_server` contains the protocol miner server type and functions.
 pub mod miner_server;
+
+/// `aliases` contains the main aliases of the crate.
+pub mod aliases;
+
+pub use crate::aliases::*;

@@ -1,7 +1,6 @@
-//! # Channel Node
+//! # Channel Network
 //!
-//! `channel_node` contains the mpsc Channel node types and functions. In this case
-//! the network of nodes is local and every node occupies a different thread in the same process.
+//! `channel` contains the mpsc Channel network types and functions.
 
 use crate::error::Error;
 use crate::message::Message;
@@ -14,22 +13,21 @@ use std::ops::FnMut;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 
-/// `ChannelNode` is a node using a mpsc Channel as transport. It only communicates to local nodes
-/// inhabiting other threads.
+/// `ChannelNetwork` is a network using a mpsc Channel as network.
 #[derive(Clone)]
-pub struct ChannelNode {
+pub struct ChannelNetwork {
     id: Digest,
     address: Vec<u8>,
     receiver: Arc<Mutex<Receiver<Message>>>,
     channels: BTreeMap<Digest, Sender<Message>>,
 }
 
-impl ChannelNode {
-    /// `ADDRESS_LEN` is the length of a `ChannelNode` address.
+impl ChannelNetwork {
+    /// `ADDRESS_LEN` is the length of a `ChannelNetwork` address.
     pub const ADDRESS_LEN: u32 = 16;
 
-    /// `new` creates a new `ChannelNode` backend.
-    pub fn new() -> Result<ChannelNode> {
+    /// `new` creates a new `ChannelNetwork` backend.
+    pub fn new() -> Result<ChannelNetwork> {
         let address = Self::gen_address()?;
         let id = Blake512Hasher::hash(&address);
 
@@ -40,32 +38,32 @@ impl ChannelNode {
 
         let receiver = Arc::new(Mutex::new(receiver));
 
-        let node = ChannelNode {
+        let network = ChannelNetwork {
             id,
             address,
             receiver,
             channels,
         };
 
-        Ok(node)
+        Ok(network)
     }
 
-    /// `gen_address` generates a new `ChannelNode` address.
+    /// `gen_address` generates a new `ChannelNetwork` address.
     pub fn gen_address() -> Result<Vec<u8>> {
         Random::bytes(Self::ADDRESS_LEN as usize).map_err(|e| e.into())
     }
 
-    /// `calc_id` calculates the `ChannelNode` id.
+    /// `calc_id` calculates the `ChannelNetwork` id.
     pub fn calc_id(&self) -> Digest {
         Blake512Hasher::hash(&self.address)
     }
 
-    /// `lookup_channel` look ups a recorded `ChannelNode`.
+    /// `lookup_channel` look ups a recorded `ChannelNetwork`.
     pub fn lookup_channel(&self, id: &Digest) -> bool {
         self.channels.contains_key(id)
     }
 
-    /// `add_channel` records a new `ChannelNode`.
+    /// `add_channel` records a new `ChannelNetwork`.
     pub fn add_channel(&mut self, id: Digest, channel: &Sender<Message>) -> Result<()> {
         if self.id == id {
             let err = Error::NotAllowed;
@@ -82,7 +80,7 @@ impl ChannelNode {
         Ok(())
     }
 
-    /// `remove_channel` removes a recorded `ChannelNode`.
+    /// `remove_channel` removes a recorded `ChannelNetwork`.
     pub fn remove_channel(&mut self, id: &Digest) -> Result<()> {
         if id == &self.id {
             let err = Error::NotAllowed;
@@ -97,7 +95,7 @@ impl ChannelNode {
         }
     }
 
-    /// `validate` validates the `ChannelNode`.
+    /// `validate` validates the `ChannelNetwork`.
     pub fn validate(&self) -> Result<()> {
         if self.id != self.calc_id() {
             let err = Error::InvalidId;
@@ -112,7 +110,7 @@ impl ChannelNode {
         Ok(())
     }
 
-    /// `_send` sends binary data to a known `ChannelNode`.
+    /// `_send` sends binary data to a known `ChannelNetwork`.
     fn _send(&self, address: &[u8], data: &[u8], _timeout: Option<u64>) -> Result<()> {
         if address.len() != Self::ADDRESS_LEN as usize {
             let err = Error::InvalidLength;
@@ -134,7 +132,7 @@ impl ChannelNode {
         }
     }
 
-    /// `_recv` receives a `Message` from a known `ChannelNode`.
+    /// `_recv` receives a `Message` from a known `ChannelNetwork`.
     /// No timeouts: https://github.com/rust-lang/rust/issues/39364.
     fn _recv(&mut self, _timeout: Option<u64>) -> Result<Message> {
         self.receiver.lock().unwrap().recv().map_err(|e| e.into())
@@ -153,7 +151,7 @@ impl ChannelNode {
     }
 }
 
-impl Network for ChannelNode {
+impl Network for ChannelNetwork {
     fn local_address(&self) -> Result<Vec<u8>> {
         Ok(self.address.clone())
     }
@@ -176,10 +174,10 @@ impl Network for ChannelNode {
 }
 
 #[test]
-fn test_channel_node_ops() {
+fn test_channel_network_ops() {
     use crypto::random::Random;
 
-    let res = ChannelNode::new();
+    let res = ChannelNetwork::new();
     assert!(res.is_ok());
 
     let mut trsp_a = res.unwrap();
@@ -213,7 +211,7 @@ fn test_channel_node_ops() {
     assert_eq!(msg.address, trsp_a_addr);
     assert_eq!(msg.data, data);
 
-    let mut trsp_b = ChannelNode::new().unwrap();
+    let mut trsp_b = ChannelNetwork::new().unwrap();
     let trsp_b_id = trsp_b.id;
     let trsp_b_addr = trsp_b.address.clone();
     let trsp_b_channel = trsp_b.channels.get(&trsp_b_id).unwrap().clone();

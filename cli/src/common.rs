@@ -11,7 +11,7 @@ use models::version::VERSION;
 use std::env;
 use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Write};
-use store::traits::Store;
+use store::backend::UnQLiteStore;
 use store::PoolFactory;
 use store::StoreFactory;
 
@@ -237,7 +237,7 @@ pub fn create_store(stage: Stage, config: &Config) -> Result<()> {
 }
 
 /// `open_store` opens an Alsacoin store.
-pub fn open_store(stage: Stage, config: &Config) -> Result<Box<dyn Store>> {
+pub fn open_store(stage: Stage, config: &Config) -> Result<UnQLiteStore> {
     config.validate()?;
 
     let kind = config.store.kind.clone().unwrap();
@@ -252,7 +252,7 @@ pub fn open_store(stage: Stage, config: &Config) -> Result<Box<dyn Store>> {
 }
 
 /// `open_pool` opens an Alsacoin pool.
-pub fn open_pool(config: &Config) -> Result<Box<dyn Store>> {
+pub fn open_pool(config: &Config) -> Result<UnQLiteStore> {
     config.validate()?;
 
     PoolFactory::create(&config.pool).map_err(|e| e.into())
