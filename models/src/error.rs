@@ -38,6 +38,8 @@ pub enum Error {
     InvalidStage,
     #[fail(display = "Invalid timestamp")]
     InvalidTimestamp,
+    #[fail(display = "Invalid locktime")]
+    InvalidLocktime,
     #[fail(display = "Invalid id")]
     InvalidId,
     #[fail(display = "Invalid public key")]

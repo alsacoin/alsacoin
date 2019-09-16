@@ -23,6 +23,7 @@ pub struct Account {
     pub address: Address,
     pub stage: Stage,
     pub timestamp: Timestamp,
+    pub locktime: Option<Timestamp>,
     pub signers: Signers,
     pub amount: u64, // NB: gonna be confidential
     pub counter: u64,
@@ -43,6 +44,7 @@ impl Account {
             address: signers.address,
             stage,
             timestamp: Timestamp::now(),
+            locktime: None,
             signers: signers.to_owned(),
             amount,
             counter: 0,
@@ -68,16 +70,55 @@ impl Account {
         Ok(res)
     }
 
+    /// `set_locktime` sets a locktime to the `Account`.
+    pub fn set_locktime(&mut self, locktime: Timestamp) -> Result<()> {
+        locktime.validate()?;
+
+        if locktime < self.timestamp {
+            let err = Error::InvalidLocktime;
+            return Err(err);
+        }
+
+        self.locktime = Some(locktime);
+
+        Ok(())
+    }
+
     /// `update` updates the `Account`.
-    pub fn update(&mut self, amount: u64, tx_id: Digest) {
-        self.amount = amount;
-        self.transaction_id = Some(tx_id);
-        self.counter += 1;
+    pub fn update(
+        self,
+        locktime: Option<Timestamp>,
+        amount: u64,
+        tx_id: Digest,
+    ) -> Result<Account> {
+        self.validate()?;
+
+        let mut new = self.clone();
+
+        if let Some(locktime) = locktime {
+            new.set_locktime(locktime)?;
+        }
+
+        new.amount = amount;
+        new.transaction_id = Some(tx_id);
+        new.counter += 1;
+
+        Ok(new)
     }
 
     /// `validate` validates the `Account`.
     pub fn validate(&self) -> Result<()> {
         self.timestamp.validate()?;
+
+        if let Some(locktime) = self.locktime {
+            locktime.validate()?;
+
+            if locktime < self.timestamp {
+                let err = Error::InvalidLocktime;
+                return Err(err);
+            }
+        }
+
         self.signers.validate()?;
 
         if self.address != self.signers.address {
