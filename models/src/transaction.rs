@@ -192,12 +192,12 @@ impl Transaction {
     pub fn add_input(&mut self, input: &Input) -> Result<()> {
         input.validate()?;
 
-        if self.lookup_input(&input.address) {
+        if self.lookup_input(&input.address()) {
             let err = Error::AlreadyFound;
             return Err(err);
         }
 
-        self.inputs.insert(input.address, input.clone());
+        self.inputs.insert(input.address(), input.clone());
 
         if input.distance > self.distance {
             self.distance = input.distance;
@@ -216,16 +216,16 @@ impl Transaction {
     pub fn update_input(&mut self, input: &Input) -> Result<()> {
         input.validate()?;
 
-        if !self.lookup_input(&input.address) {
+        if !self.lookup_input(&input.address()) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        if input == &self.get_input(&input.address)? {
+        if input == &self.get_input(&input.address())? {
             return Ok(());
         }
 
-        self.inputs.insert(input.address, input.clone());
+        self.inputs.insert(input.address(), input.clone());
 
         if input.distance > self.distance {
             self.distance = input.distance;
@@ -259,7 +259,7 @@ impl Transaction {
         let input = self.get_input(address)?;
         input.validate()?;
 
-        if &input.address != address {
+        if &input.address() != address {
             let err = Error::InvalidAddress;
             return Err(err);
         }
@@ -931,20 +931,21 @@ fn test_transaction_inputs() {
         }
 
         let mut input = Input::new(&account, distance, amount).unwrap();
+        let address = input.address();
 
-        let found = transaction.lookup_input(&input.address);
+        let found = transaction.lookup_input(&address);
         assert!(!found);
 
-        let res = transaction.get_input(&input.address);
+        let res = transaction.get_input(&address);
         assert!(res.is_err());
 
         let res = transaction.add_input(&input);
         assert!(res.is_ok());
 
-        let found = transaction.lookup_input(&input.address);
+        let found = transaction.lookup_input(&address);
         assert!(found);
 
-        let res = transaction.get_input(&input.address);
+        let res = transaction.get_input(&address);
         assert!(res.is_ok());
 
         let entry = res.unwrap();
@@ -955,17 +956,17 @@ fn test_transaction_inputs() {
         let res = transaction.update_input(&input);
         assert!(res.is_ok());
 
-        let entry = transaction.get_input(&input.address).unwrap();
+        let entry = transaction.get_input(&address).unwrap();
         assert_eq!(entry, input);
 
         let res = entry.fully_signed();
         assert!(res.is_ok());
         assert!(!res.unwrap());
 
-        let res = transaction.sign_input(&secret_key, &input.address);
+        let res = transaction.sign_input(&secret_key, &address);
         assert!(res.is_ok());
 
-        let entry = transaction.get_input(&input.address).unwrap();
+        let entry = transaction.get_input(&address).unwrap();
         let res = entry.fully_signed();
         assert!(res.is_ok());
         assert!(res.unwrap());
@@ -975,22 +976,22 @@ fn test_transaction_inputs() {
         let res = entry.verify_signature(&public_key, &msg);
         assert!(res.is_ok());
 
-        let res = transaction.verify_input_signature(&public_key, &input.address);
+        let res = transaction.verify_input_signature(&public_key, &address);
         assert!(res.is_ok());
 
-        let res = transaction.validate_input(&input.address);
+        let res = transaction.validate_input(&address);
         assert!(res.is_ok());
 
         let res = transaction.validate_inputs();
         assert!(res.is_ok());
 
-        let res = transaction.delete_input(&input.address);
+        let res = transaction.delete_input(&address);
         assert!(res.is_ok());
 
-        let found = transaction.lookup_input(&input.address);
+        let found = transaction.lookup_input(&address);
         assert!(!found);
 
-        let res = transaction.get_input(&input.address);
+        let res = transaction.get_input(&address);
         assert!(res.is_err());
 
         let res = transaction.validate_inputs();
@@ -1153,7 +1154,7 @@ fn test_transaction_balance() {
         let res = transaction.validate_balance();
         assert!(res.is_err());
 
-        transaction.delete_input(&input.address).unwrap();
+        transaction.delete_input(&input.address()).unwrap();
         input_balance -= input.amount;
         expected_balance -= input.amount as i64;
 

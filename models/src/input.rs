@@ -14,7 +14,6 @@ use std::collections::BTreeMap;
 /// `Input` is an input in an Alsacoin `Transaction`.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub struct Input {
-    pub address: Address,
     pub account: Account,
     pub signatures: BTreeMap<PublicKey, Signature>,
     pub amount: u64,
@@ -37,12 +36,16 @@ impl Input {
         }
 
         let mut input = Input::default();
-        input.address = account.address;
         input.account = account.to_owned();
         input.amount = amount;
         input.distance = distance;
 
         Ok(input)
+    }
+
+    /// `address` returns the `Input` address.
+    pub fn address(&self) -> Address {
+        self.account.address
     }
 
     /// `from_transaction_output` creates a new `Input` from a `Transaction` `Output`.
