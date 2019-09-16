@@ -27,7 +27,6 @@ pub struct Transaction {
     pub version: Version,
     pub stage: Stage,
     pub time: Timestamp,
-    pub locktime: Timestamp,
     pub distance: u64,
     pub inputs: BTreeMap<Address, Input>,
     pub outputs: BTreeMap<Address, Output>,
@@ -43,7 +42,6 @@ impl Transaction {
             version: Version::default(),
             stage: Stage::default(),
             time: Timestamp::default(),
-            locktime: Timestamp::default(),
             distance: 1,
             inputs: BTreeMap::default(),
             outputs: BTreeMap::default(),
@@ -65,7 +63,6 @@ impl Transaction {
             version: Version::default(),
             stage,
             time: Timestamp::default(),
-            locktime: Timestamp::default(),
             distance: 0,
             inputs: BTreeMap::default(),
             outputs: BTreeMap::default(),
@@ -99,27 +96,6 @@ impl Transaction {
         time.validate()?;
 
         self.time = time;
-
-        self.update_id()
-    }
-
-    /// `set_locktime` sets the `Transaction` locktime.
-    pub fn set_locktime(&mut self, locktime: Timestamp) -> Result<()> {
-        locktime.validate()?;
-
-        if locktime < self.time {
-            let err = Error::InvalidTimestamp;
-            return Err(err);
-        }
-
-        self.locktime = locktime;
-
-        self.update_id()
-    }
-
-    /// `clear_locktime` clears the `Transaction` locktime.
-    pub fn clear_locktime(&mut self) -> Result<()> {
-        self.locktime = self.time;
 
         self.update_id()
     }
@@ -602,20 +578,6 @@ impl Transaction {
         Ok(())
     }
 
-    /// `validate_times` validates the `Transaction` time and locktime.
-    pub fn validate_times(&self) -> Result<()> {
-        self.time.validate()?;
-
-        self.locktime.validate()?;
-
-        if self.time > self.locktime {
-            let err = Error::InvalidTimestamp;
-            return Err(err);
-        }
-
-        Ok(())
-    }
-
     /// `validate_balance` validates the `Transaction` balance.
     pub fn validate_balance(&self) -> Result<()> {
         if self.balance()? != self.coinbase_amount() as i64 {
@@ -631,8 +593,6 @@ impl Transaction {
         self.validate_id()?;
 
         self.version.validate()?;
-
-        self.validate_times()?;
 
         self.validate_inputs()?;
 
@@ -935,36 +895,6 @@ fn test_transaction_id() {
 
     let res = transaction.validate_id();
     assert!(res.is_err());
-}
-
-#[test]
-fn test_transaction_times() {
-    let mut transaction = Transaction::new().unwrap();
-
-    let res = transaction.validate_times();
-    assert!(res.is_ok());
-
-    let invalid_date = "2012-12-12T00:00:00Z";
-    let invalid_timestamp = Timestamp::parse(invalid_date).unwrap();
-    let res = transaction.set_time(invalid_timestamp);
-    assert!(res.is_err());
-    let res = transaction.set_locktime(invalid_timestamp);
-    assert!(res.is_err());
-
-    transaction.time = Timestamp::now();
-    let res = transaction.validate_times();
-    assert!(res.is_ok());
-
-    let invalid_locktime_i64 = transaction.time.to_i64() - 1_000;
-    let invalid_locktime = Timestamp::from_i64(invalid_locktime_i64).unwrap();
-    transaction.locktime = invalid_locktime;
-    let res = transaction.validate_times();
-    assert!(res.is_err());
-
-    transaction.clear_locktime().unwrap();
-    assert_eq!(transaction.time, transaction.locktime);
-    let res = transaction.validate_times();
-    assert!(res.is_ok());
 }
 
 #[test]
