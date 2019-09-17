@@ -22,7 +22,6 @@ use store::traits::Store;
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Debug, Serialize, Deserialize)]
 #[allow(clippy::large_enum_variant)]
 pub enum ConsensusMessage {
-    // NB: node is the sending node, not the receiving node
     FetchNodes {
         id: u64,
         address: Vec<u8>,
@@ -791,12 +790,33 @@ impl<S: Store> Storable<S> for ConsensusMessage {
 
     type Key = u64;
 
+    fn key(&self) -> Self::Key {
+        self.id()
+    }
+
     fn key_to_bytes(stage: Stage, key: &Self::Key) -> Result<Vec<u8>> {
         let mut buf = Vec::new();
         buf.push(stage as u8);
         buf.push(<Self as Storable<S>>::KEY_PREFIX);
         buf.write_u64::<BigEndian>(*key)?;
         Ok(buf)
+    }
+
+    fn validate_single(_store: &S, stage: Stage, value: &Self) -> Result<()> {
+        if value.node().stage != stage {
+            let err = Error::InvalidStage;
+            return Err(err);
+        }
+
+        value.validate()
+    }
+
+    fn validate_all(store: &S, stage: Stage) -> Result<()> {
+        for value in Self::query(store, stage, None, None, None, None)? {
+            Self::validate_single(store, stage, &value)?;
+        }
+
+        Ok(())
     }
 
     fn lookup(store: &S, stage: Stage, key: &Self::Key) -> Result<bool> {
@@ -905,35 +925,47 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         store.count(from, to, skip).map_err(|e| e.into())
     }
 
-    fn insert(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-        let value = value.to_bytes()?;
-        store.insert(&key, &value).map_err(|e| e.into())
+    fn insert(store: &mut S, stage: Stage, value: &Self) -> Result<()> {
+        Self::validate_single(store, stage, value)?;
+
+        let key = <Self as Storable<S>>::key(value);
+        let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
+        let store_value = value.to_bytes()?;
+        store.insert(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn create(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-        let value = value.to_bytes()?;
-        store.create(&key, &value).map_err(|e| e.into())
+    fn create(store: &mut S, stage: Stage, value: &Self) -> Result<()> {
+        Self::validate_single(store, stage, value)?;
+
+        let key = <Self as Storable<S>>::key(value);
+        let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
+        let store_value = value.to_bytes()?;
+        store.create(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn update(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()> {
-        let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
-        let value = value.to_bytes()?;
-        store.update(&key, &value).map_err(|e| e.into())
+    fn update(store: &mut S, stage: Stage, value: &Self) -> Result<()> {
+        Self::validate_single(store, stage, value)?;
+
+        let key = <Self as Storable<S>>::key(value);
+        let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
+        let store_value = value.to_bytes()?;
+        store.update(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()> {
-        let mut _items = BTreeSet::new();
+    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()> {
+        let mut items = BTreeSet::new();
 
-        for (k, v) in items {
-            let k = <Self as Storable<S>>::key_to_bytes(stage, k)?;
-            let v = v.to_bytes()?;
-            let item = (k, v);
-            _items.insert(item);
+        for value in values {
+            Self::validate_single(store, stage, value)?;
+
+            let key = <Self as Storable<S>>::key(value);
+            let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
+            let store_value = value.to_bytes()?;
+            let item = (store_key, store_value);
+            items.insert(item);
         }
 
-        let items: Vec<(&[u8], &[u8])> = _items
+        let items: Vec<(&[u8], &[u8])> = items
             .iter()
             .map(|(k, v)| (k.as_slice(), v.as_slice()))
             .collect();

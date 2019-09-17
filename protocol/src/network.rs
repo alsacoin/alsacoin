@@ -40,7 +40,6 @@ pub fn handle_message<S: Store + Send + 'static, P: Store + Send + 'static>(
         ConsensusMessage::create(
             &mut *state.lock().unwrap().store.lock().unwrap(),
             state.lock().unwrap().stage,
-            &cons_msg.id(),
             &cons_msg,
         )?;
     }
@@ -154,7 +153,6 @@ pub fn handle_node<S: Store + Send + 'static, P: Store + Send + 'static>(
         Node::create(
             &mut *state.lock().unwrap().store.lock().unwrap(),
             state.lock().unwrap().stage,
-            &node.id,
             &node,
         )?;
         state.lock().unwrap().state.add_known_node(node.id);
@@ -168,7 +166,6 @@ pub fn handle_node<S: Store + Send + 'static, P: Store + Send + 'static>(
             Node::update(
                 &mut *state.lock().unwrap().store.lock().unwrap(),
                 state.lock().unwrap().stage,
-                &node.id,
                 &node,
             )?;
         }
@@ -1572,7 +1569,6 @@ pub fn handle_transaction<
         Transaction::create(
             &mut *state.lock().unwrap().pool.lock().unwrap(),
             state.lock().unwrap().stage,
-            &tx_id,
             &transaction,
         )?;
 
@@ -1967,14 +1963,12 @@ pub fn avalanche_step<
             ConflictSet::update(
                 &mut *state.lock().unwrap().pool.lock().unwrap(),
                 state.lock().unwrap().stage,
-                &cs.address,
                 &cs,
             )?;
 
             Transaction::insert(
                 &mut *state.lock().unwrap().store.lock().unwrap(),
                 state.lock().unwrap().stage,
-                &tx_id,
                 &tx,
             )?;
         } else {
@@ -2015,7 +2009,6 @@ pub fn avalanche_step<
                         let res = ConflictSet::update(
                             &mut *state.lock().unwrap().pool.lock().unwrap(),
                             state.lock().unwrap().stage,
-                            &cs_id,
                             &cs,
                         );
 

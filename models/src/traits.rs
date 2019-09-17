@@ -16,8 +16,17 @@ pub trait Storable<S: Store>: Sized {
     /// `Key` is the type used to identify the model's instances in the `Store`.
     type Key: Default;
 
+    /// `key` returns the model instance key.
+    fn key(&self) -> Self::Key;
+
     /// `key_to_bytes` converts a key to a binary vector.
     fn key_to_bytes(stage: Stage, key: &Self::Key) -> Result<Vec<u8>>;
+
+    /// `validate_single` validates the model instance against the store.
+    fn validate_single(store: &S, stage: Stage, value: &Self) -> Result<()>;
+
+    /// `validate_all` validates all the models instances in the store.
+    fn validate_all(store: &S, stage: Stage) -> Result<()>;
 
     /// `lookup` looks up a model instance in the `Store` by key.
     fn lookup(store: &S, stage: Stage, key: &Self::Key) -> Result<bool>;
@@ -25,7 +34,6 @@ pub trait Storable<S: Store>: Sized {
     /// `get` returns a model instance from the `Store`.
     fn get(store: &S, stage: Stage, key: &Self::Key) -> Result<Self>;
 
-    // TODO: de-lame query: use streams
     /// `query` queries the `Store` for model instances.
     fn query(
         store: &S,
@@ -55,16 +63,16 @@ pub trait Storable<S: Store>: Sized {
     ) -> Result<u32>;
 
     /// `insert` inserts a model instance in the `Store`.
-    fn insert(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()>;
+    fn insert(store: &mut S, stage: Stage, value: &Self) -> Result<()>;
 
     /// `create` creates a previously not existing model instance in the `Store`.
-    fn create(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()>;
+    fn create(store: &mut S, stage: Stage, value: &Self) -> Result<()>;
 
     /// `update` updates a previously existing model instance in the `Store`.
-    fn update(store: &mut S, stage: Stage, key: &Self::Key, value: &Self) -> Result<()>;
+    fn update(store: &mut S, stage: Stage, value: &Self) -> Result<()>;
 
     /// `insert_batch` inserts one or more model instances in the `Store`.
-    fn insert_batch(store: &mut S, stage: Stage, items: &[(Self::Key, Self)]) -> Result<()>;
+    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()>;
 
     /// `remove` removes a mode instance from the `Store`.
     fn remove(store: &mut S, stage: Stage, key: &Self::Key) -> Result<()>;

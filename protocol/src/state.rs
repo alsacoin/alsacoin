@@ -66,31 +66,21 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         store.lock().unwrap().clear()?;
         pool.lock().unwrap().clear()?;
 
-        Account::create(
-            &mut *store.lock().unwrap(),
-            stage,
-            &eve_account.address(),
-            &eve_account,
-        )?;
+        Account::create(&mut *store.lock().unwrap(), stage, &eve_account)?;
 
-        Transaction::create(
-            &mut *store.lock().unwrap(),
-            stage,
-            &eve_transaction.id,
-            &eve_transaction,
-        )?;
+        Transaction::create(&mut *store.lock().unwrap(), stage, &eve_transaction)?;
 
         let mut seed_nodes = BTreeSet::new();
 
         for address in seed {
             let node = Node::new(stage, address);
-            Node::create(&mut *store.lock().unwrap(), stage, &node.id, &node)?;
+            Node::create(&mut *store.lock().unwrap(), stage, &node)?;
             seed_nodes.insert(node);
         }
 
         let state =
             ConsensusState::new(0, stage, &eve_account.address(), &eve_transaction.id, seed);
-        ConsensusState::create(&mut *store.lock().unwrap(), stage, &state.id, &state)?;
+        ConsensusState::create(&mut *store.lock().unwrap(), stage, &state)?;
 
         let state = ProtocolState {
             stage,
@@ -155,13 +145,8 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
     pub fn save(&mut self) -> Result<()> {
         ConsensusState::cleanup(&mut *self.store.lock().unwrap(), self.stage, None)?;
 
-        ConsensusState::create(
-            &mut *self.store.lock().unwrap(),
-            self.stage,
-            &self.state.id,
-            &self.state,
-        )
-        .map_err(|e| e.into())
+        ConsensusState::create(&mut *self.store.lock().unwrap(), self.stage, &self.state)
+            .map_err(|e| e.into())
     }
 
     /// `set_config` sets a new `ConsensusConfig` in the `ProtocolState`.
@@ -312,12 +297,12 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
                 let mut cs = ConflictSet::get(&*self.pool.lock().unwrap(), self.stage, &address)?;
                 cs.validate()?;
                 cs.transactions.insert(tx_id);
-                ConflictSet::update(&mut *self.pool.lock().unwrap(), self.stage, &address, &cs)?;
+                ConflictSet::update(&mut *self.pool.lock().unwrap(), self.stage, &cs)?;
             } else {
                 let mut cs = ConflictSet::new(address, self.stage);
                 cs.add_transaction(tx_id);
                 cs.count = 0;
-                ConflictSet::create(&mut *self.pool.lock().unwrap(), self.stage, &address, &cs)?;
+                ConflictSet::create(&mut *self.pool.lock().unwrap(), self.stage, &cs)?;
             }
         }
 
