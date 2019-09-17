@@ -45,7 +45,7 @@ impl Input {
 
     /// `address` returns the `Input` address.
     pub fn address(&self) -> Address {
-        self.account.address
+        self.account.address()
     }
 
     /// `from_transaction` creates a new `Input` from a `Transaction`.
@@ -63,7 +63,7 @@ impl Input {
             return Err(err);
         }
 
-        let output = transaction.get_output(&account.address)?;
+        let output = transaction.get_output(&account.address())?;
         let distance = transaction.distance;
         let amount = output.amount;
 

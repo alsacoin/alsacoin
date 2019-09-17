@@ -60,7 +60,7 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
 
         config.populate();
 
-        let mut eve_transaction = Transaction::new_eve(stage, &eve_account.address)?;
+        let mut eve_transaction = Transaction::new_eve(stage, &eve_account.address())?;
         eve_transaction.mine()?;
 
         store.lock().unwrap().clear()?;
@@ -69,7 +69,7 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         Account::create(
             &mut *store.lock().unwrap(),
             stage,
-            &eve_account.address,
+            &eve_account.address(),
             &eve_account,
         )?;
 
@@ -88,7 +88,8 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
             seed_nodes.insert(node);
         }
 
-        let state = ConsensusState::new(0, stage, &eve_account.address, &eve_transaction.id, seed);
+        let state =
+            ConsensusState::new(0, stage, &eve_account.address(), &eve_transaction.id, seed);
         ConsensusState::create(&mut *store.lock().unwrap(), stage, &state.id, &state)?;
 
         let state = ProtocolState {

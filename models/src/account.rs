@@ -20,11 +20,10 @@ use store::traits::Store;
 /// of a user, account which is identified by an `Address`.
 #[derive(Clone, Eq, PartialEq, PartialOrd, Ord, Debug, Default, Serialize, Deserialize)]
 pub struct Account {
-    pub address: Address,
+    pub signers: Signers,
     pub stage: Stage,
     pub time: Timestamp,
     pub locktime: Option<Timestamp>,
-    pub signers: Signers,
     pub amount: u64, // NB: gonna be confidential
     pub counter: u64,
     pub transaction_id: Option<Digest>,
@@ -41,17 +40,21 @@ impl Account {
         signers.validate()?;
 
         let account = Account {
-            address: signers.address,
+            signers: signers.to_owned(),
             stage,
             time: Timestamp::now(),
             locktime: None,
-            signers: signers.to_owned(),
             amount,
             counter: 0,
             transaction_id: tx_id,
         };
 
         Ok(account)
+    }
+
+    /// `address` returns the `Account` address.
+    pub fn address(&self) -> Address {
+        self.signers.address
     }
 
     /// `new_eve` creates a new eve `Account`.
@@ -120,11 +123,6 @@ impl Account {
         }
 
         self.signers.validate()?;
-
-        if self.address != self.signers.address {
-            let err = Error::InvalidAddress;
-            return Err(err);
-        }
 
         if (self.amount != 0 || self.counter != 0) && self.transaction_id.is_none() {
             let err = Error::InvalidAccount;
@@ -345,7 +343,7 @@ impl<S: Store> Storable<S> for Account {
         for amount in store.query(from, to, None, None)? {
             let account = Account::from_bytes(&amount)?;
             if account.time < min_time {
-                let key = <Self as Storable<S>>::key_to_bytes(stage, &account.address)?;
+                let key = <Self as Storable<S>>::key_to_bytes(stage, &account.address())?;
                 store.remove(&key)?;
             }
         }
@@ -482,11 +480,11 @@ fn test_account_validate() {
     let res = account.validate();
     assert!(res.is_ok());
 
-    account.address = invalid_address;
+    account.signers.address = invalid_address;
     let res = account.validate();
     assert!(res.is_err());
 
-    account.address = valid_signers.address;
+    account.signers.address = valid_signers.address;
 
     account.signers = invalid_signers;
     let res = account.validate();
@@ -557,7 +555,7 @@ fn test_account_storable() {
             let amount = Random::u64().unwrap();
             let tx_id = Digest::random().unwrap();
             let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
-            (account.address, account)
+            (account.address(), account)
         })
         .collect();
 
