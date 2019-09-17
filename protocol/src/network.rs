@@ -1553,7 +1553,7 @@ pub fn handle_transaction<
     logger: Arc<Logger>,
     transaction: &Transaction,
 ) -> Result<()> {
-    transaction.validate()?;
+    transaction.validate_fully_signed()?;
     transaction.validate_mined()?;
 
     let tx_id = transaction.id;
@@ -1575,6 +1575,7 @@ pub fn handle_transaction<
             &tx_id,
             &transaction,
         )?;
+
         state.lock().unwrap().state.add_known_transaction(tx_id);
 
         state.lock().unwrap().upsert_conflict_sets(&transaction)?;
@@ -1584,6 +1585,7 @@ pub fn handle_transaction<
             .unwrap()
             .state
             .set_transaction_chit(tx_id, false)?;
+
         state
             .lock()
             .unwrap()
