@@ -15,6 +15,7 @@ dependencies = [
  "cli 0.1.0",
  "config 0.1.0",
  "crypto 0.1.0",
+ "log 0.1.0",
  "mining 0.1.0",
  "models 0.1.0",
  "network 0.1.0",
