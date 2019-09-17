@@ -390,12 +390,102 @@ fn add_add_signer(app: App<'static, 'static>) -> App<'static, 'static> {
     app.subcommand(cmd)
 }
 
+/// `add_mod_signer` adds a command to the `App` to modify a signer.
+fn add_mod_signer(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("mod-signer")
+        .about("Modify a signer to an account")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the account")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("signer")
+                .help("Address of the signer to modify")
+                .long("signer")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("weight")
+                .help("New weight of the signer")
+                .long("weight")
+                .takes_value(true)
+                .required(true),
+        );
+
+    cmd = common::add_common(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_del_signer` adds a command to the `App` to delete a signer.
+fn add_del_signer(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("del-signer")
+        .about("Delete a signer from an account")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the account")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("signer")
+                .help("Address of the signer to modify")
+                .long("signer")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        );
+
+    cmd = common::add_common(cmd);
+
+    app.subcommand(cmd)
+}
+
+/// `add_set_threshold` adds a command to the `App` to set a threshold.
+fn add_set_threshold(app: App<'static, 'static>) -> App<'static, 'static> {
+    let mut cmd = SubCommand::with_name("set-threshold")
+        .about("Set the threshold of the account")
+        .arg(
+            Arg::with_name("address")
+                .help("Address of the account")
+                .short("a")
+                .long("address")
+                .takes_value(true)
+                .value_name("ADDRESS")
+                .required(true),
+        )
+        .arg(
+            Arg::with_name("threshold")
+                .help("New threshold of the account")
+                .long("threshold")
+                .takes_value(true)
+                .required(true),
+        );
+
+    cmd = common::add_common(cmd);
+
+    app.subcommand(cmd)
+}
+
 /// `add_account` adds a account command to the `App`.
 fn add_account(app: App<'static, 'static>) -> App<'static, 'static> {
     let mut cmd = SubCommand::with_name("account").about("Account operations");
 
     cmd = add_account_create(cmd);
     cmd = add_add_signer(cmd);
+    cmd = add_mod_signer(cmd);
+    cmd = add_del_signer(cmd);
+    cmd = add_set_threshold(cmd);
     cmd = add_storable(cmd);
 
     app.subcommand(cmd)
