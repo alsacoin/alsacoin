@@ -2,6 +2,7 @@
 //!
 //! `transaction` contains the `Transaction` type and functions.
 
+use crate::account::Account;
 use crate::address::Address;
 use crate::coinbase::Coinbase;
 use crate::error::Error;
@@ -786,13 +787,27 @@ impl<S: Store> Storable<S> for Transaction {
         Ok(buf)
     }
 
-    fn validate_single(_store: &S, stage: Stage, value: &Self) -> Result<()> {
+    fn validate_single(store: &S, stage: Stage, value: &Self) -> Result<()> {
         if value.stage != stage {
             let err = Error::InvalidStage;
             return Err(err);
         }
 
-        value.validate()
+        value.validate()?;
+
+        for input in value.inputs.values() {
+            let account = input.account.clone();
+            let stored = Account::get(store, stage, &account.address())?;
+
+            if account != stored {
+                let err = Error::InvalidAccount;
+                return Err(err);
+            }
+
+            Account::validate_single(store, stage, &account)?;
+        }
+
+        Ok(())
     }
 
     fn validate_all(store: &S, stage: Stage) -> Result<()> {
