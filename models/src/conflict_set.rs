@@ -3,12 +3,14 @@
 //! `conflict_set` is the module containing the type used to register mutually conflicting
 //! transactions.
 
+use crate::account::Account;
 use crate::address::Address;
 use crate::error::Error;
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crate::transaction::Transaction;
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
@@ -172,13 +174,41 @@ impl<S: Store> Storable<S> for ConflictSet {
         Ok(buf)
     }
 
-    fn validate_single(_store: &S, stage: Stage, value: &Self) -> Result<()> {
+    fn validate_single(store: &S, stage: Stage, value: &Self) -> Result<()> {
         if value.stage != stage {
             let err = Error::InvalidStage;
             return Err(err);
         }
 
-        value.validate()
+        value.validate()?;
+
+        if !Account::lookup(store, stage, &value.address)? {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        for id in &value.transactions {
+            if !Transaction::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        if let Some(id) = value.last {
+            if !Transaction::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        if let Some(id) = value.preferred {
+            if !Transaction::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        Ok(())
     }
 
     fn validate_all(store: &S, stage: Stage) -> Result<()> {
