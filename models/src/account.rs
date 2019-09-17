@@ -9,6 +9,7 @@ use crate::signers::Signers;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crate::transaction::Transaction;
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
 use serde_cbor;
@@ -170,13 +171,22 @@ impl<S: Store> Storable<S> for Account {
         Ok(buf)
     }
 
-    fn validate_single(_store: &S, stage: Stage, value: &Self) -> Result<()> {
+    fn validate_single(store: &S, stage: Stage, value: &Self) -> Result<()> {
         if value.stage != stage {
             let err = Error::InvalidStage;
             return Err(err);
         }
 
-        value.validate()
+        value.validate()?;
+
+        if let Some(id) = value.transaction_id {
+            if !Transaction::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        Ok(())
     }
 
     fn validate_all(store: &S, stage: Stage) -> Result<()> {
