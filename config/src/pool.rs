@@ -13,6 +13,7 @@ use toml;
 pub struct PoolConfig {
     pub max_value_size: Option<u32>,
     pub max_size: Option<u32>,
+    pub max_age: Option<u32>,
 }
 
 impl PoolConfig {
@@ -22,15 +23,25 @@ impl PoolConfig {
     /// `DEFAULT_MAX_SIZE` is the default pool max_size.
     pub const DEFAULT_MAX_SIZE: u32 = 1 << 30;
 
+    /// `DEFAULT_MAX_AGE` is the default pool max age.
+    pub const DEFAULT_MAX_AGE: u32 = 3600 * 72; // 3 days
+
     /// `new` creates a new `PoolConfig`.
-    pub fn new(max_value_size: Option<u32>, max_size: Option<u32>) -> PoolConfig {
+    pub fn new(
+        max_value_size: Option<u32>,
+        max_size: Option<u32>,
+        max_age: Option<u32>,
+    ) -> PoolConfig {
         let max_value_size = max_value_size.unwrap_or(Self::DEFAULT_MAX_VALUE_SIZE);
 
         let max_size = max_size.unwrap_or(Self::DEFAULT_MAX_SIZE);
 
+        let max_age = max_age.unwrap_or(Self::DEFAULT_MAX_AGE);
+
         PoolConfig {
             max_value_size: Some(max_value_size),
             max_size: Some(max_size),
+            max_age: Some(max_age),
         }
     }
 
@@ -43,6 +54,10 @@ impl PoolConfig {
 
         if self.max_size.is_none() {
             self.max_size = Some(Self::DEFAULT_MAX_SIZE);
+        }
+
+        if self.max_age.is_none() {
+            self.max_age = Some(Self::DEFAULT_MAX_AGE);
         }
     }
 
@@ -81,10 +96,12 @@ impl Default for PoolConfig {
     fn default() -> PoolConfig {
         let max_value_size = Some(PoolConfig::DEFAULT_MAX_VALUE_SIZE);
         let max_size = Some(PoolConfig::DEFAULT_MAX_SIZE);
+        let max_age = Some(PoolConfig::DEFAULT_MAX_AGE);
 
         PoolConfig {
             max_value_size,
             max_size,
+            max_age,
         }
     }
 }
