@@ -2,12 +2,16 @@
 //!
 //! `consensus_state` is the type used to manage the state of the Avalanche Consensus algorithm.
 
+use crate::account::Account;
 use crate::address::Address;
+use crate::conflict_set::ConflictSet;
 use crate::error::Error;
+use crate::node::Node;
 use crate::result::Result;
 use crate::stage::Stage;
 use crate::timestamp::Timestamp;
 use crate::traits::Storable;
+use crate::transaction::Transaction;
 use byteorder::{BigEndian, WriteBytesExt};
 use crypto::hash::Digest;
 use serde::{Deserialize, Serialize};
@@ -23,9 +27,9 @@ pub struct ConsensusState {
     pub stage: Stage,
     pub eve_account_address: Address,
     pub eve_transaction_id: Digest,
-    pub seed: BTreeSet<Vec<u8>>,
+    pub seed_nodes: BTreeSet<Digest>,
     pub known_transactions: BTreeSet<Digest>,
-    pub successors: BTreeMap<Digest, BTreeSet<Digest>>,
+    pub transaction_successors: BTreeMap<Digest, BTreeSet<Digest>>,
     pub queried_transactions: BTreeSet<Digest>,
     pub transaction_conflict_set: BTreeMap<Digest, Address>,
     pub transaction_chit: BTreeMap<Digest, bool>,
@@ -40,14 +44,14 @@ impl ConsensusState {
         stage: Stage,
         eve_account_address: &Address,
         eve_transaction_id: &Digest,
-        seed: &BTreeSet<Vec<u8>>,
+        seed_nodes: &BTreeSet<Digest>,
     ) -> ConsensusState {
         let mut state = ConsensusState::default();
         state.id = id;
         state.stage = stage;
         state.eve_account_address = eve_account_address.to_owned();
         state.eve_transaction_id = eve_transaction_id.to_owned();
-        state.seed = seed.to_owned();
+        state.seed_nodes = seed_nodes.to_owned();
         state
     }
 
@@ -75,18 +79,22 @@ impl ConsensusState {
         Ok(())
     }
 
-    /// `lookup_successors` looks up the successors of a `Transaction`.
-    pub fn lookup_successors(&self, tx_id: &Digest) -> bool {
-        self.successors.contains_key(tx_id)
+    /// `lookup_transaction_successors` looks up the transaction_successors of a `Transaction`.
+    pub fn lookup_transaction_successors(&self, tx_id: &Digest) -> bool {
+        self.transaction_successors.contains_key(tx_id)
     }
 
-    /// `get_successors` returns a `Transaction` successors.
-    pub fn get_successors(&self, tx_id: &Digest) -> Option<BTreeSet<Digest>> {
-        self.successors.get(tx_id).cloned()
+    /// `get_transaction_successors` returns a `Transaction` transaction_successors.
+    pub fn get_transaction_successors(&self, tx_id: &Digest) -> Option<BTreeSet<Digest>> {
+        self.transaction_successors.get(tx_id).cloned()
     }
 
-    /// `add_successors` adds the successors of a `Transaction`.
-    pub fn add_successors(&mut self, tx_id: Digest, succ_ids: BTreeSet<Digest>) -> Result<()> {
+    /// `add_transaction_successors` adds the transaction_successors of a `Transaction`.
+    pub fn add_transaction_successors(
+        &mut self,
+        tx_id: Digest,
+        succ_ids: BTreeSet<Digest>,
+    ) -> Result<()> {
         if !self.lookup_known_transaction(&tx_id) {
             let err = Error::NotFound;
             return Err(err);
@@ -97,13 +105,13 @@ impl ConsensusState {
             return Err(err);
         }
 
-        self.successors.insert(tx_id, succ_ids);
+        self.transaction_successors.insert(tx_id, succ_ids);
 
         Ok(())
     }
 
-    /// `add_successor` adds a single successor of a `Transaction`
-    pub fn add_successor(&mut self, tx_id: &Digest, succ_id: Digest) -> Result<()> {
+    /// `add_transaction_successor` adds a single successor of a `Transaction`
+    pub fn add_transaction_successor(&mut self, tx_id: &Digest, succ_id: Digest) -> Result<()> {
         if tx_id == &succ_id {
             let err = Error::InvalidId;
             return Err(err);
@@ -114,22 +122,22 @@ impl ConsensusState {
             return Err(err);
         }
 
-        let mut succ_ids = self.get_successors(tx_id).unwrap_or_default();
+        let mut succ_ids = self.get_transaction_successors(tx_id).unwrap_or_default();
         succ_ids.insert(succ_id);
 
-        self.successors.insert(*tx_id, succ_ids);
+        self.transaction_successors.insert(*tx_id, succ_ids);
 
         Ok(())
     }
 
-    /// `remove_successors` removes the successors of a `Transaction`.
-    pub fn remove_successors(&mut self, tx_id: &Digest) -> Result<()> {
-        if !self.lookup_successors(tx_id) {
+    /// `remove_transaction_successors` removes the transaction_successors of a `Transaction`.
+    pub fn remove_transaction_successors(&mut self, tx_id: &Digest) -> Result<()> {
+        if !self.lookup_transaction_successors(tx_id) {
             let err = Error::NotFound;
             return Err(err);
         }
 
-        self.successors.remove(tx_id);
+        self.transaction_successors.remove(tx_id);
 
         Ok(())
     }
@@ -396,13 +404,53 @@ impl<S: Store> Storable<S> for ConsensusState {
         Ok(buf)
     }
 
-    fn validate_single(_store: &S, stage: Stage, value: &Self) -> Result<()> {
+    fn validate_single(store: &S, stage: Stage, value: &Self) -> Result<()> {
         if value.stage != stage {
             let err = Error::InvalidStage;
             return Err(err);
         }
 
-        value.validate()
+        value.validate()?;
+
+        if !Account::lookup(store, stage, &value.eve_account_address)? {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        if !Transaction::lookup(store, stage, &value.eve_transaction_id)? {
+            let err = Error::NotFound;
+            return Err(err);
+        }
+
+        for id in &value.seed_nodes {
+            if !Node::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        for id in &value.known_transactions {
+            if !Transaction::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        for address in value.transaction_conflict_set.keys() {
+            if !ConflictSet::lookup(store, stage, &address)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        for id in &value.known_nodes {
+            if !Node::lookup(store, stage, &id)? {
+                let err = Error::NotFound;
+                return Err(err);
+            }
+        }
+
+        Ok(())
     }
 
     fn validate_all(store: &S, stage: Stage) -> Result<()> {

@@ -70,16 +70,23 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
 
         Transaction::create(&mut *store.lock().unwrap(), stage, &eve_transaction)?;
 
+        let mut seed_ids = BTreeSet::new();
         let mut seed_nodes = BTreeSet::new();
 
         for address in seed {
             let node = Node::new(stage, address);
             Node::create(&mut *store.lock().unwrap(), stage, &node)?;
+            seed_ids.insert(node.id);
             seed_nodes.insert(node);
         }
 
-        let state =
-            ConsensusState::new(0, stage, &eve_account.address(), &eve_transaction.id, seed);
+        let state = ConsensusState::new(
+            0,
+            stage,
+            &eve_account.address(),
+            &eve_transaction.id,
+            &seed_ids,
+        );
         ConsensusState::create(&mut *store.lock().unwrap(), stage, &state)?;
 
         let state = ProtocolState {
@@ -219,7 +226,7 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         let id = transaction.id;
         let ancestors = transaction.ancestors()?;
         for anc_id in ancestors {
-            self.state.add_successor(&anc_id, id)?;
+            self.state.add_transaction_successor(&anc_id, id)?;
         }
 
         Ok(())
@@ -244,7 +251,8 @@ impl<S: Store, P: Store> ProtocolState<S, P> {
         let tx_in_store = Transaction::lookup(&*self.store.lock().unwrap(), self.stage, tx_id)?;
 
         if tx_in_pool || tx_in_store {
-            let confidence = if let Some(successors) = self.state.get_successors(tx_id) {
+            let confidence = if let Some(successors) = self.state.get_transaction_successors(tx_id)
+            {
                 let mut confidence = 0;
 
                 for succ_id in successors {
