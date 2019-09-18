@@ -1555,6 +1555,20 @@ pub fn handle_transaction<
 
     let tx_id = transaction.id;
 
+    if transaction.is_eve()? && tx_id != state.lock().unwrap().state.eve_transaction_id {
+        let err = Error::InvalidTransaction;
+        return Err(err);
+    }
+
+    for input in transaction.inputs.values() {
+        if input.account.is_eve()?
+            && input.account.address() != state.lock().unwrap().state.eve_account_address
+        {
+            let err = Error::InvalidAccount;
+            return Err(err);
+        }
+    }
+
     // NB: state may have been cleared, so the first places to check are the stores
 
     if !Transaction::lookup(

@@ -242,14 +242,20 @@ impl<S: Store> Storable<S> for ConflictSet {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -276,14 +282,20 @@ impl<S: Store> Storable<S> for ConflictSet {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -310,14 +322,20 @@ impl<S: Store> Storable<S> for ConflictSet {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -352,7 +370,7 @@ impl<S: Store> Storable<S> for ConflictSet {
         store.update(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, values: &BTreeSet<Self>) -> Result<()> {
         let mut items = BTreeSet::new();
 
         for value in values {
@@ -378,7 +396,7 @@ impl<S: Store> Storable<S> for ConflictSet {
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &BTreeSet<Self::Key>) -> Result<()> {
         let mut _keys = BTreeSet::new();
         for key in keys {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
@@ -506,6 +524,8 @@ fn test_conflict_set_serialize_json() {
 
 #[test]
 fn test_conflict_set_storable() {
+    use crate::signers::Signers;
+    use crate::wallet::Wallet;
     use store::backend::BTreeStore;
     use store::memory::MemoryStoreFactory;
 
@@ -516,78 +536,89 @@ fn test_conflict_set_storable() {
 
     let stage = Stage::random().unwrap();
 
-    let items: Vec<(Address, ConflictSet)> = (0..10)
-        .map(|_| {
-            let addr = Address::random().unwrap();
-            (addr, ConflictSet::new(addr, stage))
-        })
-        .collect();
+    let wallet = Wallet::new(stage).unwrap();
+    let weight = 1;
+    let signer = wallet.to_signer(weight).unwrap();
+    let mut signers = Signers::new().unwrap();
+    signers.set_threshold(weight).unwrap();
+    signers.add(&signer).unwrap();
 
-    for (key, value) in &items {
-        let res = ConflictSet::count(&store, stage, Some(*key), None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 0);
+    let mut account = Account::new_eve(stage, &signers).unwrap();
+    let transaction = Transaction::new_eve(stage, &account.address()).unwrap();
 
-        let res = ConflictSet::query(&store, stage, Some(*key), None, None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap().len(), 0);
+    Transaction::create(&mut store, stage, &transaction).unwrap();
 
-        let res = ConflictSet::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
+    account.transaction_id = Some(transaction.id);
+    account.counter += 1;
 
-        let res = ConflictSet::get(&store, stage, &key);
-        assert!(res.is_err());
+    Account::create(&mut store, stage, &account).unwrap();
 
-        let res = ConflictSet::insert(&mut store, stage, &key, &value);
-        assert!(res.is_ok());
+    let address = account.address();
+    let cs = ConflictSet::new(address, stage);
 
-        let res = ConflictSet::count(&store, stage, Some(*key), None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 1);
+    let res = ConflictSet::count(&store, stage, Some(address), None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 0);
 
-        let res = ConflictSet::query(&store, stage, Some(*key), None, None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap().iter().next(), Some(value));
+    let res = ConflictSet::query(&store, stage, Some(address), None, None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().len(), 0);
 
-        let res = ConflictSet::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(found);
+    let res = ConflictSet::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
 
-        let res = ConflictSet::get(&store, stage, &key);
-        assert!(res.is_ok());
-        assert_eq!(&res.unwrap(), value);
+    let res = ConflictSet::get(&store, stage, &address);
+    assert!(res.is_err());
 
-        let res = <ConflictSet as Storable<BTreeStore>>::remove(&mut store, stage, &key);
-        assert!(res.is_ok());
+    let res = ConflictSet::insert(&mut store, stage, &cs);
+    assert!(res.is_ok());
 
-        let res = ConflictSet::count(&store, stage, Some(*key), None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 0);
+    let res = ConflictSet::count(&store, stage, Some(address), None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 1);
 
-        let res = ConflictSet::query(&store, stage, Some(*key), None, None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap().len(), 0);
+    let res = ConflictSet::query(&store, stage, Some(address), None, None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().iter().next(), Some(&cs));
 
-        let res = ConflictSet::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
+    let res = ConflictSet::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(found);
 
-        let res = ConflictSet::get(&store, stage, &key);
-        assert!(res.is_err());
+    let res = ConflictSet::get(&store, stage, &address);
+    assert!(res.is_ok());
+    assert_eq!(&res.unwrap(), &cs);
 
-        let res = ConflictSet::insert(&mut store, stage, &key, &value);
-        assert!(res.is_ok());
+    let res = <ConflictSet as Storable<BTreeStore>>::remove(&mut store, stage, &address);
+    assert!(res.is_ok());
 
-        let res = <ConflictSet as Storable<BTreeStore>>::clear(&mut store, stage);
-        assert!(res.is_ok());
+    let res = ConflictSet::count(&store, stage, Some(address), None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 0);
 
-        let res = ConflictSet::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
-    }
+    let res = ConflictSet::query(&store, stage, Some(address), None, None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().len(), 0);
+
+    let res = ConflictSet::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
+
+    let res = ConflictSet::get(&store, stage, &address);
+    assert!(res.is_err());
+
+    let res = ConflictSet::insert(&mut store, stage, &cs);
+    assert!(res.is_ok());
+
+    let res = <ConflictSet as Storable<BTreeStore>>::clear(&mut store, stage);
+    assert!(res.is_ok());
+
+    let res = ConflictSet::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
 }

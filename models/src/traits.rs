@@ -72,13 +72,13 @@ pub trait Storable<S: Store>: Sized {
     fn update(store: &mut S, stage: Stage, value: &Self) -> Result<()>;
 
     /// `insert_batch` inserts one or more model instances in the `Store`.
-    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()>;
+    fn insert_batch(store: &mut S, stage: Stage, values: &BTreeSet<Self>) -> Result<()>;
 
     /// `remove` removes a mode instance from the `Store`.
     fn remove(store: &mut S, stage: Stage, key: &Self::Key) -> Result<()>;
 
     /// `remove_batch` removes one or more model instances from the `Store`.
-    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()>;
+    fn remove_batch(store: &mut S, stage: Stage, keys: &BTreeSet<Self::Key>) -> Result<()>;
 
     /// `cleanup` clean ups the `Store` model instances.
     fn cleanup(store: &mut S, stage: Stage, min_time: Option<Timestamp>) -> Result<()>;

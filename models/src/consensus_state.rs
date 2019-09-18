@@ -484,14 +484,20 @@ impl<S: Store> Storable<S> for ConsensusState {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -518,14 +524,20 @@ impl<S: Store> Storable<S> for ConsensusState {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -552,14 +564,20 @@ impl<S: Store> Storable<S> for ConsensusState {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -594,7 +612,7 @@ impl<S: Store> Storable<S> for ConsensusState {
         store.update(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, values: &BTreeSet<Self>) -> Result<()> {
         let mut items = BTreeSet::new();
 
         for value in values {
@@ -620,7 +638,7 @@ impl<S: Store> Storable<S> for ConsensusState {
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &BTreeSet<Self::Key>) -> Result<()> {
         let mut _keys = BTreeSet::new();
         for key in keys {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
@@ -669,11 +687,10 @@ fn test_consensus_state_known_transactions_ops() {
     let eve_account_address = Address::random().unwrap();
     let eve_transaction_id = Digest::random().unwrap();
 
-    let address_len = 100;
     let mut seed = BTreeSet::new();
     for _ in 0..10 {
-        let address = Random::bytes(address_len).unwrap();
-        seed.insert(address);
+        let id = Digest::random().unwrap();
+        seed.insert(id);
     }
 
     let mut state =
@@ -718,11 +735,10 @@ fn test_consensus_state_queried_transactions_ops() {
     let eve_account_address = Address::random().unwrap();
     let eve_transaction_id = Digest::random().unwrap();
 
-    let address_len = 100;
     let mut seed = BTreeSet::new();
     for _ in 0..10 {
-        let address = Random::bytes(address_len).unwrap();
-        seed.insert(address);
+        let id = Digest::random().unwrap();
+        seed.insert(id);
     }
 
     let mut state =
@@ -780,11 +796,10 @@ fn test_consensus_state_transaction_conflict_sets_ops() {
     let eve_account_address = Address::random().unwrap();
     let eve_transaction_id = Digest::random().unwrap();
 
-    let address_len = 100;
     let mut seed = BTreeSet::new();
     for _ in 0..10 {
-        let address = Random::bytes(address_len).unwrap();
-        seed.insert(address);
+        let id = Digest::random().unwrap();
+        seed.insert(id);
     }
 
     let mut state =
@@ -837,11 +852,10 @@ fn test_consensus_state_transaction_chit_ops() {
     let eve_account_address = Address::random().unwrap();
     let eve_transaction_id = Digest::random().unwrap();
 
-    let address_len = 100;
     let mut seed = BTreeSet::new();
     for _ in 0..10 {
-        let address = Random::bytes(address_len).unwrap();
-        seed.insert(address);
+        let id = Digest::random().unwrap();
+        seed.insert(id);
     }
 
     let mut state =
@@ -894,11 +908,10 @@ fn test_consensus_state_transaction_confidence_ops() {
     let eve_account_address = Address::random().unwrap();
     let eve_transaction_id = Digest::random().unwrap();
 
-    let address_len = 100;
     let mut seed = BTreeSet::new();
     for _ in 0..10 {
-        let address = Random::bytes(address_len).unwrap();
-        seed.insert(address);
+        let id = Digest::random().unwrap();
+        seed.insert(id);
     }
 
     let mut state =
@@ -951,11 +964,10 @@ fn test_consensus_state_known_nodes_ops() {
     let eve_account_address = Address::random().unwrap();
     let eve_transaction_id = Digest::random().unwrap();
 
-    let address_len = 100;
     let mut seed = BTreeSet::new();
     for _ in 0..10 {
-        let address = Random::bytes(address_len).unwrap();
-        seed.insert(address);
+        let id = Digest::random().unwrap();
+        seed.insert(id);
     }
 
     let mut state =
@@ -1022,6 +1034,10 @@ fn test_consensus_state_serialize_json() {
 
 #[test]
 fn test_consensus_state_storable() {
+    use crate::account::Account;
+    use crate::signers::Signers;
+    use crate::transaction::Transaction;
+    use crate::wallet::Wallet;
     use crypto::random::Random;
     use store::backend::BTreeStore;
     use store::memory::MemoryStoreFactory;
@@ -1032,21 +1048,40 @@ fn test_consensus_state_storable() {
     let mut store = MemoryStoreFactory::new_btree(max_value_size, max_size).unwrap();
 
     let stage = Stage::random().unwrap();
-    let address_len = 100;
+
+    let wallet = Wallet::new(stage).unwrap();
+    let weight = 1;
+    let signer = wallet.to_signer(weight).unwrap();
+    let mut signers = Signers::new().unwrap();
+    signers.set_threshold(weight).unwrap();
+    signers.add(&signer).unwrap();
+
+    let mut account = Account::new_eve(stage, &signers).unwrap();
+    let transaction = Transaction::new_eve(stage, &account.address()).unwrap();
+
+    Transaction::create(&mut store, stage, &transaction).unwrap();
+
+    account.transaction_id = Some(transaction.id);
+    account.counter += 1;
+
+    Account::create(&mut store, stage, &account).unwrap();
+
+    let address = account.address();
+    let tx_id = transaction.id;
+
+    let node_address_len = 100;
 
     let items: Vec<(u64, ConsensusState)> = (0..10)
         .map(|id| {
-            let eve_account_address = Address::random().unwrap();
-            let eve_transaction_id = Digest::random().unwrap();
-
             let mut seed = BTreeSet::new();
             for _ in 0..10 {
-                let address = Random::bytes(address_len).unwrap();
-                seed.insert(address);
+                let node_address = Random::bytes(node_address_len).unwrap();
+                let node = Node::new(stage, &node_address);
+                Node::create(&mut store, stage, &node).unwrap();
+                seed.insert(node.id);
             }
 
-            let state =
-                ConsensusState::new(id, stage, &eve_account_address, &eve_transaction_id, &seed);
+            let state = ConsensusState::new(id, stage, &address, &tx_id, &seed);
 
             (id, state)
         })
@@ -1069,7 +1104,7 @@ fn test_consensus_state_storable() {
         let res = ConsensusState::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = ConsensusState::insert(&mut store, stage, &key, &value);
+        let res = ConsensusState::insert(&mut store, stage, &value);
         assert!(res.is_ok());
 
         let res = ConsensusState::count(&store, stage, Some(*key), None, None);
@@ -1108,15 +1143,34 @@ fn test_consensus_state_storable() {
         let res = ConsensusState::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = ConsensusState::insert(&mut store, stage, &key, &value);
-        assert!(res.is_ok());
+        ConsensusState::insert(&mut store, stage, &value).unwrap();
 
-        let res = <ConsensusState as Storable<BTreeStore>>::clear(&mut store, stage);
-        assert!(res.is_ok());
-
-        let res = ConsensusState::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
+        let count = ConsensusState::count(&store, stage, Some(*key), None, None).unwrap();
+        assert_eq!(count, 1);
     }
+
+    let count = ConsensusState::count(&store, stage, None, None, None).unwrap();
+
+    let max_key = count as u64;
+
+    let res = ConsensusState::cleanup(&mut store, stage, None);
+    assert!(res.is_ok());
+
+    assert!(res.is_ok());
+
+    let res = ConsensusState::lookup(&store, stage, &max_key);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(found);
+
+    let res = <ConsensusState as Storable<BTreeStore>>::clear(&mut store, stage);
+    assert!(res.is_ok());
+
+    let count = ConsensusState::count(&store, stage, None, None, None).unwrap();
+    assert_eq!(count, 0);
+
+    let res = ConsensusState::lookup(&store, stage, &max_key);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
 }

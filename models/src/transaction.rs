@@ -797,13 +797,6 @@ impl<S: Store> Storable<S> for Transaction {
 
         for input in value.inputs.values() {
             let account = input.account.clone();
-            let stored = Account::get(store, stage, &account.address())?;
-
-            if account != stored {
-                let err = Error::InvalidAccount;
-                return Err(err);
-            }
-
             Account::validate_single(store, stage, &account)?;
         }
 
@@ -841,14 +834,20 @@ impl<S: Store> Storable<S> for Transaction {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -875,14 +874,20 @@ impl<S: Store> Storable<S> for Transaction {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -909,14 +914,20 @@ impl<S: Store> Storable<S> for Transaction {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -927,6 +938,33 @@ impl<S: Store> Storable<S> for Transaction {
     fn insert(store: &mut S, stage: Stage, value: &Self) -> Result<()> {
         Self::validate_single(store, stage, value)?;
 
+        let mut stored_accounts = BTreeSet::new();
+        let mut clean_accounts = false;
+
+        for input in value.inputs.values() {
+            if !clean_accounts {
+                let account = input.account.clone();
+
+                if !Account::lookup(store, stage, &account.address())? {
+                    let res = Account::insert(store, stage, &account);
+
+                    if res.is_err() {
+                        clean_accounts = true;
+                    } else {
+                        stored_accounts.insert(account);
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+
+        if clean_accounts {
+            for account in stored_accounts {
+                Account::remove(store, stage, &account.address())?;
+            }
+        }
+
         let key = <Self as Storable<S>>::key(value);
         let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
         let store_value = value.to_bytes()?;
@@ -935,6 +973,33 @@ impl<S: Store> Storable<S> for Transaction {
 
     fn create(store: &mut S, stage: Stage, value: &Self) -> Result<()> {
         Self::validate_single(store, stage, value)?;
+
+        let mut stored_accounts = BTreeSet::new();
+        let mut clean_accounts = false;
+
+        for input in value.inputs.values() {
+            if !clean_accounts {
+                let account = input.account.clone();
+
+                if !Account::lookup(store, stage, &account.address())? {
+                    let res = Account::insert(store, stage, &account);
+
+                    if res.is_err() {
+                        clean_accounts = true;
+                    } else {
+                        stored_accounts.insert(account);
+                    }
+                }
+            } else {
+                break;
+            }
+        }
+
+        if clean_accounts {
+            for account in stored_accounts {
+                Account::remove(store, stage, &account.address())?;
+            }
+        }
 
         let key = <Self as Storable<S>>::key(value);
         let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
@@ -945,14 +1010,40 @@ impl<S: Store> Storable<S> for Transaction {
     fn update(store: &mut S, stage: Stage, value: &Self) -> Result<()> {
         Self::validate_single(store, stage, value)?;
 
+        let mut stored_accounts = BTreeSet::new();
+        let mut clean_accounts = false;
+
+        for input in value.inputs.values() {
+            if !clean_accounts {
+                let account = input.account.clone();
+
+                let res = <Account as Storable<S>>::update(store, stage, &account);
+
+                if res.is_err() {
+                    clean_accounts = true;
+                } else {
+                    stored_accounts.insert(account);
+                }
+            } else {
+                break;
+            }
+        }
+
+        if clean_accounts {
+            for account in stored_accounts {
+                Account::remove(store, stage, &account.address())?;
+            }
+        }
+
         let key = <Self as Storable<S>>::key(value);
         let store_key = <Self as Storable<S>>::key_to_bytes(stage, &key)?;
         let store_value = value.to_bytes()?;
         store.update(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, values: &BTreeSet<Self>) -> Result<()> {
         let mut items = BTreeSet::new();
+        let mut accounts = BTreeSet::new();
 
         for value in values {
             Self::validate_single(store, stage, value)?;
@@ -962,6 +1053,17 @@ impl<S: Store> Storable<S> for Transaction {
             let store_value = value.to_bytes()?;
             let item = (store_key, store_value);
             items.insert(item);
+
+            for input in value.inputs.values() {
+                let account = input.account.clone();
+                accounts.insert(account);
+            }
+        }
+
+        let res = Account::insert_batch(store, stage, &accounts);
+        if res.is_err() {
+            let addresses = accounts.iter().map(|account| account.address()).collect();
+            let _ = Account::remove_batch(store, stage, &addresses);
         }
 
         let items: Vec<(&[u8], &[u8])> = items
@@ -977,7 +1079,7 @@ impl<S: Store> Storable<S> for Transaction {
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &BTreeSet<Self::Key>) -> Result<()> {
         let mut _keys = BTreeSet::new();
         for key in keys {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
@@ -1568,7 +1670,7 @@ fn test_transaction_storable() {
         let res = Transaction::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Transaction::insert(&mut store, stage, &key, &value);
+        let res = Transaction::insert(&mut store, stage, &value);
         assert!(res.is_ok());
 
         let res = Transaction::count(&store, stage, Some(*key), None, None);
@@ -1607,7 +1709,7 @@ fn test_transaction_storable() {
         let res = Transaction::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = Transaction::insert(&mut store, stage, &key, &value);
+        let res = Transaction::insert(&mut store, stage, &value);
         assert!(res.is_ok());
 
         let res = Transaction::clear(&mut store, stage);

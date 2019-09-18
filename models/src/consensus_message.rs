@@ -842,14 +842,20 @@ impl<S: Store> Storable<S> for ConsensusMessage {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -876,14 +882,20 @@ impl<S: Store> Storable<S> for ConsensusMessage {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -910,14 +922,20 @@ impl<S: Store> Storable<S> for ConsensusMessage {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -952,7 +970,7 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         store.update(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, values: &BTreeSet<Self>) -> Result<()> {
         let mut items = BTreeSet::new();
 
         for value in values {
@@ -978,7 +996,7 @@ impl<S: Store> Storable<S> for ConsensusMessage {
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &BTreeSet<Self::Key>) -> Result<()> {
         let mut _keys = BTreeSet::new();
         for key in keys {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
@@ -1150,7 +1168,7 @@ fn test_consensus_message_storable() {
 
             let cons_msg =
                 ConsensusMessage::new_reply(&address, query_id, &node, tx_id, chit).unwrap();
-            (query_id, cons_msg)
+            (cons_msg.id(), cons_msg)
         })
         .collect();
 
@@ -1171,7 +1189,7 @@ fn test_consensus_message_storable() {
         let res = ConsensusMessage::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = ConsensusMessage::insert(&mut store, stage, &key, &value);
+        let res = ConsensusMessage::insert(&mut store, stage, &value);
         assert!(res.is_ok());
 
         let res = ConsensusMessage::count(&store, stage, Some(*key), None, None);
@@ -1210,7 +1228,7 @@ fn test_consensus_message_storable() {
         let res = ConsensusMessage::get(&store, stage, &key);
         assert!(res.is_err());
 
-        let res = ConsensusMessage::insert(&mut store, stage, &key, &value);
+        let res = ConsensusMessage::insert(&mut store, stage, &value);
         assert!(res.is_ok());
 
         let res = ConsensusMessage::clear(&mut store, stage);

@@ -146,7 +146,7 @@ fn test_store_new() {
     assert!(res.is_err());
 
     for kind in StoreConfig::VALID_KINDS.iter().copied() {
-        let res = StoreConfig::new(Some(kind.into()), None, None);
+        let res = StoreConfig::new(Some(kind.into()), None, None, None);
         assert!(res.is_ok());
     }
 }

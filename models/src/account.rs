@@ -88,28 +88,6 @@ impl Account {
         Ok(())
     }
 
-    /// `update` updates the `Account`.
-    pub fn update(
-        &self,
-        locktime: Option<Timestamp>,
-        amount: u64,
-        tx_id: Digest,
-    ) -> Result<Account> {
-        self.validate()?;
-
-        let mut new = self.clone();
-
-        if let Some(locktime) = locktime {
-            new.set_locktime(locktime)?;
-        }
-
-        new.amount = amount;
-        new.transaction_id = Some(tx_id);
-        new.counter += 1;
-
-        Ok(new)
-    }
-
     /// `validate` validates the `Account`.
     pub fn validate(&self) -> Result<()> {
         self.time.validate()?;
@@ -190,7 +168,18 @@ impl<S: Store> Storable<S> for Account {
     }
 
     fn validate_all(store: &S, stage: Stage) -> Result<()> {
+        let mut eve_count = 0;
+
         for value in Self::query(store, stage, None, None, None, None)? {
+            if value.is_eve()? {
+                eve_count += 1;
+            }
+
+            if eve_count > 1 {
+                let err = Error::InvalidAccount;
+                return Err(err);
+            }
+
             Self::validate_single(store, stage, &value)?;
         }
 
@@ -220,14 +209,20 @@ impl<S: Store> Storable<S> for Account {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -254,14 +249,20 @@ impl<S: Store> Storable<S> for Account {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -288,14 +289,20 @@ impl<S: Store> Storable<S> for Account {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _from = Digest::default();
+            _from[0] = stage as u8;
+            _from[1] = <Self as Storable<S>>::KEY_PREFIX;
+            Some(_from.to_vec())
         };
 
         let to = if let Some(ref key) = to {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
             Some(key)
         } else {
-            None
+            let mut _to = Digest::default();
+            _to[0] = stage as u8;
+            _to[1] = <Self as Storable<S>>::KEY_PREFIX + 1;
+            Some(_to.to_vec())
         };
 
         let from = from.as_ref().map(|from| from.as_slice());
@@ -330,7 +337,7 @@ impl<S: Store> Storable<S> for Account {
         store.update(&store_key, &store_value).map_err(|e| e.into())
     }
 
-    fn insert_batch(store: &mut S, stage: Stage, values: &[Self]) -> Result<()> {
+    fn insert_batch(store: &mut S, stage: Stage, values: &BTreeSet<Self>) -> Result<()> {
         let mut items = BTreeSet::new();
 
         for value in values {
@@ -356,7 +363,7 @@ impl<S: Store> Storable<S> for Account {
         store.remove(&key).map_err(|e| e.into())
     }
 
-    fn remove_batch(store: &mut S, stage: Stage, keys: &[Self::Key]) -> Result<()> {
+    fn remove_batch(store: &mut S, stage: Stage, keys: &BTreeSet<Self::Key>) -> Result<()> {
         let mut _keys = BTreeSet::new();
         for key in keys {
             let key = <Self as Storable<S>>::key_to_bytes(stage, key)?;
@@ -582,91 +589,104 @@ fn test_account_serialize_json() {
 
 #[test]
 fn test_account_storable() {
-    use crypto::random::Random;
+    use crate::wallet::Wallet;
     use store::memory::MemoryStoreFactory;
 
-    let max_amount_size = 1 << 10;
+    let max_value_size = 1 << 10;
     let max_size = 1 << 30;
 
-    let mut store = MemoryStoreFactory::new_unqlite(max_amount_size, max_size).unwrap();
+    let mut store = MemoryStoreFactory::new_unqlite(max_value_size, max_size).unwrap();
 
     let stage = Stage::random().unwrap();
 
-    let items: Vec<(Address, Account)> = (0..10)
-        .map(|_| {
-            let signers = Signers::new().unwrap();
-            let amount = Random::u64().unwrap();
-            let tx_id = Digest::random().unwrap();
-            let account = Account::new(stage, &signers, amount, Some(tx_id)).unwrap();
-            (account.address(), account)
-        })
-        .collect();
+    let wallet = Wallet::new(stage).unwrap();
+    let weight = 1;
+    let signer = wallet.to_signer(weight).unwrap();
+    let mut signers = Signers::new().unwrap();
+    signers.set_threshold(weight).unwrap();
+    signers.add(&signer).unwrap();
 
-    for (key, amount) in &items {
-        let res = Account::count(&store, stage, Some(*key), None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 0);
+    let mut account = Account::new_eve(stage, &signers).unwrap();
+    let transaction = Transaction::new_eve(stage, &account.address()).unwrap();
 
-        let res = Account::query(&store, stage, Some(*key), None, None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap().len(), 0);
+    Transaction::create(&mut store, stage, &transaction).unwrap();
 
-        let res = Account::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
+    account.transaction_id = Some(transaction.id);
+    account.counter += 1;
 
-        let res = Account::get(&store, stage, &key);
-        assert!(res.is_err());
+    let address = account.address();
 
-        let res = Account::insert(&mut store, stage, &key, &amount);
-        assert!(res.is_ok());
+    let res = Account::count(&store, stage, Some(address), None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 0);
 
-        let res = Account::count(&store, stage, Some(*key), None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 1);
-
-        let res = Account::query(&store, stage, Some(*key), None, None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap().iter().next(), Some(amount));
-
-        let res = Account::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(found);
-
-        let res = Account::get(&store, stage, &key);
-        assert!(res.is_ok());
-        assert_eq!(&res.unwrap(), amount);
-
-        let res = Account::remove(&mut store, stage, &key);
-        assert!(res.is_ok());
-
-        let res = Account::count(&store, stage, Some(*key), None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap(), 0);
-
-        let res = Account::query(&store, stage, Some(*key), None, None, None);
-        assert!(res.is_ok());
-        assert_eq!(res.unwrap().len(), 0);
-
-        let res = Account::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
-
-        let res = Account::get(&store, stage, &key);
-        assert!(res.is_err());
-
-        let res = Account::insert(&mut store, stage, &key, &amount);
-        assert!(res.is_ok());
-
-        let res = Account::clear(&mut store, stage);
-        assert!(res.is_ok());
-
-        let res = Account::lookup(&store, stage, &key);
-        assert!(res.is_ok());
-        let found = res.unwrap();
-        assert!(!found);
+    let res = Account::query(&store, stage, Some(address), None, None, None);
+    if res.is_err() {
+        println!("err: {:?}", &res);
+        panic!();
     }
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().len(), 0);
+
+    let res = Account::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
+
+    let res = Account::get(&store, stage, &address);
+    assert!(res.is_err());
+
+    let res = Account::insert(&mut store, stage, &account);
+    if res.is_err() {
+        println!("err: {:?}", &res);
+        panic!();
+    }
+    assert!(res.is_ok());
+
+    let res = Account::count(&store, stage, Some(address), None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 1);
+
+    let res = Account::query(&store, stage, Some(address), None, None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().iter().next(), Some(&account));
+
+    let res = Account::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(found);
+
+    let res = Account::get(&store, stage, &address);
+    assert!(res.is_ok());
+    assert_eq!(&res.unwrap(), &account);
+
+    let res = Account::remove(&mut store, stage, &address);
+    assert!(res.is_ok());
+
+    let res = Account::count(&store, stage, Some(address), None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), 0);
+
+    let res = Account::query(&store, stage, Some(address), None, None, None);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap().len(), 0);
+
+    let res = Account::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
+
+    let res = Account::get(&store, stage, &address);
+    assert!(res.is_err());
+
+    let res = Account::insert(&mut store, stage, &account);
+    assert!(res.is_ok());
+
+    let res = Account::clear(&mut store, stage);
+    assert!(res.is_ok());
+
+    let res = Account::lookup(&store, stage, &address);
+    assert!(res.is_ok());
+    let found = res.unwrap();
+    assert!(!found);
 }

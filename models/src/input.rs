@@ -67,7 +67,11 @@ impl Input {
         let distance = transaction.distance;
         let amount = output.amount;
 
-        let account = account.update(transaction.locktime, amount, transaction.id)?;
+        let mut account = account.clone();
+        account.locktime = transaction.locktime;
+        account.amount = amount;
+        account.transaction_id = Some(transaction.id);
+        account.counter += 1;
 
         Input::new(&account, distance, amount)
     }
