@@ -10,7 +10,7 @@ dependencies = [
 
 [[package]]
 name = "alsacoin"
-version = "0.1.0"
+version = "0.1.0-alpha"
 dependencies = [
  "cli 0.1.0",
  "config 0.1.0",

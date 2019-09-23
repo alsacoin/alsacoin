@@ -13,7 +13,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 /// Current Semver version of the library.
-pub const VERSION: &str = "0.1.0";
+pub const VERSION: &str = "0.1.0-alpha";
 
 /// Regex pattern of a numeric version.
 pub const NUMERIC_VERSION: &str = "^[0-9]*$";

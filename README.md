@@ -3,7 +3,7 @@
 [![Travis branch](https://img.shields.io/travis/alsacoin/alsacoin/master.svg)](https://travis-ci.org/alsacoin/alsacoin)
 ![License](https://img.shields.io/badge/License-MIT%2FApache--2.0-blue.svg)
 
-Rust client for the Alsacoin protocol.
+Rust client for the Alsacoin protocol. Still alpha. The protocol is under rewrite.
 
 ## License
 
